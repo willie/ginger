@@ -453,12 +453,25 @@ public partial class MainViewModel : ObservableObject
     private void RegenerateOutput()
     {
         var output = new System.Text.StringBuilder();
+        string charName = !string.IsNullOrEmpty(SpokenName) ? SpokenName : CharacterName;
+        string userName = !string.IsNullOrEmpty(UserPlaceholder) ? UserPlaceholder : "User";
+
+        // Helper to format text with placeholders
+        string FormatText(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return "";
+            // Clean and process the text
+            text = TextProcessing.CleanText(text);
+            text = TextProcessing.RemoveComments(text);
+            return text;
+        }
 
         // System prompt
         if (!string.IsNullOrEmpty(SystemPrompt) && FilterModelInstructions)
         {
             output.AppendLine("=== SYSTEM PROMPT ===");
-            output.AppendLine(SystemPrompt);
+            output.AppendLine(FormatText(SystemPrompt));
             output.AppendLine();
         }
 
@@ -466,7 +479,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(Persona))
         {
             output.AppendLine("=== PERSONA ===");
-            output.AppendLine(Persona);
+            output.AppendLine(FormatText(Persona));
             output.AppendLine();
         }
 
@@ -474,7 +487,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(Personality) && FilterPersonality)
         {
             output.AppendLine("=== PERSONALITY ===");
-            output.AppendLine(Personality);
+            output.AppendLine(FormatText(Personality));
             output.AppendLine();
         }
 
@@ -482,7 +495,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(Scenario) && FilterScenario)
         {
             output.AppendLine("=== SCENARIO ===");
-            output.AppendLine(Scenario);
+            output.AppendLine(FormatText(Scenario));
             output.AppendLine();
         }
 
@@ -490,7 +503,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(ExampleMessages) && FilterExample)
         {
             output.AppendLine("=== EXAMPLE MESSAGES ===");
-            output.AppendLine(ExampleMessages);
+            output.AppendLine(FormatText(ExampleMessages));
             output.AppendLine();
         }
 
@@ -498,7 +511,7 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrEmpty(Greeting) && FilterGreeting)
         {
             output.AppendLine("=== GREETING ===");
-            output.AppendLine(Greeting);
+            output.AppendLine(FormatText(Greeting));
             output.AppendLine();
         }
 
@@ -506,24 +519,24 @@ public partial class MainViewModel : ObservableObject
         if (Recipes.Count > 0)
         {
             output.AppendLine("=== RECIPES ===");
-            foreach (var recipe in Recipes)
+            foreach (var recipe in Recipes.Where(r => r.IsEnabled))
             {
                 if (!string.IsNullOrEmpty(recipe.Content))
                 {
                     output.AppendLine($"[{recipe.Name}]");
-                    output.AppendLine(recipe.Content);
+                    output.AppendLine(FormatText(recipe.Content));
                     output.AppendLine();
                 }
             }
         }
 
         OutputPreview = output.ToString();
-        RecipeCount = Recipes.Count;
-        LoreCount = LorebookEntries.Count;
+        RecipeCount = Recipes.Count(r => r.IsEnabled);
+        LoreCount = LorebookEntries.Count(e => e.IsEnabled);
 
-        // Rough token estimate (words / 0.75)
-        var words = OutputPreview.Split(new[] { ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length;
-        TokenCount = (int)(words / 0.75);
+        // Use the improved token estimation
+        TokenCount = TextProcessing.EstimateTokenCount(OutputPreview);
+        PermanentTokens = TokenCount; // For now, same as total
     }
 
     private void LoadFromCard(CharacterCard card)
