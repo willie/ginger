@@ -1,0 +1,673 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Ginger.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="Ginger.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding WindowTitle}"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="600">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="Expander">
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style Selector="Expander /template/ ToggleButton#PART_toggle">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Label">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top" FontSize="12">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N"/>
+                <Separator/>
+                <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="Ctrl+O"/>
+                <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}"/>
+                <Separator/>
+                <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S"/>
+                <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"/>
+                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
+                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Dark Mode">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding IsDarkMode}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Actors">
+                <MenuItem Header="Add Actor"/>
+                <MenuItem Header="Remove Actor"/>
+            </MenuItem>
+            <MenuItem Header="_Options">
+                <MenuItem Header="Allow NSFW"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Create Recipe"/>
+                <MenuItem Header="Create Snippet"/>
+                <Separator/>
+                <MenuItem Header="Reload Recipes" InputGesture="F5"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About Ginger" Command="{Binding AboutCommand}"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Status Bar -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                Padding="12,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="1" Text="{Binding TokenCount, StringFormat='Tokens: {0}'}" Margin="16,0" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="2" Text="{Binding LoreCount, StringFormat='Lore: {0}'}" Margin="16,0" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="3" Text="{Binding RecipeCount, StringFormat='Recipes: {0}'}" Margin="16,0" VerticalAlignment="Center" FontSize="11"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid ColumnDefinitions="360,*">
+
+            <!-- Left Sidebar -->
+            <Border Grid.Column="0" BorderThickness="0,0,1,0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,8">
+
+                        <!-- Portrait and Basic Info -->
+                        <Grid ColumnDefinitions="140,*" Margin="0,0,0,12">
+                            <!-- Portrait -->
+                            <Button Grid.Column="0"
+                                    Command="{Binding LoadPortraitCommand}"
+                                    Padding="0"
+                                    Background="#20808080"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                    BorderThickness="1"
+                                    Height="140" Width="140"
+                                    CornerRadius="2"
+                                    HorizontalContentAlignment="Stretch"
+                                    VerticalContentAlignment="Stretch"
+                                    ToolTip.Tip="Click to load portrait image. Drag &amp; drop also supported.">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Load Image..." Command="{Binding LoadPortraitCommand}"/>
+                                        <MenuItem Header="Clear" Command="{Binding ClearPortraitCommand}"/>
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                                <Panel>
+                                    <Image Source="{Binding PortraitImage}" Stretch="Uniform"/>
+                                    <StackPanel IsVisible="{Binding PortraitImage, Converter={x:Static ObjectConverters.IsNull}}"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                Spacing="4">
+                                        <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="24" Height="24"
+                                                  Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                        <TextBlock Text="Click to add&#x0a;portrait"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                   FontSize="10" TextAlignment="Center"/>
+                                    </StackPanel>
+                                </Panel>
+                            </Button>
+
+                            <!-- Card Name / Character Name / Gender -->
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="8">
+                                <StackPanel Spacing="2">
+                                    <Label Content="Card name"/>
+                                    <TextBox Text="{Binding CharacterName}" Watermark="Card name..."/>
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <Label Content="Character name (goes by)"/>
+                                    <TextBox Text="{Binding SpokenName}" Watermark="Unnamed"/>
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <Label Content="Gender"/>
+                                    <ComboBox ItemsSource="{Binding GenderOptions}"
+                                              SelectedItem="{Binding SelectedGender}"
+                                              PlaceholderText="(Not set)"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Card Information -->
+                        <Expander Header="Card information" IsExpanded="True">
+                            <StackPanel Spacing="8" Margin="0,8,0,0">
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <Label Content="Created by"/>
+                                        <TextBox Text="{Binding Creator}" Watermark="Your name here"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="2">
+                                        <Label Content="Version"/>
+                                        <TextBox Text="{Binding Version}" Watermark="1.0"/>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="2">
+                                    <Label Content="Tags"/>
+                                    <TextBox Text="{Binding Tags}" Watermark="Enter tags separated by comma"/>
+                                </StackPanel>
+                                <StackPanel Spacing="2">
+                                    <Label Content="Comment"/>
+                                    <TextBox Text="{Binding Comment}"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             Height="60"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- User / Point of View -->
+                        <Expander Header="User / Point of view" IsExpanded="True">
+                            <Grid ColumnDefinitions="*,8,*" Margin="0,8,0,0">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <Label Content="Placeholder name"/>
+                                    <TextBox Text="{Binding UserPlaceholder}" Watermark="User"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <Label Content="Gender"/>
+                                    <ComboBox ItemsSource="{Binding GenderOptions}"
+                                              SelectedItem="{Binding UserGender}"
+                                              PlaceholderText="(Not set)"/>
+                                </StackPanel>
+                            </Grid>
+                        </Expander>
+
+                        <!-- Output Format -->
+                        <Expander Header="Output format" IsExpanded="True">
+                            <StackPanel Spacing="8" Margin="0,8,0,0">
+                                <Grid ColumnDefinitions="*,8,*">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <Label Content="Text style"/>
+                                        <ComboBox ItemsSource="{Binding TextStyleOptions}"
+                                                  SelectedItem="{Binding SelectedTextStyle}"
+                                                  PlaceholderText="(Not set)"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="2">
+                                        <Label Content="Detail level"/>
+                                        <ComboBox ItemsSource="{Binding DetailLevelOptions}"
+                                                  SelectedItem="{Binding SelectedDetailLevel}"
+                                                  PlaceholderText="Normal detail"/>
+                                    </StackPanel>
+                                </Grid>
+                                <CheckBox Content="Use grammar" IsChecked="{Binding UseGrammar}"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Output Settings -->
+                        <Expander Header="Output settings" IsExpanded="True">
+                            <StackPanel Spacing="8" Margin="0,8,0,0">
+                                <Grid ColumnDefinitions="*,*">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <Label Content="User persona location"/>
+                                        <RadioButton Content="In Persona" IsChecked="{Binding UserPersonaInPersona}" GroupName="PersonaLocation"/>
+                                        <RadioButton Content="In Scenario" IsChecked="{Binding UserPersonaInScenario}" GroupName="PersonaLocation"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <Label Content="Options"/>
+                                        <CheckBox Content="Prune scenario" IsChecked="{Binding PruneScenario}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="2">
+                                    <Label Content="Filter"/>
+                                    <WrapPanel>
+                                        <CheckBox Content="Model instructions" IsChecked="{Binding FilterModelInstructions}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Attributes" IsChecked="{Binding FilterAttributes}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Personality" IsChecked="{Binding FilterPersonality}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Scenario" IsChecked="{Binding FilterScenario}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Greeting" IsChecked="{Binding FilterGreeting}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Example" IsChecked="{Binding FilterExample}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Lore" IsChecked="{Binding FilterLore}" Margin="0,0,12,4"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Statistics -->
+                        <Expander Header="Statistics" IsExpanded="False">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Tokens" FontSize="11"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TokenCount}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Permanent Tokens" FontSize="11"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PermanentTokens}" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Lore Entries" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LoreCount}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Recipes" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RecipeCount}" FontSize="11"/>
+                            </Grid>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Right Content Area -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
+
+                <!-- Recipe Category Toolbar -->
+                <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        Padding="8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <!-- Model Recipes -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding ModelRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" Width="32" Height="32"/>
+                                <TextBlock Text="Model" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Character Recipes -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding CharacterRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" Width="32" Height="32"/>
+                                <TextBlock Text="Character" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Personality/Traits Recipes -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding TraitRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z" Width="32" Height="32"/>
+                                <TextBlock Text="Traits" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Mind/Personality Recipes -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding PersonalityRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M12,3C10.73,3 9.6,3.8 9.18,5H6V7H9.18C9.6,8.2 10.73,9 12,9C13.27,9 14.4,8.2 14.82,7H18V5H14.82C14.4,3.8 13.27,3 12,3M12,5A1,1 0 0,1 13,6A1,1 0 0,1 12,7A1,1 0 0,1 11,6A1,1 0 0,1 12,5M6,11V13H9.18C9.6,14.2 10.73,15 12,15C13.27,15 14.4,14.2 14.82,13H18V11H14.82C14.4,9.8 13.27,9 12,9C10.73,9 9.6,9.8 9.18,11H6M12,11A1,1 0 0,1 13,12A1,1 0 0,1 12,13A1,1 0 0,1 11,12A1,1 0 0,1 12,11M6,17V19H9.18C9.6,20.2 10.73,21 12,21C13.27,21 14.4,20.2 14.82,19H18V17H14.82C14.4,15.8 13.27,15 12,15C10.73,15 9.6,15.8 9.18,17H6M12,17A1,1 0 0,1 13,18A1,1 0 0,1 12,19A1,1 0 0,1 11,18A1,1 0 0,1 12,17Z" Width="32" Height="32"/>
+                                <TextBlock Text="Mind" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Story Recipes -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding StoryRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M19,1L17.74,3.75L15,5L17.74,6.26L19,9L20.25,6.26L23,5L20.25,3.75M9,4L6.5,9.5L1,12L6.5,14.5L9,20L11.5,14.5L17,12L11.5,9.5M19,15L17.74,17.74L15,19L17.74,20.25L19,23L20.25,20.25L23,19L20.25,17.74" Width="32" Height="32"/>
+                                <TextBlock Text="Story" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Width="1" Fill="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="6,8"/>
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M3,3H11V11H3V3M3,13H11V21H3V13M13,3H21V11H13V3M13,13H21V21H13V13M5,5V9H9V5H5M5,15V19H9V15H5M15,5V9H19V5H15M15,15V19H19V15H15Z" Width="32" Height="32"/>
+                                <TextBlock Text="Components" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M6,4H8V6H6V4M10,4H12V6H10V4M14,4H16V6H14V4M18,4H20V6H18V4M6,8H8V10H6V8M10,8H12V10H10V8M14,8H16V10H14V8M18,8H20V10H18V8M6,12H8V14H6V12M10,12H12V14H10V12M14,12H16V14H14V12M18,12H20V14H18V12M6,16H8V18H6V16M10,16H12V18H10V16M14,16H16V18H14V16M18,16H20V18H18V16" Width="32" Height="32"/>
+                                <TextBlock Text="Lore" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Rectangle Width="1" Fill="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="6,8"/>
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0"
+                                Command="{Binding AddRecipeCommand}">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="32" Height="32"/>
+                                <TextBlock Text="Add" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tab Content with Vertical Tabs -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+
+                    <!-- Content Area -->
+                    <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
+                        <Panel>
+                            <!-- Recipe Tab Content -->
+                            <ScrollViewer IsVisible="{Binding IsRecipeTabActive}">
+                                <ItemsControl ItemsSource="{Binding Recipes}" Margin="12">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Margin="0,0,0,8"
+                                                    Padding="0">
+                                                <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
+                                                    <Expander.Header>
+                                                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,8,0">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                                                <Button Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" Background="Transparent">
+                                                                    <PathIcon Data="M7,15L12,10L17,15H7Z" Width="12" Height="12"/>
+                                                                </Button>
+                                                                <Button Command="{Binding MoveDownCommand}" Padding="4,2" FontSize="10" Background="Transparent">
+                                                                    <PathIcon Data="M7,10L12,15L17,10H7Z" Width="12" Height="12"/>
+                                                                </Button>
+                                                                <Button Command="{Binding RemoveCommand}" Padding="4,2" FontSize="10" Background="Transparent">
+                                                                    <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="12" Height="12"/>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Expander.Header>
+                                                    <TextBox Text="{Binding Content}"
+                                                             AcceptsReturn="True"
+                                                             TextWrapping="Wrap"
+                                                             MinHeight="80"
+                                                             Margin="12,0,12,12"
+                                                             Watermark="Recipe content..."
+                                                             FontSize="12"
+                                                             FontFamily="Consolas,Menlo,Monaco,monospace"/>
+                                                </Expander>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Output Tab Content -->
+                            <TextBox Text="{Binding OutputPreview}"
+                                     IsVisible="{Binding IsOutputTabActive}"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     Margin="12"
+                                     FontSize="12"
+                                     FontFamily="Consolas,Menlo,Monaco,monospace"/>
+
+                            <!-- Notes Tab Content -->
+                            <TextBox Text="{Binding Notes}"
+                                     IsVisible="{Binding IsNotesTabActive}"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     Watermark="Your notes..."
+                                     Margin="12"
+                                     FontSize="12"/>
+
+                            <!-- Lorebook Tab Content -->
+                            <DockPanel IsVisible="{Binding IsLorebookTabActive}">
+                                <Border DockPanel.Dock="Top" Padding="12,8"
+                                        BorderThickness="0,0,0,1"
+                                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Lorebook Entries" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Command="{Binding AddLorebookEntryCommand}"
+                                                Padding="8,4" FontSize="11">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
+                                                <TextBlock Text="Add Entry"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                                <ScrollViewer>
+                                    <ItemsControl ItemsSource="{Binding LorebookEntries}" Margin="12">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Margin="0,0,0,8"
+                                                        Padding="0">
+                                                    <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
+                                                        <Expander.Header>
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,8,0">
+                                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
+                                                                          Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Keys}" FontWeight="SemiBold" FontSize="12"
+                                                                               IsVisible="{Binding Keys, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                    <TextBlock Text="(no keys)" FontStyle="Italic" FontSize="11" Opacity="0.6"
+                                                                               IsVisible="{Binding Keys, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+                                                                    <Button Command="{Binding MoveUpCommand}" Padding="4,2" Background="Transparent">
+                                                                        <PathIcon Data="M7,15L12,10L17,15H7Z" Width="12" Height="12"/>
+                                                                    </Button>
+                                                                    <Button Command="{Binding MoveDownCommand}" Padding="4,2" Background="Transparent">
+                                                                        <PathIcon Data="M7,10L12,15L17,10H7Z" Width="12" Height="12"/>
+                                                                    </Button>
+                                                                    <Button Command="{Binding RemoveCommand}" Padding="4,2" Background="Transparent">
+                                                                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="12" Height="12"/>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Expander.Header>
+                                                        <StackPanel Margin="12,0,12,12" Spacing="8">
+                                                            <StackPanel Spacing="2">
+                                                                <Label Content="Trigger Keys (comma separated)" FontSize="11"/>
+                                                                <TextBox Text="{Binding Keys}" Watermark="character name, location, item..."
+                                                                         FontSize="12"/>
+                                                            </StackPanel>
+                                                            <StackPanel Spacing="2">
+                                                                <Label Content="Content" FontSize="11"/>
+                                                                <TextBox Text="{Binding Content}"
+                                                                         AcceptsReturn="True"
+                                                                         TextWrapping="Wrap"
+                                                                         MinHeight="80"
+                                                                         Watermark="Information to inject when keys are mentioned..."
+                                                                         FontSize="12"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Expander>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Panel>
+                    </Border>
+
+                    <!-- Vertical Tabs -->
+                    <Border Grid.Column="1"
+                            Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                            BorderThickness="1,0,0,0"
+                            BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                            Width="28">
+                        <StackPanel VerticalAlignment="Top">
+                            <Button Command="{Binding ShowRecipeTabCommand}"
+                                    Background="{Binding IsRecipeTabActive, Converter={StaticResource TabActiveConverter}}"
+                                    Width="28" Height="70"
+                                    Padding="0"
+                                    CornerRadius="0"
+                                    BorderThickness="0">
+                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
+                                    <Panel.RenderTransform>
+                                        <RotateTransform Angle="90"/>
+                                    </Panel.RenderTransform>
+                                    <TextBlock Text="Recipe" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Panel>
+                            </Button>
+                            <Button Command="{Binding ShowOutputTabCommand}"
+                                    Background="{Binding IsOutputTabActive, Converter={StaticResource TabActiveConverter}}"
+                                    Width="28" Height="70"
+                                    Padding="0"
+                                    CornerRadius="0"
+                                    BorderThickness="0">
+                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
+                                    <Panel.RenderTransform>
+                                        <RotateTransform Angle="90"/>
+                                    </Panel.RenderTransform>
+                                    <TextBlock Text="Output" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Panel>
+                            </Button>
+                            <Button Command="{Binding ShowNotesTabCommand}"
+                                    Background="{Binding IsNotesTabActive, Converter={StaticResource TabActiveConverter}}"
+                                    Width="28" Height="70"
+                                    Padding="0"
+                                    CornerRadius="0"
+                                    BorderThickness="0">
+                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
+                                    <Panel.RenderTransform>
+                                        <RotateTransform Angle="90"/>
+                                    </Panel.RenderTransform>
+                                    <TextBlock Text="Notes" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Panel>
+                            </Button>
+                            <Button Command="{Binding ShowLorebookTabCommand}"
+                                    Background="{Binding IsLorebookTabActive, Converter={StaticResource TabActiveConverter}}"
+                                    Width="28" Height="70"
+                                    Padding="0"
+                                    CornerRadius="0"
+                                    BorderThickness="0">
+                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
+                                    <Panel.RenderTransform>
+                                        <RotateTransform Angle="90"/>
+                                    </Panel.RenderTransform>
+                                    <TextBlock Text="Lore" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Panel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>
