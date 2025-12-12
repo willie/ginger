@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.PasteTextDialog"
+        Title="Paste Text"
+        Width="600"
+        Height="450"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="True"
+        MinWidth="400"
+        MinHeight="300">
+
+    <Grid Margin="20" RowDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="Paste character data (JSON, YAML, or plain text):"
+                   Margin="0,0,0,8"/>
+
+        <TextBox Grid.Row="1" x:Name="TextContent"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Watermark="Paste content here..."
+                 FontFamily="Consolas,Menlo,Monaco,monospace"
+                 FontSize="12"
+                 Margin="0,0,0,12"/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="PasteButton" Content="Paste from Clipboard" Width="150"
+                    Click="PasteButton_Click"/>
+            <Button x:Name="OkButton" Content="Import" Width="80"
+                    Click="OkButton_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80"
+                    Click="CancelButton_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

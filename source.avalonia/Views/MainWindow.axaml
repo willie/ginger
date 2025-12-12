@@ -58,6 +58,8 @@
                 <Separator/>
                 <MenuItem Header="_Import">
                     <MenuItem Header="Import from _Folder..." Command="{Binding ImportFromFolderCommand}"/>
+                    <MenuItem Header="Import from _URL..." Command="{Binding ImportFromUrlCommand}"/>
+                    <MenuItem Header="Import from _Clipboard..." Command="{Binding ImportFromClipboardCommand}"/>
                 </MenuItem>
                 <MenuItem Header="_Export">
                     <MenuItem Header="Export _As..." Command="{Binding ExportAsCommand}" InputGesture="Ctrl+E"/>

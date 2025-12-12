@@ -1908,6 +1908,109 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ImportFromUrl()
+    {
+        var (success, url) = await _dialogService.ShowEnterUrlDialogAsync(
+            "Import from URL",
+            "Enter the URL of a character card (PNG, JSON, or YAML):");
+
+        if (!success || string.IsNullOrEmpty(url))
+            return;
+
+        StatusMessage = $"Downloading from {url}...";
+
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
+            var response = await client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsByteArrayAsync();
+            var tempPath = Path.GetTempFileName();
+
+            // Determine extension from URL or content type
+            var ext = Path.GetExtension(new Uri(url).AbsolutePath).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext))
+            {
+                var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
+                ext = contentType switch
+                {
+                    "image/png" => ".png",
+                    "application/json" => ".json",
+                    "text/yaml" or "application/x-yaml" => ".yaml",
+                    _ => ".png"
+                };
+            }
+
+            var filePath = Path.ChangeExtension(tempPath, ext);
+            await File.WriteAllBytesAsync(filePath, content);
+
+            // Try to load the downloaded file
+            var (result, card) = await _cardService.LoadAsync(filePath);
+            if (result == CharacterCardService.LoadResult.Success && card != null)
+            {
+                LoadFromCard(card);
+                _currentFilePath = null; // Don't keep temp path
+                StatusMessage = $"Imported: {CharacterName}";
+            }
+            else
+            {
+                StatusMessage = $"Failed to parse downloaded file: {result}";
+            }
+
+            // Clean up temp file
+            try { File.Delete(filePath); } catch { }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Download failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportFromClipboard()
+    {
+        var (success, text) = await _dialogService.ShowPasteTextDialogAsync();
+
+        if (!success || string.IsNullOrEmpty(text))
+            return;
+
+        StatusMessage = "Parsing pasted content...";
+
+        try
+        {
+            // Try to parse as JSON first
+            CharacterCard? card = null;
+
+            if (text.TrimStart().StartsWith("{"))
+            {
+                // Looks like JSON
+                card = _cardService.ParseFromJson(text);
+            }
+            else if (text.TrimStart().StartsWith("name:") || text.Contains("\nname:"))
+            {
+                // Looks like YAML
+                card = _cardService.ParseFromYaml(text);
+            }
+
+            if (card != null)
+            {
+                LoadFromCard(card);
+                _currentFilePath = null;
+                StatusMessage = $"Imported from clipboard: {CharacterName}";
+            }
+            else
+            {
+                StatusMessage = "Could not parse pasted content as character data";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Parse failed: {ex.Message}";
+        }
+    }
+
     #endregion
 }
 

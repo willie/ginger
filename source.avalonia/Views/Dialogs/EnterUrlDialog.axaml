@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.EnterUrlDialog"
+        Title="Enter URL"
+        Width="500"
+        Height="180"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False">
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0" x:Name="PromptText" Text="Enter URL:"
+                   Margin="0,0,0,8"/>
+
+        <TextBox Grid.Row="1" x:Name="UrlTextBox"
+                 Watermark="https://..."
+                 Margin="0,0,0,8"/>
+
+        <TextBlock Grid.Row="2" x:Name="ErrorText"
+                   Foreground="Red"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   IsVisible="False"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="OkButton" Content="OK" Width="80"
+                    Click="OkButton_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80"
+                    Click="CancelButton_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -357,6 +357,42 @@ public class DialogService
             return (true, dialog.Assets, dialog.Changed);
         return (false, null, false);
     }
+
+    /// <summary>
+    /// Show a URL input dialog.
+    /// </summary>
+    public async Task<(bool success, string url)> ShowEnterUrlDialogAsync(string title = "Enter URL", string prompt = "Enter the URL:", string defaultUrl = "")
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, "");
+
+        var dialog = new Views.Dialogs.EnterUrlDialog(title, prompt);
+        if (!string.IsNullOrEmpty(defaultUrl))
+            dialog.SetDefaultUrl(defaultUrl);
+
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.EnteredUrl);
+    }
+
+    /// <summary>
+    /// Show a paste text dialog for importing character data.
+    /// </summary>
+    public async Task<(bool success, string text)> ShowPasteTextDialogAsync(string? initialText = null)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, "");
+
+        var dialog = new Views.Dialogs.PasteTextDialog();
+        if (!string.IsNullOrEmpty(initialText))
+            dialog.SetContent(initialText);
+
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.PastedText);
+    }
 }
 
 /// <summary>

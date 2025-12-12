@@ -645,4 +645,72 @@ public class CharacterCardService
             }
         });
     }
+
+    /// <summary>
+    /// Parse a character card from JSON string.
+    /// </summary>
+    public CharacterCard? ParseFromJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        try
+        {
+            // Try TavernCardV3 format first
+            var tavernV3 = TavernCardV3.FromJson(json, out _);
+            if (tavernV3 != null)
+                return CharacterCard.FromTavernV3(tavernV3);
+
+            // Try TavernCardV2 format
+            var tavernV2 = TavernCardV2.FromJson(json, out _);
+            if (tavernV2 != null)
+                return CharacterCard.FromTavernV2(tavernV2);
+
+            // Try Agnaistic format
+            if (AgnaisticCard.Validate(json))
+            {
+                var agn = AgnaisticCard.FromJson(json, out _);
+                if (agn != null)
+                    return CharacterCard.FromAgnaistic(agn);
+            }
+
+            // Try Pygmalion format
+            var pyg = PygmalionCard.FromJson(json);
+            if (pyg != null)
+                return pyg.ToCharacterCard();
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Parse a character card from YAML string.
+    /// </summary>
+    public CharacterCard? ParseFromYaml(string yaml)
+    {
+        if (string.IsNullOrWhiteSpace(yaml))
+            return null;
+
+        try
+        {
+            var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+                .IgnoreUnmatchedProperties()
+                .Build();
+
+            // Try to deserialize as TavernCardV2
+            var tavern = deserializer.Deserialize<TavernCardV2>(yaml);
+            if (tavern != null && !string.IsNullOrEmpty(tavern.data?.name))
+                return CharacterCard.FromTavernV2(tavern);
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

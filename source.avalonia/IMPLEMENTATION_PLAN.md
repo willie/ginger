@@ -1,6 +1,6 @@
 # Ginger Avalonia Port - 100% Parity Implementation Plan
 
-## Current Status: ~60% Complete
+## Current Status: ~65% Complete
 
 ### What Works
 - Core generation engine (Generator.cs)
@@ -8,12 +8,12 @@
 - Basic character editing UI
 - All character card formats (TavernV2, TavernV3, Ginger, Agnaistic, Pygmalion, Faraday, TextGenWebUI, CHARX, BYAF)
 - Export to multiple formats (PNG, JSON, YAML, CHARX, BYAF)
-- 13 dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, etc.)
+- 15 dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterUrlDialog, PasteTextDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, etc.)
 - Backyard connection with Push/Pull sync
 - AppSettings with JSON persistence
 
 ### Remaining Gaps
-- 6 dialogs still missing
+- 4 dialogs still missing (EditModelSettingsDialog, LinkEditChatDialog, etc.)
 - No chat log support
 - BulkExporter/BulkImporter not yet implemented
 
@@ -240,7 +240,7 @@ Copy from original:
 ### Week 2: Backyard Completion
 7. [x] Implement PushChanges command
 8. [x] Implement PullChanges command
-9. [ ] Implement full import in BrowseBackyard
+9. [x] Implement full import in BrowseBackyard
 10. [ ] Copy and adapt BulkExporter
 11. [ ] Copy and adapt BulkImporter
 
