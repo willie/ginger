@@ -1,21 +1,28 @@
 # Ginger Avalonia Port - 100% Parity Implementation Plan
 
-## Current Status: ~70% Complete
+## Current Status: ~85% Complete
 
 ### What Works
 - Core generation engine (Generator.cs)
 - Recipe system with all 173 recipe files
-- Basic character editing UI
+- Full character editing UI with all major fields
 - All character card formats (TavernV2, TavernV3, Ginger, Agnaistic, Pygmalion, Faraday, TextGenWebUI, CHARX, BYAF)
 - Export to multiple formats (PNG, JSON, YAML, CHARX, BYAF)
-- 15 dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterUrlDialog, PasteTextDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, etc.)
+- 17+ dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterUrlDialog, PasteTextDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, WriteDialog, GenderSwapDialog, BackyardBrowserDialog, etc.)
 - Backyard connection with Push/Pull sync and bulk export
 - AppSettings with JSON persistence
+- Recipe copy/paste with context menu
+- Lorebook import/export and copy/paste
+- Token counter in status bar
+- Extended text editing (WriteDialog) with pronoun swap
+- Duplicate character command (Ctrl+D)
+- Import from URL and clipboard
 
 ### Remaining Gaps
-- 4 dialogs still missing (EditModelSettingsDialog, LinkEditChatDialog, etc.)
+- 2-3 dialogs still missing (EditModelSettingsDialog, LinkEditChatDialog)
 - No chat log support
 - Spell checking not wired to UI (service exists)
+- BulkImporter for batch Backyard import
 
 ---
 
@@ -241,7 +248,7 @@ Copy from original:
 7. [x] Implement PushChanges command
 8. [x] Implement PullChanges command
 9. [x] Implement full import in BrowseBackyard
-10. [ ] Copy and adapt BulkExporter
+10. [x] Copy and adapt BulkExporter (ExportAllBackyard)
 11. [ ] Copy and adapt BulkImporter
 
 ### Week 3: Missing Dialogs
@@ -249,13 +256,16 @@ Copy from original:
 13. [x] Create RearrangeActorsDialog
 14. [x] Create AssetViewDialog
 15. [x] Wire dialogs to menu commands
+16. [x] Create WriteDialog for extended editing
+17. [x] Create EnterUrlDialog
+18. [x] Create PasteTextDialog
 
 ### Week 4: Chat & Polish
-16. [ ] Implement BackyardChatV2
-17. [ ] Implement GingerChatV2
-18. [ ] Wire spell checking
-19. [ ] Add token counter
-20. [ ] Implement clipboard system
+19. [ ] Implement BackyardChatV2
+20. [ ] Implement GingerChatV2
+21. [ ] Wire spell checking
+22. [x] Add token counter
+23. [x] Implement clipboard system (Recipe + Lorebook copy/paste)
 
 ---
 
@@ -286,23 +296,23 @@ source/src/Interface/Forms/Dialogs/AssetViewDialog.cs → AXAML
 ## Success Criteria for 100% Parity
 
 ### Must Have
-- [ ] All character card formats load correctly
-- [ ] All character card formats save correctly
-- [ ] Backyard Push/Pull work end-to-end
-- [ ] All 19 dialogs implemented
-- [ ] Settings persist between sessions
-- [ ] Multi-actor characters work
+- [x] All character card formats load correctly
+- [x] All character card formats save correctly
+- [x] Backyard Push/Pull work end-to-end
+- [~] All 19 dialogs implemented (17+ done)
+- [x] Settings persist between sessions
+- [x] Multi-actor characters work
 
 ### Should Have
 - [ ] Chat log import/export
 - [ ] Spell checking works
-- [ ] Token counting works
-- [ ] Clipboard copy/paste works
+- [x] Token counting works
+- [x] Clipboard copy/paste works (Recipe + Lorebook)
 
 ### Nice to Have
 - [ ] Update checker
 - [ ] Syntax highlighting
-- [ ] All keyboard shortcuts
+- [x] Most keyboard shortcuts (Ctrl+N/O/S/D/L/F/H/Z/Y)
 
 ---
 
