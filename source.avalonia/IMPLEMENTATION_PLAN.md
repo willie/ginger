@@ -15,7 +15,7 @@
 ### Remaining Gaps
 - 4 dialogs still missing (EditModelSettingsDialog, LinkEditChatDialog, etc.)
 - No chat log support
-- BulkExporter/BulkImporter not yet implemented
+- Spell checking not wired to UI (service exists)
 
 ---
 
