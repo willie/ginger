@@ -80,8 +80,20 @@
                 <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
                 <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
                 <Separator/>
+                <MenuItem Header="Copy All _Recipes" Command="{Binding CopyAllRecipesCommand}" InputGesture="Ctrl+Shift+C"/>
+                <MenuItem Header="_Paste Recipes" Command="{Binding PasteRecipesCommand}" InputGesture="Ctrl+Shift+V"/>
+                <Separator/>
                 <MenuItem Header="_Load Portrait..." Command="{Binding LoadPortraitCommand}" InputGesture="Ctrl+L"/>
                 <MenuItem Header="_Clear Portrait" Command="{Binding ClearPortraitCommand}"/>
+                <Separator/>
+                <MenuItem Header="Edit in _Window">
+                    <MenuItem Header="_Persona..." Command="{Binding EditPersonaCommand}"/>
+                    <MenuItem Header="Perso_nality..." Command="{Binding EditPersonalityCommand}"/>
+                    <MenuItem Header="_Scenario..." Command="{Binding EditScenarioCommand}"/>
+                    <MenuItem Header="_Greeting..." Command="{Binding EditGreetingCommand}"/>
+                    <MenuItem Header="_Example Messages..." Command="{Binding EditExampleMessagesCommand}"/>
+                    <MenuItem Header="S_ystem Prompt..." Command="{Binding EditSystemPromptCommand}"/>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Dark Mode" Command="{Binding ToggleDarkModeCommand}">
@@ -97,6 +109,13 @@
                 <Separator/>
                 <MenuItem Header="_Rearrange Actors..." Command="{Binding RearrangeActorsCommand}"
                           IsEnabled="{Binding CanRemoveActor}"/>
+            </MenuItem>
+            <MenuItem Header="_Lorebook">
+                <MenuItem Header="_Import Lorebook..." Command="{Binding ImportLorebookCommand}"/>
+                <MenuItem Header="_Export Lorebook..." Command="{Binding ExportLorebookCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Copy All Entries" Command="{Binding CopyLorebookCommand}"/>
+                <MenuItem Header="_Paste Entries" Command="{Binding PasteLorebookCommand}"/>
             </MenuItem>
             <MenuItem Header="_Options">
                 <MenuItem Header="Allow NSFW" Command="{Binding ToggleNsfwCommand}">
@@ -526,6 +545,16 @@
                                                     CornerRadius="4"
                                                     Margin="0,0,0,8"
                                                     Padding="0">
+                                                <Border.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="Copy Recipe" Command="{Binding CopyCommand}"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Move Up" Command="{Binding MoveUpCommand}"/>
+                                                        <MenuItem Header="Move Down" Command="{Binding MoveDownCommand}"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Remove" Command="{Binding RemoveCommand}"/>
+                                                    </ContextMenu>
+                                                </Border.ContextMenu>
                                                 <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
                                                     <Expander.Header>
                                                         <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,8,0">

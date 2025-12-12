@@ -1,0 +1,65 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.WriteDialog"
+        Title="Extended Editor"
+        Width="700" Height="500"
+        MinWidth="400" MinHeight="300"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+        <!-- Menu Bar -->
+        <Menu Grid.Row="0">
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" Click="Undo_Click" InputGesture="Ctrl+Z"/>
+                <MenuItem Header="_Redo" Click="Redo_Click" InputGesture="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="Cu_t" Click="Cut_Click" InputGesture="Ctrl+X"/>
+                <MenuItem Header="_Copy" Click="Copy_Click" InputGesture="Ctrl+C"/>
+                <MenuItem Header="_Paste" Click="Paste_Click" InputGesture="Ctrl+V"/>
+                <Separator/>
+                <MenuItem Header="Select _All" Click="SelectAll_Click" InputGesture="Ctrl+A"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Word Wrap" x:Name="WordWrapMenuItem" Click="WordWrap_Click">
+                    <MenuItem.Icon>
+                        <CheckBox x:Name="WordWrapCheck" IsChecked="True" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Search">
+                <MenuItem Header="_Find..." Click="Find_Click" InputGesture="Ctrl+F"/>
+                <MenuItem Header="Find and _Replace..." Click="FindReplace_Click" InputGesture="Ctrl+H"/>
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Swap _Pronouns..." Click="SwapPronouns_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Text Editor -->
+        <TextBox Grid.Row="1" x:Name="TextEditor"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 TextWrapping="Wrap"
+                 Margin="8"
+                 FontFamily="Consolas, Monaco, Menlo, monospace"
+                 FontSize="13"/>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                Padding="8,4">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="StatusText" FontSize="11" Opacity="0.7"/>
+                <TextBlock Grid.Column="1" x:Name="CharCount" FontSize="11" Opacity="0.7"/>
+            </Grid>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="8" Spacing="8">
+            <Button Content="OK" Width="80" Click="Ok_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

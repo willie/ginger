@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -103,6 +107,27 @@ public partial class RecipeViewModel : ObservableObject
     {
         IsExpanded = !IsExpanded;
     }
+
+    [RelayCommand]
+    private async Task CopyAsync()
+    {
+        if (_sourceRecipe == null) return;
+
+        var clipboard = RecipeClipboard.FromRecipes(new[] { _sourceRecipe });
+        var json = JsonSerializer.Serialize(clipboard);
+
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var topLevel = desktop.MainWindow;
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(json);
+                _parent.SetStatusMessage("Recipe copied to clipboard");
+            }
+        }
+    }
+
+    public Recipe? GetSourceRecipe() => _sourceRecipe;
 
     public void NotifyParameterChanged()
     {

@@ -393,6 +393,25 @@ public class DialogService
 
         return (dialog.DialogResult, dialog.PastedText);
     }
+
+    /// <summary>
+    /// Show the extended write/edit dialog.
+    /// </summary>
+    public async Task<(bool success, string text)> ShowWriteDialogAsync(string initialText = "", string? title = null)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, "");
+
+        var dialog = new Views.Dialogs.WriteDialog();
+        if (!string.IsNullOrEmpty(title))
+            dialog.Title = title;
+        dialog.Value = initialText;
+
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.Value);
+    }
 }
 
 /// <summary>

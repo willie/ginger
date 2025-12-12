@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -785,6 +786,228 @@ public partial class MainViewModel : ObservableObject
         RegenerateOutput();
     }
 
+    [RelayCommand]
+    private async Task ExportLorebook()
+    {
+        if (LorebookEntries.Count == 0)
+        {
+            StatusMessage = "No lorebook entries to export";
+            return;
+        }
+
+        // Convert ViewModels to Lorebook.Entry
+        var entries = LorebookEntries.Select(e => new Lorebook.Entry
+        {
+            key = e.Keys,
+            value = e.Content,
+            isEnabled = e.IsEnabled,
+        }).ToList();
+
+        var filters = new[]
+        {
+            new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } },
+            new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
+        };
+
+        var path = await _dialogService.ShowSaveFileDialogAsync("Export Lorebook", "lorebook.json", filters);
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        try
+        {
+            var lorebook = new Lorebook { entries = entries };
+            var json = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                entries = entries.Select(e => new
+                {
+                    keys = e.keys,
+                    content = e.value,
+                    enabled = e.isEnabled,
+                    name = e.key,
+                }).ToArray()
+            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+            await File.WriteAllTextAsync(path, json);
+            StatusMessage = $"Exported {entries.Count} lorebook entries";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportLorebook()
+    {
+        var filters = new[]
+        {
+            new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } },
+            new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
+        };
+
+        var path = await _dialogService.ShowOpenFileDialogAsync("Import Lorebook", filters);
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(path);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            int importCount = 0;
+
+            // Try to find entries array in common lorebook formats
+            System.Text.Json.JsonElement entriesElement = default;
+            if (root.TryGetProperty("entries", out entriesElement) ||
+                root.TryGetProperty("character_book", out var cb) && cb.TryGetProperty("entries", out entriesElement))
+            {
+                foreach (var entry in entriesElement.EnumerateArray())
+                {
+                    string keys = "";
+                    string content = "";
+                    bool enabled = true;
+
+                    // Try various key formats
+                    if (entry.TryGetProperty("keys", out var keysEl))
+                    {
+                        if (keysEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            keys = string.Join(", ", keysEl.EnumerateArray().Select(k => k.GetString()));
+                        else if (keysEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                            keys = keysEl.GetString() ?? "";
+                    }
+                    else if (entry.TryGetProperty("key", out var keyEl))
+                        keys = keyEl.GetString() ?? "";
+                    else if (entry.TryGetProperty("name", out var nameEl))
+                        keys = nameEl.GetString() ?? "";
+
+                    // Try various content formats
+                    if (entry.TryGetProperty("content", out var contentEl))
+                        content = contentEl.GetString() ?? "";
+                    else if (entry.TryGetProperty("value", out var valueEl))
+                        content = valueEl.GetString() ?? "";
+
+                    // Enabled status
+                    if (entry.TryGetProperty("enabled", out var enabledEl))
+                        enabled = enabledEl.GetBoolean();
+                    else if (entry.TryGetProperty("isEnabled", out var isEnabledEl))
+                        enabled = isEnabledEl.GetBoolean();
+
+                    if (!string.IsNullOrEmpty(keys) || !string.IsNullOrEmpty(content))
+                    {
+                        LorebookEntries.Add(new LorebookEntryViewModel(this)
+                        {
+                            Keys = keys,
+                            Content = content,
+                            IsEnabled = enabled,
+                            Name = keys.Split(',').FirstOrDefault()?.Trim() ?? $"Entry {LorebookEntries.Count + 1}",
+                        });
+                        importCount++;
+                    }
+                }
+            }
+
+            if (importCount > 0)
+            {
+                MarkDirty();
+                RegenerateOutput();
+                StatusMessage = $"Imported {importCount} lorebook entries";
+            }
+            else
+            {
+                StatusMessage = "No valid lorebook entries found in file";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Import failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyLorebook()
+    {
+        if (LorebookEntries.Count == 0)
+        {
+            StatusMessage = "No lorebook entries to copy";
+            return;
+        }
+
+        var entries = LorebookEntries.Select(e => new Lorebook.Entry
+        {
+            key = e.Keys,
+            value = e.Content,
+            isEnabled = e.IsEnabled,
+        }).ToList();
+
+        var clipboard = LoreClipboard.FromLoreEntries(entries);
+        var json = System.Text.Json.JsonSerializer.Serialize(clipboard);
+
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var topLevel = desktop.MainWindow;
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(json);
+                StatusMessage = $"Copied {entries.Count} lorebook entries to clipboard";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private async Task PasteLorebook()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        var text = await topLevel.Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            StatusMessage = "Clipboard is empty";
+            return;
+        }
+
+        try
+        {
+            var clipboard = System.Text.Json.JsonSerializer.Deserialize<LoreClipboard>(text);
+            if (clipboard == null)
+            {
+                StatusMessage = "Invalid clipboard data";
+                return;
+            }
+
+            var entries = clipboard.ToEntries();
+            if (entries == null || entries.Count == 0)
+            {
+                StatusMessage = "No valid lorebook entries in clipboard";
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                LorebookEntries.Add(new LorebookEntryViewModel(this)
+                {
+                    Keys = entry.key,
+                    Content = entry.value,
+                    IsEnabled = entry.isEnabled,
+                    Name = entry.keys.FirstOrDefault() ?? $"Entry {LorebookEntries.Count + 1}",
+                });
+            }
+
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = $"Pasted {entries.Count} lorebook entries";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            StatusMessage = "Invalid clipboard format - expected lorebook data";
+        }
+    }
+
     #endregion
 
     #region File Commands
@@ -1408,6 +1631,165 @@ public partial class MainViewModel : ObservableObject
     {
         MarkDirty();
         RegenerateOutput();
+    }
+
+    public void SetStatusMessage(string message)
+    {
+        StatusMessage = message;
+    }
+
+    [RelayCommand]
+    private async Task CopyAllRecipes()
+    {
+        var sourceRecipes = Recipes
+            .Select(r => r.GetSourceRecipe())
+            .Where(r => r != null)
+            .Cast<Recipe>()
+            .ToList();
+
+        if (sourceRecipes.Count == 0)
+        {
+            StatusMessage = "No recipes to copy";
+            return;
+        }
+
+        var clipboard = RecipeClipboard.FromRecipes(sourceRecipes);
+        var json = System.Text.Json.JsonSerializer.Serialize(clipboard);
+
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var topLevel = desktop.MainWindow;
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(json);
+                StatusMessage = $"Copied {sourceRecipes.Count} recipe(s) to clipboard";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private async Task PasteRecipes()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        var text = await topLevel.Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            StatusMessage = "Clipboard is empty";
+            return;
+        }
+
+        try
+        {
+            var clipboard = System.Text.Json.JsonSerializer.Deserialize<RecipeClipboard>(text);
+            if (clipboard == null)
+            {
+                StatusMessage = "Invalid clipboard data";
+                return;
+            }
+
+            var recipes = clipboard.ToRecipes();
+            if (recipes == null || recipes.Count == 0)
+            {
+                StatusMessage = "No valid recipes in clipboard";
+                return;
+            }
+
+            foreach (var recipe in recipes)
+            {
+                Current.Character.recipes.Add(recipe);
+                Recipes.Add(new RecipeViewModel(this, recipe));
+            }
+
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = $"Pasted {recipes.Count} recipe(s)";
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            StatusMessage = "Invalid clipboard format - expected recipe data";
+        }
+    }
+
+    #endregion
+
+    #region Extended Edit Commands
+
+    [RelayCommand]
+    private async Task EditPersona()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(Persona, "Edit Persona");
+        if (success)
+        {
+            Persona = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditPersonality()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(Personality, "Edit Personality");
+        if (success)
+        {
+            Personality = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditScenario()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(Scenario, "Edit Scenario");
+        if (success)
+        {
+            Scenario = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditGreeting()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(Greeting, "Edit Greeting");
+        if (success)
+        {
+            Greeting = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditExampleMessages()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(ExampleMessages, "Edit Example Messages");
+        if (success)
+        {
+            ExampleMessages = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditSystemPrompt()
+    {
+        var (success, text) = await _dialogService.ShowWriteDialogAsync(SystemPrompt, "Edit System Prompt");
+        if (success)
+        {
+            SystemPrompt = text;
+            MarkDirty();
+            RegenerateOutput();
+        }
     }
 
     #endregion
