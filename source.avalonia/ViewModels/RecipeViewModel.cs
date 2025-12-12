@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -101,6 +103,11 @@ public partial class RecipeViewModel : ObservableObject
     {
         IsExpanded = !IsExpanded;
     }
+
+    public void NotifyParameterChanged()
+    {
+        _parent.OnRecipeChanged();
+    }
 }
 
 public partial class RecipeParameterViewModel : ObservableObject
@@ -112,6 +119,39 @@ public partial class RecipeParameterViewModel : ObservableObject
     public string Label => _parameter.label ?? "";
     public string Description => _parameter.description ?? "";
     public bool IsOptional => _parameter.isOptional;
+
+    // Parameter type detection
+    public bool IsTextParameter => _parameter is TextParameter;
+    public bool IsBoolParameter => _parameter is BooleanParameter;
+    public bool IsNumberParameter => _parameter is NumberParameter or MeasurementParameter or RangeParameter;
+    public bool IsChoiceParameter => _parameter is ChoiceParameter;
+    public bool IsMultiChoiceParameter => _parameter is MultiChoiceParameter;
+    public bool IsListParameter => _parameter is ListParameter;
+    public bool IsHiddenParameter => _parameter is SetVarParameter or SetFlagParameter or EraseParameter or HintParameter;
+
+    // Text mode for multiline
+    public bool IsMultilineText => _parameter is TextParameter tp &&
+        (tp.mode == TextParameter.Mode.Brief || tp.mode == TextParameter.Mode.Flexible ||
+         tp.mode == TextParameter.Mode.Code || tp.mode == TextParameter.Mode.Chat);
+
+    // Choice options
+    public List<string> ChoiceOptions
+    {
+        get
+        {
+            if (_parameter is ChoiceParameter cp)
+                return cp.items.Select(i => i.label).ToList();
+            if (_parameter is MultiChoiceParameter mcp)
+                return mcp.items.Select(i => i.label).ToList();
+            return new List<string>();
+        }
+    }
+
+    // Number bounds
+    public decimal MinValue => _parameter is NumberParameter np ? np.minValue : (_parameter is RangeParameter rp ? rp.minValue : 0);
+    public decimal MaxValue => _parameter is NumberParameter np ? np.maxValue : (_parameter is RangeParameter rp ? rp.maxValue : 100);
+    public decimal StepValue => _parameter is NumberParameter np && np.mode == NumberParameter.Mode.Integer ? 1 :
+                                (_parameter is RangeParameter rp && rp.mode == RangeParameter.Mode.Integer ? 1 : 0.1m);
 
     [ObservableProperty]
     private string _value = "";
@@ -132,35 +172,83 @@ public partial class RecipeParameterViewModel : ObservableObject
     {
         _parent = parent;
         _parameter = parameter;
-        _value = parameter.defaultValue ?? "";
         _isEnabled = parameter.isEnabled;
 
-        // Initialize type-specific values based on value
-        if (bool.TryParse(_value, out var boolVal))
-            _boolValue = boolVal;
-        if (decimal.TryParse(_value, out var numVal))
-            _numericValue = numVal;
-        _selectedOption = _value;
+        // Initialize value from parameter
+        if (parameter is BaseParameter<string> stringParam)
+            _value = stringParam.value ?? stringParam.defaultValue ?? "";
+        else if (parameter is BaseParameter<bool> boolParam)
+        {
+            _boolValue = boolParam.value;
+            _value = _boolValue.ToString().ToLower();
+        }
+        else if (parameter is BaseParameter<decimal> numParam)
+        {
+            _numericValue = numParam.value;
+            _value = _numericValue.ToString();
+        }
+        else
+            _value = parameter.defaultValue ?? "";
+
+        // Initialize choice selection
+        if (parameter is ChoiceParameter cp && cp.selectedIndex >= 0 && cp.selectedIndex < cp.items.Count)
+            _selectedOption = cp.items[cp.selectedIndex].label;
+        else
+            _selectedOption = _value;
     }
 
     partial void OnValueChanged(string value)
     {
-        // Update parameter value if possible
+        // Update the underlying parameter
+        if (_parameter is TextParameter tp)
+            tp.value = value;
+        else if (_parameter is BaseParameter<string> sp)
+            sp.Set(value);
+        _parent.NotifyParameterChanged();
     }
 
     partial void OnBoolValueChanged(bool value)
     {
-        _value = value.ToString().ToLower();
+        if (_parameter is BooleanParameter bp)
+            bp.value = value;
+        Value = value.ToString().ToLower();
     }
 
     partial void OnNumericValueChanged(decimal value)
     {
-        _value = value.ToString();
+        if (_parameter is NumberParameter np)
+            np.value = value;
+        else if (_parameter is RangeParameter rp)
+            rp.value = value;
+        else if (_parameter is MeasurementParameter mp)
+            mp.magnitude = value;
+        Value = value.ToString();
     }
 
     partial void OnSelectedOptionChanged(string? value)
     {
-        if (value != null)
-            _value = value;
+        if (value == null) return;
+
+        if (_parameter is ChoiceParameter cp)
+        {
+            var idx = cp.items.FindIndex(i => i.label == value);
+            if (idx >= 0)
+            {
+                cp.selectedIndex = idx;
+                cp.value = cp.items[idx].id.ToString();
+                Value = cp.value;
+            }
+        }
+    }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        if (_parameter is BaseParameter<string> sp)
+            sp.isEnabled = value;
+        else if (_parameter is BaseParameter<bool> bp)
+            bp.isEnabled = value;
+        else if (_parameter is BaseParameter<decimal> np)
+            np.isEnabled = value;
+        _parent.NotifyParameterChanged();
     }
 }

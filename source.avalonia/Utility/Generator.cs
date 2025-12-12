@@ -1388,5 +1388,21 @@ namespace Ginger
 			return null;
 		}
 
+		public struct OutputWithNodes
+		{
+			public GingerString system;
+			public GingerString system_post_history;
+			public GingerString persona;
+			public GingerString userPersona;
+			public GingerString scenario;
+			public GingerString example;
+			public GingerString grammar;
+			public GingerString[] greetings;
+			public GingerString[] group_greetings;
+			public Lorebook lorebook;
+			public Dictionary<BlockID, string> nodes;
+			public List<AttributeBlock> attributes;
+		}
+
 	}
 }

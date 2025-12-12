@@ -127,6 +127,18 @@ namespace Ginger
 		public DetailLevel levelOfDetail = DetailLevel.Default;
 		public bool enableNSFWContent = true;
 
+		public void EnableTextFormatting(bool bEnable)
+		{
+			enableTextFormatting = bEnable;
+			foreach (var template in templates)
+			{
+				if (bEnable)
+					template.flags &= ~Template.Flags.Raw;
+				else
+					template.flags |= Template.Flags.Raw;
+			}
+		}
+
 		private static ICondition BaseExclusivityRule = Rule.Parse("not base");
 
 		public string title

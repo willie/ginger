@@ -250,12 +250,21 @@ public class CharacterCardService
     }
 
     /// <summary>
-    /// Load a character card from a YAML file.
+    /// Load a character card from a YAML file (TextGenWebUI format).
     /// </summary>
-    private Task<(LoadResult result, CharacterCard? card)> LoadFromYamlAsync(string filePath)
+    private async Task<(LoadResult result, CharacterCard? card)> LoadFromYamlAsync(string filePath)
     {
-        // TODO: Implement YAML loading (TextGenWebUI format)
-        return Task.FromResult<(LoadResult, CharacterCard?)>((LoadResult.InvalidFormat, null));
+        string yaml = await File.ReadAllTextAsync(filePath);
+
+        // Try TextGenWebUI format
+        var textGenCard = TextGenWebUICard.FromYaml(yaml);
+        if (textGenCard != null)
+        {
+            var card = textGenCard.ToCharacterCard();
+            return (LoadResult.Success, card);
+        }
+
+        return (LoadResult.InvalidFormat, null);
     }
 
     /// <summary>

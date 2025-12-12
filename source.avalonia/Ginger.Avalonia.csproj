@@ -18,7 +18,25 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.1" />
+    <PackageReference Include="WeCantSpell.Hunspell" Version="7.0.1" />
     <PackageReference Include="YamlDotNet" Version="16.2.0" />
+  </ItemGroup>
+
+  <!-- Dictionary files for spell checking -->
+  <ItemGroup>
+    <Content Include="Dictionaries\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Content files (recipes, etc.) -->
+  <ItemGroup>
+    <Content Include="Content\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

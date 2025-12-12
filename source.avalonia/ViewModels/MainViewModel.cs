@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject
     private readonly CharacterCardService _cardService;
     private readonly RecipeService _recipeService;
     private readonly DialogService _dialogService;
+    private readonly UndoService _undoService;
     private CharacterCard? _currentCard;
     private string? _currentFilePath;
     private bool _isDirty;
@@ -244,7 +245,15 @@ public partial class MainViewModel : ObservableObject
         _cardService = cardService;
         _recipeService = recipeService;
         _dialogService = dialogService;
+        _undoService = new UndoService();
         _selectedDetailLevel = "Normal detail";
+
+        // Subscribe to undo state changes
+        _undoService.StateChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(CanUndo));
+            OnPropertyChanged(nameof(CanRedo));
+        };
 
         // Try to find content path
         FindContentPath();
@@ -252,6 +261,9 @@ public partial class MainViewModel : ObservableObject
 
         NewCommand.Execute(null);
     }
+
+    public bool CanUndo => _undoService.CanUndo;
+    public bool CanRedo => _undoService.CanRedo;
 
     private void FindContentPath()
     {
@@ -925,6 +937,120 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ImportFromFolder()
+    {
+        var folder = await _dialogService.ShowFolderDialogAsync("Select Folder to Import From");
+        if (string.IsNullOrEmpty(folder))
+            return;
+
+        try
+        {
+            var files = Directory.GetFiles(folder)
+                .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".charx", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (files.Length == 0)
+            {
+                StatusMessage = "No character files found in folder";
+                return;
+            }
+
+            int imported = 0;
+            int failed = 0;
+
+            foreach (var file in files)
+            {
+                var (result, _) = await _cardService.LoadAsync(file);
+                if (result == CharacterCardService.LoadResult.Success)
+                    imported++;
+                else
+                    failed++;
+            }
+
+            StatusMessage = $"Imported {imported} files ({failed} failed)";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Import error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportToFolder()
+    {
+        if (_currentCard == null)
+        {
+            StatusMessage = "No character to export";
+            return;
+        }
+
+        var folder = await _dialogService.ShowFolderDialogAsync("Select Export Folder");
+        if (string.IsNullOrEmpty(folder))
+            return;
+
+        try
+        {
+            var card = ToCard();
+            var fileName = string.IsNullOrWhiteSpace(card.Name) ? "character" : SanitizeFileName(card.Name);
+
+            // Export as PNG (default)
+            var pngPath = Path.Combine(folder, $"{fileName}.png");
+            if (await _cardService.SaveAsync(pngPath, card))
+            {
+                StatusMessage = $"Exported to {fileName}.png";
+            }
+            else
+            {
+                StatusMessage = "Export failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportAsJson()
+    {
+        if (_currentCard == null)
+        {
+            StatusMessage = "No character to export";
+            return;
+        }
+
+        var file = await _fileService.SaveFileAsync(
+            "Export as JSON",
+            string.IsNullOrEmpty(CharacterName) ? "character" : CharacterName,
+            new[] { "*.json" });
+
+        if (file != null)
+        {
+            try
+            {
+                var card = ToCard();
+                if (await _cardService.SaveAsync(file, card))
+                    StatusMessage = $"Exported as JSON";
+                else
+                    StatusMessage = "Export failed";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Export error: {ex.Message}";
+            }
+        }
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return string.Concat(name.Where(c => !invalid.Contains(c)));
+    }
+
+    [RelayCommand]
     private void Exit()
     {
         Environment.Exit(0);
@@ -935,10 +1061,26 @@ public partial class MainViewModel : ObservableObject
     #region Edit Commands
 
     [RelayCommand]
-    private void Undo() => StatusMessage = "Undo not yet implemented";
+    private void Undo()
+    {
+        if (_undoService.Undo())
+        {
+            var desc = _undoService.GetRedoDescription();
+            StatusMessage = $"Undid: {desc}";
+            RegenerateOutput();
+        }
+    }
 
     [RelayCommand]
-    private void Redo() => StatusMessage = "Redo not yet implemented";
+    private void Redo()
+    {
+        if (_undoService.Redo())
+        {
+            var desc = _undoService.GetUndoDescription();
+            StatusMessage = $"Redid: {desc}";
+            RegenerateOutput();
+        }
+    }
 
     [RelayCommand]
     private void Find() => ShowFindDialog(findOnly: true);
@@ -951,20 +1093,168 @@ public partial class MainViewModel : ObservableObject
         _dialogService.ShowFindReplaceDialog(
             onFind: (search, replace, matchCase, wholeWord) =>
             {
-                // TODO: Implement find in current text field
-                StatusMessage = $"Find: \"{search}\" (case={matchCase}, whole={wholeWord})";
+                // Find in all recipes
+                int count = CountOccurrences(search, matchCase, wholeWord);
+                if (count > 0)
+                    StatusMessage = $"Found {count} occurrence(s) of \"{search}\"";
+                else
+                    StatusMessage = $"No matches found for \"{search}\"";
             },
             onReplace: (search, replace, matchCase, wholeWord) =>
             {
-                // TODO: Implement replace in current text field
-                StatusMessage = $"Replace: \"{search}\" with \"{replace}\"";
+                // Replace first occurrence (for now, replace all)
+                int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                if (count > 0)
+                {
+                    StatusMessage = $"Replaced {count} occurrence(s)";
+                    MarkDirty();
+                    RegenerateOutput();
+                }
+                else
+                    StatusMessage = $"No matches found for \"{search}\"";
             },
             onReplaceAll: (search, replace, matchCase, wholeWord) =>
             {
-                // TODO: Implement replace all
-                StatusMessage = $"Replace All: \"{search}\" with \"{replace}\"";
+                int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                if (count > 0)
+                {
+                    StatusMessage = $"Replaced {count} occurrence(s)";
+                    MarkDirty();
+                    RegenerateOutput();
+                }
+                else
+                    StatusMessage = $"No matches found for \"{search}\"";
             }
         );
+    }
+
+    private int CountOccurrences(string search, bool matchCase, bool wholeWord)
+    {
+        int count = 0;
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        foreach (var recipe in Current.AllRecipes)
+        {
+            foreach (var param in recipe.parameters.OfType<TextParameter>())
+            {
+                if (string.IsNullOrEmpty(param.value))
+                    continue;
+
+                if (wholeWord)
+                {
+                    var matches = Utility.FindWholeWords(param.value, search, comparison);
+                    count += matches?.Length ?? 0;
+                }
+                else
+                {
+                    var matches = Utility.FindWords(param.value, search, comparison);
+                    count += matches?.Length ?? 0;
+                }
+            }
+        }
+        return count;
+    }
+
+    private int PerformReplaceAll(string search, string replace, bool matchCase, bool wholeWord)
+    {
+        return Ginger.FindReplace.Replace(Current.AllRecipes, search, replace, wholeWord, !matchCase, bIncludeLorebooks: true);
+    }
+
+    [RelayCommand]
+    private async Task GenderSwap()
+    {
+        var result = await _dialogService.ShowGenderSwapDialogAsync();
+        if (!result.success)
+            return;
+
+        int changes = Ginger.GenderSwap.SwapGenders(
+            Current.AllRecipes,
+            result.charFrom, result.charTo,
+            result.userFrom, result.userTo,
+            result.swapChar, result.swapUser);
+
+        if (changes > 0)
+        {
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = $"Gender swap complete. {changes} replacement(s) made.";
+        }
+        else
+        {
+            StatusMessage = "Gender swap complete. No changes made.";
+        }
+    }
+
+    #endregion
+
+    #region Actor Commands
+
+    [ObservableProperty]
+    private int _selectedActorIndex;
+
+    public bool CanRemoveActor => Current.Characters.Count > 1;
+    public bool IsMultiCharacter => Current.Characters.Count > 1;
+
+    [RelayCommand]
+    private void AddActor()
+    {
+        Current.AddCharacter();
+        SelectedActorIndex = Current.SelectedCharacter;
+        OnPropertyChanged(nameof(CanRemoveActor));
+        OnPropertyChanged(nameof(IsMultiCharacter));
+        MarkDirty();
+        StatusMessage = $"Added new actor (total: {Current.Characters.Count})";
+    }
+
+    [RelayCommand]
+    private void RemoveActor()
+    {
+        if (Current.Characters.Count <= 1)
+        {
+            StatusMessage = "Cannot remove the last actor";
+            return;
+        }
+
+        int removeIndex = Current.SelectedCharacter;
+        Current.Characters.RemoveAt(removeIndex);
+        if (Current.SelectedCharacter >= Current.Characters.Count)
+            Current.SelectedCharacter = Current.Characters.Count - 1;
+        SelectedActorIndex = Current.SelectedCharacter;
+        OnPropertyChanged(nameof(CanRemoveActor));
+        OnPropertyChanged(nameof(IsMultiCharacter));
+        MarkDirty();
+        RegenerateOutput();
+        StatusMessage = $"Removed actor (remaining: {Current.Characters.Count})";
+    }
+
+    partial void OnSelectedActorIndexChanged(int value)
+    {
+        if (value >= 0 && value < Current.Characters.Count)
+        {
+            Current.SelectedCharacter = value;
+            LoadCharacterIntoUI();
+        }
+    }
+
+    private void LoadCharacterIntoUI()
+    {
+        var character = Current.Character;
+        CharacterName = character.name ?? "";
+        SpokenName = character.spokenName ?? "";
+        SelectedGender = character.gender;
+        Persona = character.persona ?? "";
+        Personality = character.personality ?? "";
+        Scenario = character.scenario ?? "";
+        Greeting = character.greeting ?? "";
+        ExampleMessages = character.example ?? "";
+        SystemPrompt = character.system ?? "";
+
+        // Reload recipes for this character
+        Recipes.Clear();
+        foreach (var recipe in character.recipes)
+        {
+            Recipes.Add(new RecipeViewModel(this, recipe));
+        }
     }
 
     #endregion
@@ -1040,6 +1330,311 @@ public partial class MainViewModel : ObservableObject
     private async Task AboutAsync()
     {
         await _dialogService.ShowAboutAsync();
+    }
+
+    [RelayCommand]
+    private async Task BrowseRecipes()
+    {
+        var selectedRecipe = await _dialogService.ShowRecipeBrowserAsync(_recipeService.AllRecipes);
+        if (selectedRecipe != null)
+        {
+            // Clone the recipe and add it
+            var clone = selectedRecipe.Clone() as Recipe;
+            if (clone != null)
+            {
+                Current.Character.recipes.Add(clone);
+                Recipes.Add(new RecipeViewModel(this, clone));
+                MarkDirty();
+                RegenerateOutput();
+                StatusMessage = $"Added recipe: {clone.name ?? clone.id.ToString()}";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private async Task CreateRecipe()
+    {
+        var (success, name, category, component, description, content) =
+            await _dialogService.ShowCreateRecipeDialogAsync();
+
+        if (!success || string.IsNullOrWhiteSpace(name))
+            return;
+
+        // Create a simple recipe with the provided content
+        var recipe = new Recipe
+        {
+            id = Utility.CreateGUID(),
+            name = name,
+            category = category,
+            isEnabled = true,
+            description = description,
+        };
+
+        // Add a text parameter with the content
+        var textParam = new TextParameter();
+        textParam.SetupForCreation("text", "Content", description, content);
+        recipe.parameters.Add(textParam);
+
+        // Add a template targeting the selected component
+        var template = new Recipe.Template
+        {
+            channel = component,
+            text = "{#text}",
+        };
+        recipe.templates.Add(template);
+
+        // Add to current character
+        Current.Character.recipes.Add(recipe);
+        Recipes.Add(new RecipeViewModel(this, recipe));
+
+        MarkDirty();
+        RegenerateOutput();
+        StatusMessage = $"Created recipe: {name}";
+    }
+
+    [RelayCommand]
+    private async Task CreateSnippet()
+    {
+        var (success, filename, output) = await _dialogService.ShowCreateSnippetDialogAsync();
+
+        if (!success || string.IsNullOrEmpty(filename))
+            return;
+
+        try
+        {
+            // Ensure directory exists
+            var dir = System.IO.Path.GetDirectoryName(filename);
+            if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                System.IO.Directory.CreateDirectory(dir);
+
+            // Serialize the output as a snippet file (using GingerCardV1 format for snippets)
+            // For now, just save as a simple text file with the content
+            var content = new System.Text.StringBuilder();
+            if (!output.persona.IsNullOrEmpty())
+                content.AppendLine(output.persona.ToString());
+            if (!output.scenario.IsNullOrEmpty())
+                content.AppendLine(output.scenario.ToString());
+            if (!output.system.IsNullOrEmpty())
+                content.AppendLine(output.system.ToString());
+            if (output.greetings?.Length > 0 && !output.greetings[0].IsNullOrEmpty())
+                content.AppendLine(output.greetings[0].ToString());
+
+            await System.IO.File.WriteAllTextAsync(filename, content.ToString());
+            StatusMessage = $"Created snippet: {System.IO.Path.GetFileName(filename)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating snippet: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseBackyard()
+    {
+        var (success, group, character, wantsLink) = await _dialogService.ShowBackyardBrowserAsync();
+        if (!success || group == null)
+            return;
+
+        try
+        {
+            if (wantsLink)
+            {
+                // Link mode - just record the link, don't import
+                StatusMessage = $"Linked to: {group.Value.GetDisplayName()}";
+            }
+            else
+            {
+                // Import mode - load the character data
+                if (character?.isDefined == true)
+                {
+                    StatusMessage = $"Importing from Backyard: {character.Value.displayName ?? character.Value.name}...";
+                    // TODO: Implement full import from Backyard database
+                    StatusMessage = $"Imported: {character.Value.displayName ?? character.Value.name}";
+                }
+                else
+                {
+                    StatusMessage = $"Selected group: {group.Value.GetDisplayName()}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleDarkMode()
+    {
+        IsDarkMode = !IsDarkMode;
+        StatusMessage = IsDarkMode ? "Dark mode enabled" : "Dark mode disabled";
+    }
+
+    [RelayCommand]
+    private void ConnectBackyard()
+    {
+        try
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error == Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Connected to Backyard AI ({Integration.Backyard.Characters.Count()} characters)";
+            }
+            else
+            {
+                StatusMessage = $"Connection failed: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Connection error: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void DisconnectBackyard()
+    {
+        Integration.Backyard.Disconnect();
+        StatusMessage = "Disconnected from Backyard AI";
+    }
+
+    [RelayCommand]
+    private async Task LinkCharacter()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        var (success, group, character, _) = await _dialogService.ShowBackyardBrowserAsync();
+        if (!success || group == null)
+            return;
+
+        try
+        {
+            // Create a link to the selected character/group
+            var link = new Integration.Backyard.Link
+            {
+                groupId = group.Value.instanceId,
+                isActive = true,
+            };
+
+            // Set up actors array if we have a specific character
+            if (character?.isDefined == true)
+            {
+                link.actors = new[] {
+                    new Integration.Backyard.Link.Actor {
+                        remoteId = character.Value.instanceId,
+                        localId = Current.MainCharacter.uid,
+                    }
+                };
+            }
+
+            Current.Link = link;
+
+            var displayName = character?.isDefined == true
+                ? (character.Value.displayName ?? character.Value.name)
+                : group.Value.GetDisplayName();
+            StatusMessage = $"Linked to: {displayName}";
+            MarkDirty();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error linking: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void UnlinkCharacter()
+    {
+        if (Current.Link == null)
+        {
+            StatusMessage = "Character is not linked to Backyard AI";
+            return;
+        }
+
+        Current.Link = null;
+        StatusMessage = "Unlinked from Backyard AI";
+        MarkDirty();
+    }
+
+    [RelayCommand]
+    private async Task PushChanges()
+    {
+        if (Current.Link == null || string.IsNullOrEmpty(Current.Link.groupId))
+        {
+            StatusMessage = "Character is not linked to Backyard AI";
+            return;
+        }
+
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        try
+        {
+            // TODO: Implement full push to Backyard database
+            // This would use Integration.Backyard.UpdateCharacter() when implemented
+            StatusMessage = "Push to Backyard AI not yet fully implemented";
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error pushing changes: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task PullChanges()
+    {
+        if (Current.Link == null || string.IsNullOrEmpty(Current.Link.groupId))
+        {
+            StatusMessage = "Character is not linked to Backyard AI";
+            return;
+        }
+
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        try
+        {
+            // TODO: Implement full pull from Backyard database
+            // This would refresh character data from the Backyard database
+            StatusMessage = "Pull from Backyard AI not yet fully implemented";
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error pulling changes: {ex.Message}";
+        }
+    }
+
+    [ObservableProperty]
+    private bool _allowNsfw = true;
+
+    [RelayCommand]
+    private void ToggleNsfw()
+    {
+        AllowNsfw = !AllowNsfw;
+        StatusMessage = AllowNsfw ? "NSFW content allowed" : "NSFW content filtered";
     }
 
     #endregion

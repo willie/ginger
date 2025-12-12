@@ -27,6 +27,19 @@ namespace Ginger
 		{
 		}
 
+		/// <summary>
+		/// Set up the parameter for programmatic creation (not from XML).
+		/// </summary>
+		public void SetupForCreation(string parameterId, string paramLabel, string desc, string content)
+		{
+			id = parameterId;
+			label = paramLabel;
+			description = desc;
+			value = content;
+			isEnabled = true;
+			isOptional = false;
+		}
+
 		public override bool LoadFromXml(XmlNode xmlNode)
 		{
 			if (base.LoadFromXml(xmlNode) == false)

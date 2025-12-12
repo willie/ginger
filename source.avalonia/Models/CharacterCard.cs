@@ -52,6 +52,7 @@ public class CharacterCard
         Ginger,
         Agnaistic,
         Pygmalion,
+        TextGenWebUI,
     }
 
     /// <summary>

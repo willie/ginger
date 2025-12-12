@@ -1,0 +1,64 @@
+<Ginger id="sexuality" version="1.2">
+	<Name>Sexuality/Sexual orientation</Name>
+	<Description>Describe the sexual preferences of this character.</Description>
+	<Author>Ginger</Author>
+	<Category>Sexual</Category>
+	<Order>0</Order>
+	
+	<!-- Parameters -->
+	<Choice id="sexuality" style="custom" required="yes" shared="yes">
+		<Label>Sexual orientation</Label>
+		<Placeholder>Enter sexual orientation</Placeholder>
+		<Option id="heterosexual">Heterosexual</Option>
+		<Option id="bisexual">Bisexual</Option>
+		<Option id="homosexual">Homosexual</Option>
+		<Option id="pansexual">Pansexual</Option>
+		<Option id="asexual">Asexual</Option>
+	</Choice>
+	
+	<SetFlag rule="sexuality:local">{sexuality:id}</SetFlag>
+	<SetFlag rule="homosexual">gay</SetFlag>
+	
+	<List id="attracted-custom" rule="sexuality:custom">
+		<Label>Attracted to</Label>
+	</List>
+	
+	<List id="fetishes">
+		<Label>Turn-ons</Label>
+	</List>
+
+	<Text id="more" style="flex">
+		<Label>Additional details</Label>
+		<Default></Default>
+	</Text>
+	
+	<!-- Output -->	
+	<Attribute order="50">
+		<Name>Sexuality</Name>
+		<Value>{sexuality.capital}</Value>
+	</Attribute>
+	
+	<String id="attracted-to">
+		<String rule="attracted-custom" priority="2">{attracted-custom.list.lower}</String>
+		<String rule="male and heterosexual:local" priority="1">women</String>
+		<String rule="male and homosexual:local" priority="1">other men</String>
+		<String rule="female and heterosexual:local" priority="1">men</String>
+		<String rule="female and homosexual:local" priority="1">other women</String>
+		<String rule="bisexual:local">both men and women</String>
+		<String rule="pansexual:local">all genders</String>
+		<String rule="asexual:local">neither men nor women</String>
+	</String>
+	
+	<Rule id="has-attraction">((male or female) and (heterosexual or homosexual)) or bisexual or pansexual or asexual or attracted-custom</Rule>
+	
+	<Node path="persona/sexuality/attraction" order="100" rule="normal-detail and has-attraction">[char] is attracted to [@attracted-to].</Node>
+	<Node path="persona/sexuality/more" rule="more">{more}.</Node>
+
+	<Attribute style="list">
+		<Name>Turn-ons</Name>
+		<Value>{fetishes}</Value>
+	</Attribute>
+
+	<Adjective order="quality">{sexuality.lower}</Adjective>
+
+</Ginger>

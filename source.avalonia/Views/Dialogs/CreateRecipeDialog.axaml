@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.CreateRecipeDialog"
+        Title="Create Recipe"
+        Width="500"
+        Height="400"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+        <!-- Recipe Name -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Recipe Name:" Margin="0,0,0,4"/>
+            <TextBox x:Name="NameBox" Watermark="Enter recipe name..."/>
+        </StackPanel>
+
+        <!-- Category -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Category:" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CategoryCombo" SelectedIndex="0">
+                <ComboBoxItem Content="Character"/>
+                <ComboBoxItem Content="Personality"/>
+                <ComboBoxItem Content="Model"/>
+                <ComboBoxItem Content="Story"/>
+                <ComboBoxItem Content="Traits"/>
+                <ComboBoxItem Content="NSFW"/>
+                <ComboBoxItem Content="Other"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Component/Channel -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock Text="Target Component:" Margin="0,0,0,4"/>
+            <ComboBox x:Name="ComponentCombo" SelectedIndex="0">
+                <ComboBoxItem Content="Persona"/>
+                <ComboBoxItem Content="Personality"/>
+                <ComboBoxItem Content="Scenario"/>
+                <ComboBoxItem Content="Greeting"/>
+                <ComboBoxItem Content="Example"/>
+                <ComboBoxItem Content="System Prompt"/>
+                <ComboBoxItem Content="User Persona"/>
+                <ComboBoxItem Content="Grammar"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Description -->
+        <StackPanel Grid.Row="3" Margin="0,0,0,12">
+            <TextBlock Text="Description (optional):" Margin="0,0,0,4"/>
+            <TextBox x:Name="DescriptionBox" Watermark="Brief description..."
+                     TextWrapping="Wrap" Height="60" AcceptsReturn="True"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="4" Margin="0,0,0,12">
+            <TextBlock Text="Content:" Margin="0,0,0,4"/>
+            <TextBox x:Name="ContentBox" Watermark="Recipe content..."
+                     TextWrapping="Wrap" AcceptsReturn="True"
+                     VerticalContentAlignment="Top"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CreateButton" Content="Create" Width="80"
+                    Click="CreateButton_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80"
+                    Click="CancelButton_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

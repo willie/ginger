@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -135,6 +136,24 @@ public class DialogService
     }
 
     /// <summary>
+    /// Show the gender swap dialog.
+    /// </summary>
+    public async Task<(bool success, GenderSwap.Pronouns charFrom, GenderSwap.Pronouns charTo,
+        GenderSwap.Pronouns userFrom, GenderSwap.Pronouns userTo, bool swapChar, bool swapUser)>
+        ShowGenderSwapDialogAsync()
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, default, default, default, default, false, false);
+
+        var dialog = new Views.Dialogs.GenderSwapDialog();
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.CharacterFrom, dialog.CharacterTo,
+            dialog.UserFrom, dialog.UserTo, dialog.SwapCharacter, dialog.SwapUser);
+    }
+
+    /// <summary>
     /// Run an async task with a progress dialog.
     /// </summary>
     public async Task<T?> RunWithProgressAsync<T>(
@@ -180,6 +199,95 @@ public class DialogService
         // Show dialog non-modal and run task
         _ = dialog.ShowDialog<bool>(window);
         return await dialog.RunAsync(task, canCancel);
+    }
+
+    /// <summary>
+    /// Show the recipe browser dialog.
+    /// </summary>
+    public async Task<Recipe?> ShowRecipeBrowserAsync(IEnumerable<Recipe> recipes)
+    {
+        var window = GetMainWindow();
+        if (window == null) return null;
+
+        var dialog = new Views.Dialogs.RecipeBrowserDialog();
+        dialog.LoadRecipes(recipes);
+        await dialog.ShowDialog(window);
+
+        return dialog.DialogResult ? dialog.SelectedRecipe : null;
+    }
+
+    /// <summary>
+    /// Show the Backyard character browser dialog.
+    /// </summary>
+    public async Task<(bool success, Integration.Backyard.GroupInstance? group,
+        Integration.Backyard.CharacterInstance? character, bool wantsLink)> ShowBackyardBrowserAsync()
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, null, null, false);
+
+        var dialog = new Views.Dialogs.BackyardBrowserDialog();
+        if (!dialog.LoadCharacters())
+        {
+            await ShowMessageBoxAsync("Connection Error",
+                "Could not connect to Backyard AI. Please ensure Backyard AI is installed and has been run at least once.",
+                MessageBoxButtons.Ok);
+            return (false, null, null, false);
+        }
+
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.SelectedGroup, dialog.SelectedCharacter, dialog.WantsLink);
+    }
+
+    /// <summary>
+    /// Show a text input dialog.
+    /// </summary>
+    public async Task<(bool success, string value)> ShowEnterNameDialogAsync(string title, string prompt, string defaultValue = "")
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, "");
+
+        var dialog = new Views.Dialogs.EnterNameDialog(title, prompt, defaultValue);
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.EnteredName);
+    }
+
+    /// <summary>
+    /// Show the create recipe dialog.
+    /// </summary>
+    public async Task<(bool success, string name, Recipe.Category category, Recipe.Component component, string description, string content)> ShowCreateRecipeDialogAsync(string? defaultContent = null)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, "", default, default, "", "");
+
+        var dialog = defaultContent != null
+            ? new Views.Dialogs.CreateRecipeDialog(defaultContent)
+            : new Views.Dialogs.CreateRecipeDialog();
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.RecipeName, dialog.Category, dialog.Component,
+            dialog.RecipeDescription, dialog.RecipeContent);
+    }
+
+    /// <summary>
+    /// Show the create snippet dialog.
+    /// </summary>
+    public async Task<(bool success, string? filename, Generator.OutputWithNodes output)> ShowCreateSnippetDialogAsync(Generator.Output? sourceOutput = null)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, null, default);
+
+        var dialog = sourceOutput != null
+            ? new Views.Dialogs.CreateSnippetDialog(sourceOutput.Value)
+            : new Views.Dialogs.CreateSnippetDialog();
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.FileName, dialog.Output);
     }
 }
 

@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.CreateSnippetDialog"
+        Title="Create Snippet"
+        Width="600"
+        Height="450"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+        <!-- Snippet Name -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Name:" Margin="0,0,0,4"/>
+            <TextBox x:Name="NameBox" Watermark="Folder/Name..." MaxLength="64"/>
+        </StackPanel>
+
+        <!-- Target Component -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Target Component:" Margin="0,0,0,4"/>
+            <ComboBox x:Name="ComponentCombo" SelectedIndex="0">
+                <ComboBoxItem Content="Persona"/>
+                <ComboBoxItem Content="Personality"/>
+                <ComboBoxItem Content="Scenario"/>
+                <ComboBoxItem Content="Greeting"/>
+                <ComboBoxItem Content="Example"/>
+                <ComboBoxItem Content="System Prompt"/>
+                <ComboBoxItem Content="Post-History"/>
+                <ComboBoxItem Content="User Persona"/>
+                <ComboBoxItem Content="Grammar"/>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Content Label -->
+        <TextBlock Grid.Row="2" Text="Content:" Margin="0,0,0,4"/>
+
+        <!-- Content -->
+        <TextBox Grid.Row="3" x:Name="ContentBox"
+                 Watermark="Snippet content..."
+                 TextWrapping="Wrap"
+                 AcceptsReturn="True"
+                 VerticalContentAlignment="Top"
+                 Margin="0,0,0,12"/>
+
+        <!-- Options -->
+        <CheckBox Grid.Row="4" x:Name="SwapPronounsCheck"
+                  Content="Replace gendered pronouns"
+                  Margin="0,0,0,12"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CreateButton" Content="Create" Width="80"
+                    Click="CreateButton_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80"
+                    Click="CancelButton_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

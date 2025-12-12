@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.GenderSwapDialog"
+        Title="Gender Swap"
+        Width="420"
+        Height="340"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid Margin="15" RowDefinitions="Auto, Auto, Auto, *">
+        <!-- Character Pronouns Section -->
+        <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" Padding="10">
+            <StackPanel>
+                <TextBlock Text="Character Pronouns" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <CheckBox x:Name="CharacterCheckBox"
+                          Content="Swap character pronouns"
+                          Margin="0,0,0,10"
+                          IsChecked="True"/>
+                <Grid RowDefinitions="Auto" ColumnDefinitions="Auto, *, 30, *">
+                    <TextBlock Text="From:" Grid.Column="0"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="CharacterFromCombo" Grid.Column="1"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="To:" Grid.Column="2"
+                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <ComboBox x:Name="CharacterToCombo" Grid.Column="3"
+                              HorizontalAlignment="Stretch"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- User Pronouns Section -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" Padding="10">
+            <StackPanel>
+                <TextBlock Text="User Pronouns" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <CheckBox x:Name="UserCheckBox"
+                          Content="Swap user pronouns"
+                          Margin="0,0,0,10"
+                          IsChecked="False"/>
+                <Grid RowDefinitions="Auto" ColumnDefinitions="Auto, *, 30, *">
+                    <TextBlock Text="From:" Grid.Column="0"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="UserFromCombo" Grid.Column="1"
+                              HorizontalAlignment="Stretch"/>
+                    <TextBlock Text="To:" Grid.Column="2"
+                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <ComboBox x:Name="UserToCombo" Grid.Column="3"
+                              HorizontalAlignment="Stretch"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="2"
+                   x:Name="StatusText"
+                   FontSize="12"
+                   Opacity="0.7"
+                   Margin="0,0,0,10"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Spacing="10">
+            <Button x:Name="SwapButton"
+                    Content="Swap Pronouns"
+                    Width="120"
+                    Click="SwapButton_Click"
+                    IsDefault="True"/>
+            <Button Content="Cancel"
+                    Width="80"
+                    Click="CancelButton_Click"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

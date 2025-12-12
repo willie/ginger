@@ -61,82 +61,6 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub application settings for Avalonia port.
-	/// The original version persists to registry/settings file.
-	/// </summary>
-	public static class AppSettings
-	{
-		public static class User
-		{
-			public static bool AutoConvertNames = false;
-			public static bool AutoBreakLine = false;
-			public static bool SpellChecking = true;
-		}
-
-		public static class Settings
-		{
-			public static bool PruneExampleChat = true;
-			public static string PreferredGender = null;
-			public static string UserName = "User";
-			public static string Locale = "default";
-			public static string UserPlaceholder = "User";
-			public static bool AutoBreakLine = false;
-			public static bool AutoConvertNames = false;
-
-			// PreviewFormat property of type OutputPreviewFormat enum
-			public static OutputPreviewFormat PreviewFormat = OutputPreviewFormat.Default;
-
-			// OutputPreviewFormat enum defined inside Settings (as in original)
-			public enum OutputPreviewFormat
-			{
-				Default = 0,
-				SillyTavern,
-				Faraday,
-				FaradayParty,
-				PlainText,
-			}
-		}
-
-		public static class BackyardLink
-		{
-			public static bool Enabled = false;
-			public static string Location = "";
-			public static bool PruneExampleChat = true;
-			public static bool Strict = false;
-			public static bool UsePortraitAsBackground = false;
-			public static bool WriteAuthorNote = false;
-			public static bool MarkNSFW = false;
-			public static ActiveChatSetting ApplyChatSettings = ActiveChatSetting.First;
-
-			public enum ActiveChatSetting
-			{
-				First,
-				Last,
-				All
-			}
-		}
-
-		public static class BackyardSettings
-		{
-			public static bool AutoArrangePortraits = true;
-			public static UserSettingsData UserSettings = new UserSettingsData();
-
-			public class UserSettingsData
-			{
-				public string id { get; set; }
-				public string name { get; set; }
-				public string persona { get; set; }
-
-				// Implicit conversion to ChatParameters for compatibility
-				public static implicit operator Integration.Backyard.ChatParameters(UserSettingsData data)
-				{
-					return new Integration.Backyard.ChatParameters();
-				}
-			}
-		}
-	}
-
-	/// <summary>
 	/// Stub for BackyardModelDatabase - not used in MVP
 	/// </summary>
 	public static class BackyardModelDatabase
@@ -170,5 +94,14 @@ namespace Ginger
 	{
 		public static byte[] portrait_default => null;
 		public static byte[] default_portrait => null;
+	}
+
+	/// <summary>
+	/// Application version information.
+	/// </summary>
+	public static class AppVersion
+	{
+		public static string ProductVersion => "1.0.0";
+		public static string Version => "1.0.0.0";
 	}
 }

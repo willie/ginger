@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.RecipeBrowserDialog"
+        Title="Recipe Browser"
+        Width="700"
+        Height="500"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Search/Filter Bar -->
+        <Border Grid.Row="0" Padding="12"
+                BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="SearchBox" Grid.Column="1"
+                         Watermark="Filter recipes..."
+                         Margin="0,0,12,0"/>
+                <ComboBox x:Name="CategoryFilter" Grid.Column="2"
+                          Width="150"
+                          SelectedIndex="0"/>
+            </Grid>
+        </Border>
+
+        <!-- Recipe List -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*">
+            <!-- Categories -->
+            <Border Grid.Column="0" Padding="8"
+                    BorderThickness="0,0,1,0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Categories"
+                               FontWeight="SemiBold" Margin="4,0,0,8"/>
+                    <ListBox x:Name="CategoryList"
+                             SelectionMode="Single"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Recipes in Category -->
+            <Border Grid.Column="1" Padding="8">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Recipes"
+                               FontWeight="SemiBold" Margin="4,0,0,8"/>
+                    <ListBox x:Name="RecipeList"
+                             SelectionMode="Single"
+                             DoubleTapped="RecipeList_DoubleTapped">
+                    <ListBox.ItemTemplate>
+                            <DataTemplate DataType="x:Object">
+                                <StackPanel Margin="4">
+                                    <TextBlock Text="{ReflectionBinding Name, FallbackValue='Recipe'}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{ReflectionBinding Description, FallbackValue=''}"
+                                               FontSize="11" Opacity="0.7"
+                                               TextWrapping="Wrap"
+                                               MaxLines="2"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Buttons -->
+        <Border Grid.Row="2" Padding="12"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center"
+                           FontSize="11" Opacity="0.7"/>
+                <Button Grid.Column="1" x:Name="AddButton"
+                        Content="Add Recipe" Width="100"
+                        Click="AddButton_Click"
+                        IsDefault="True"
+                        Margin="0,0,8,0"/>
+                <Button Grid.Column="2" Content="Close" Width="80"
+                        Click="CloseButton_Click"
+                        IsCancel="True"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

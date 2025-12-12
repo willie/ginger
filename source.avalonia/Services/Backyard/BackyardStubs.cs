@@ -70,6 +70,7 @@ namespace Ginger
 			=> !assets.Any(predicate);
 
 		public AssetCollection Clone() => new AssetCollection { assets = new List<AssetFile>(assets) };
+		public List<AssetFile> ToList() => new List<AssetFile>(assets);
 
 		// Overload without return
 		public void AddBackgroundFromPortrait(ImageRef portrait) { }
@@ -117,7 +118,7 @@ namespace Ginger
 	/// <summary>
 	/// Stub for AssetFile
 	/// </summary>
-	public class AssetFile
+	public class AssetFile : IXmlLoadable, IXmlSaveable
 	{
 		public enum AssetType { Undefined, Unknown, Portrait, Background, Emotion, Other, Icon, Expression, UserIcon }
 
@@ -136,6 +137,44 @@ namespace Ginger
 		public int actorIndex { get; set; } = -1;
 		public int knownWidth { get; set; }
 		public int knownHeight { get; set; }
+
+		public bool LoadFromXml(System.Xml.XmlNode xmlNode)
+		{
+			uid = xmlNode.GetAttribute("uid", uid);
+			name = xmlNode.GetAttribute("name", null);
+			type = xmlNode.GetAttributeEnum("type", AssetType.Undefined);
+			ext = xmlNode.GetAttribute("ext", null);
+			uri = xmlNode.GetValueElement("URI", null);
+			isEmbeddedAsset = xmlNode.GetAttributeBool("embedded", false);
+			actorIndex = xmlNode.GetAttributeInt("actor", -1);
+			knownWidth = xmlNode.GetAttributeInt("width", 0);
+			knownHeight = xmlNode.GetAttributeInt("height", 0);
+			isMainPortraitOverride = xmlNode.GetAttributeBool("main-portrait", false);
+			return true;
+		}
+
+		public void SaveToXml(System.Xml.XmlNode xmlNode)
+		{
+			xmlNode.AddAttribute("uid", uid);
+			if (!string.IsNullOrEmpty(name))
+				xmlNode.AddAttribute("name", name);
+			if (type != AssetType.Undefined)
+				xmlNode.AddAttribute("type", EnumHelper.ToString(type));
+			if (!string.IsNullOrEmpty(ext))
+				xmlNode.AddAttribute("ext", ext);
+			if (!string.IsNullOrEmpty(uri))
+				xmlNode.AddValueElement("URI", uri);
+			if (isEmbeddedAsset)
+				xmlNode.AddAttribute("embedded", true);
+			if (actorIndex >= 0)
+				xmlNode.AddAttribute("actor", actorIndex);
+			if (knownWidth > 0)
+				xmlNode.AddAttribute("width", knownWidth);
+			if (knownHeight > 0)
+				xmlNode.AddAttribute("height", knownHeight);
+			if (isMainPortraitOverride)
+				xmlNode.AddAttribute("main-portrait", true);
+		}
 	}
 
 	/// <summary>

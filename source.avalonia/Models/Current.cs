@@ -67,6 +67,8 @@ namespace Ginger
 		public static bool IsLoading { get; set; }
 		public static bool IsNSFW { get; set; } // For Backyard integration
 
+		public static Integration.Backyard.Link Link { get; set; } // Backyard link info
+
 		public static IEnumerable<Recipe> AllRecipes => Characters.SelectMany(c => c.recipes);
 		public static IRuleSupplier[] RuleSuppliers => new IRuleSupplier[] { Strings };
 
@@ -133,15 +135,40 @@ namespace Ginger
 	{
 		public enum ContextType
 		{
-			None = 0,
-			WithRecipes = 1,
-			Full = 2,
+			None = 0,       // Card info only
+			FlagsOnly = 1,  // + Recipe flags
+			Full = 2,       // + Parameters
 		}
 
-		public string uid { get; set; } = Guid.NewGuid().ToString();
-		public string name { get; set; } = "";
-		public string spokenName { get; set; } = "";
-		public string gender { get; set; }
+		private string _uid;
+		private string _spokenName;
+
+		public string uid
+		{
+			get => _uid;
+			set => _uid = value;
+		}
+
+		public string name
+		{
+			get
+			{
+				if (!string.IsNullOrWhiteSpace(_spokenName))
+					return _spokenName.Trim();
+				else if (isMainCharacter && !string.IsNullOrWhiteSpace(Current.Card.name))
+					return Current.Card.name.Trim();
+				return Constants.DefaultCharacterName;
+			}
+			set => _spokenName = value;
+		}
+
+		public string spokenName
+		{
+			get => _spokenName;
+			set => _spokenName = value;
+		}
+
+		public string gender { get; set; } = "";
 		public string persona { get; set; } = "";
 		public string personality { get; set; } = "";
 		public string scenario { get; set; } = "";
@@ -157,41 +184,265 @@ namespace Ginger
 		// Recipes for this character
 		public List<Recipe> recipes { get; set; } = new List<Recipe>();
 
+		public bool isMainCharacter => this == Current.MainCharacter;
+
+		public CharacterData()
+		{
+			_uid = Utility.CreateGUID();
+		}
+
+		public CharacterData Clone()
+		{
+			var clone = (CharacterData)MemberwiseClone();
+			clone.recipes = new List<Recipe>(recipes.Count);
+			foreach (var recipe in recipes)
+				clone.recipes.Add((Recipe)recipe.Clone());
+			clone.greetings = new List<string>(greetings);
+			return clone;
+		}
+
 		// Overload without options parameter
 		public Context GetContext(ContextType type)
 		{
-			return GetContext(type, Generator.Option.None, true);
+			return GetContext(type, Generator.Option.None, false);
 		}
 
-		public Context GetContext(ContextType type, Generator.Option options, bool includeCard = true)
+		public Context GetContext(ContextType type, Generator.Option options, bool includeInactiveRecipes = false)
 		{
-			var context = new Context();
+			var context = Context.CreateEmpty();
 
-			// Set character name
-			if (!string.IsNullOrEmpty(name))
-				context.SetValue("char", name);
-			if (!string.IsNullOrEmpty(spokenName))
-				context.SetValue("name", spokenName);
+			// Character marker
+			int actorIndex = Current.Characters.IndexOf(this);
+			context.SetValue("char", GingerString.MakeInternalCharacterMarker(actorIndex));
+			int charactersIndex = 0;
+			context.SetValue("characters", string.Join(Text.Delimiter,
+				Current.Characters.Select(c => GingerString.MakeInternalCharacterMarker(charactersIndex++))));
+			context.SetValue("user", GingerString.InternalUserMarker);
+			context.SetValue("actor:index", actorIndex);
 
-			// Set gender
-			if (!string.IsNullOrEmpty(gender))
+			// Names
+			context.SetValue("card", Utility.FirstNonEmpty(Current.Card.name, Current.Name, Constants.DefaultCharacterName));
+			context.SetValue("name", Utility.FirstNonEmpty(name, Current.Card.name, Constants.DefaultCharacterName));
+			context.SetValue("#name", GingerString.InternalUserMarker);
+			context.SetValue("names",
+				string.Join(Text.Delimiter,
+					Current.Characters.Select(c => c.name)
+					.Where(s => !string.IsNullOrEmpty(s))));
+			context.SetValue("actors",
+				string.Join(Text.Delimiter,
+				Current.Characters
+					.Except(new CharacterData[] { Current.MainCharacter })
+					.Select(c => c.name)
+					.Where(s => !string.IsNullOrEmpty(s))));
+			context.SetValue("others",
+				string.Join(Text.Delimiter,
+				Current.Characters
+					.Except(new CharacterData[] { this })
+					.Select(c => c.name)
+					.Where(s => !string.IsNullOrEmpty(s))));
+			context.SetValue("actor:count", Current.Characters.Count);
+			for (int i = 0; i < Current.Characters.Count; ++i)
 			{
-				context.SetValue("gender", gender);
-				context.SetFlag(gender.ToLowerInvariant());
+				context.SetValue($"name:{i + 1}", Current.Characters[i].name);
+				context.SetValue($"actor:{i + 1}", GingerString.MakeInternalCharacterMarker(i));
 			}
 
-			// Set user name
-			if (includeCard && Current.Card != null)
+			// Gender
+			if (!string.IsNullOrWhiteSpace(gender))
 			{
-				context.SetValue("user", Current.Card.userPlaceholder ?? "User");
+				context.SetValue("gender", gender.ToLowerInvariant());
+				context.SetFlag(gender);
+
+				bool bFuta = GenderSwap.IsFutanari(gender);
+				if (bFuta)
+					context.SetFlag("futanari");
+
+				// Custom gender?
+				if (!(string.Compare(gender, "male", true) == 0
+					|| string.Compare(gender, "female", true) == 0
+					|| bFuta))
+				{
+					context.SetFlag("custom-gender");
+				}
+
+				// Transgender
+				if (gender.ToLowerInvariant().Contains("trans"))
+				{
+					if (gender.ToLowerInvariant().Contains("woman") || gender.ToLowerInvariant().Contains("female"))
+						context.SetFlag("trans-female");
+					else if (gender.ToLowerInvariant().Contains("man") || gender.ToLowerInvariant().Contains("male"))
+						context.SetFlag("trans-male");
+				}
+			}
+
+			// Gender (user)
+			if (Current.Card.userGender != null)
+			{
+				var userGender = Current.Card.userGender.ToLowerInvariant();
+				context.SetValue("user-gender", userGender);
+				context.SetValue("#gender", userGender);
+			}
+
+			// Is actor?
+			if (!isMainCharacter)
+				context.SetFlag(Constants.Flag.Actor);
+			if (Current.IsGroup)
+			{
+				if (options.Contains(Generator.Option.Group))
+				{
+					context.SetFlag("group-chat");
+					context.SetFlag(Constants.Flag.Group);
+				}
+				else
+				{
+					context.SetFlag("multi-character");
+					context.SetFlag(Constants.Flag.MultiCharacter);
+				}
+			}
+
+			// Allow nsfw?
+			if (AppSettings.Settings.AllowNSFW)
+				context.SetFlag("allow-nsfw");
+
+			// Level of detail
+			switch (Current.Card.detailLevel)
+			{
+				case CardData.DetailLevel.Low:
+					context.SetFlag("less-detail");
+					break;
+				case CardData.DetailLevel.High:
+					context.SetFlag("more-detail");
+					break;
+			}
+			context.SetValue("detail", EnumHelper.ToInt(Current.Card.detailLevel));
+
+			// Text style
+			context.SetValue("text-style", EnumHelper.ToInt(Current.Card.textStyle));
+
+			// Language
+			context.SetValue("__locale", AppSettings.Settings.Locale);
+
+			switch (Current.Card.textStyle)
+			{
+				case CardData.TextStyle.None:
+					break;
+				case CardData.TextStyle.Novel:
+					context.SetFlag("__style-quotes");
+					break;
+				case CardData.TextStyle.Chat:
+					context.SetFlag("__style-action-asterisks");
+					break;
+				case CardData.TextStyle.Mixed:
+					context.SetFlag("__style-quotes");
+					context.SetFlag("__style-action-asterisks");
+					break;
+				case CardData.TextStyle.Decorative:
+					context.SetFlag("__style-quotes-decorative");
+					break;
+				case CardData.TextStyle.Japanese:
+					context.SetFlag("__style-quotes-cjk");
+					break;
+				case CardData.TextStyle.Parentheses:
+					context.SetFlag("__style-action-brackets");
+					break;
+				case CardData.TextStyle.Bold:
+					context.SetFlag("__style-action-bold");
+					break;
+			}
+
+			// Flags
+			if (Current.Card.extraFlags.Contains(CardData.Flag.PruneScenario))
+				context.SetFlag(Constants.Flag.PruneScenario);
+			if (Current.Card.extraFlags.Contains(CardData.Flag.UserPersonaInScenario))
+				context.SetFlag(Constants.Flag.UserPersonaInScenario);
+
+			if (type == ContextType.Full)
+			{
+				Context fullContext;
+				ParameterResolver.ResolveParameters(recipes.ToArray(), context, out fullContext);
+				return fullContext;
+			}
+			else if (type == ContextType.FlagsOnly)
+			{
+				foreach (var recipe in recipes)
+				{
+					if (!recipe.isEnabled && !includeInactiveRecipes)
+						continue;
+					context.SetFlags(recipe.flags);
+				}
 			}
 
 			return context;
 		}
 
-		public Context GetContextForRecipe(Recipe recipe, Generator.Option options)
+		public Context GetContextForRecipe(Recipe targetRecipe, Generator.Option option = Generator.Option.None)
 		{
-			return GetContext(ContextType.WithRecipes, options, true);
+			int index = recipes.IndexOf(targetRecipe);
+			if (index == -1)
+				return GetContext(ContextType.None, option);
+
+			var localContexts = ParameterResolver.GetLocalContexts(recipes.ToArray(), GetContext(ContextType.None, option));
+			return localContexts[index];
+		}
+
+		public Recipe AddRecipe(RecipeTemplate recipeTemplate)
+		{
+			var recipe = recipeTemplate.Instantiate();
+			if (AddRecipe(recipe))
+				return recipe;
+			return null;
+		}
+
+		public bool AddRecipe(Recipe recipe)
+		{
+			if (recipe.allowMultiple == Recipe.AllowMultiple.No && recipes.Any(r => r.uid == recipe.uid))
+				return false;
+			if (recipe.allowMultiple == Recipe.AllowMultiple.One && Current.AllRecipes.Any(r => r.uid == recipe.uid))
+				return false;
+
+			if (recipe.isSnippet)
+				return false;
+
+			int index = 0;
+			foreach (var existing in recipes.Where(r => r.id == recipe.id))
+				index = Math.Max(index, recipe.instanceIndex + 1);
+			recipe.instanceIndex = index;
+
+			if (recipe.isBase)
+				recipes.Insert(0, recipe);
+			else
+				recipes.Add(recipe);
+
+			Current.IsDirty = true;
+			return true;
+		}
+
+		public bool RemoveRecipe(Recipe recipe)
+		{
+			if (recipes.Remove(recipe))
+			{
+				Current.IsDirty = true;
+				return true;
+			}
+			return false;
+		}
+
+		public bool IsEmpty()
+		{
+			if (recipes.Count > 0 || !string.IsNullOrEmpty(_spokenName))
+				return false;
+
+			int index = Current.Characters.IndexOf(this);
+			if (index == 0)
+			{
+				return Current.Card.portraitImage == null
+					&& Current.Card.assets.assets.Count(a => a.actorIndex <= 0) == 0;
+			}
+			else if (index > 0)
+			{
+				return Current.Card.assets.assets.Count(a => a.actorIndex == index) == 0;
+			}
+			return true;
 		}
 	}
 
@@ -225,7 +476,9 @@ namespace Ginger
 		public string name { get; set; } = "";
 		public string creator { get; set; } = "";
 		public string comment { get; set; } = "";
+		public string versionString { get; set; } = "";
 		public string userPlaceholder { get; set; } = "User";
+		public string userGender { get; set; } = "";
 		public HashSet<string> tags { get; set; } = new HashSet<string>();
 		public DateTime? creationDate { get; set; }
 
@@ -256,17 +509,43 @@ namespace Ginger
 		public AssetCollection assets { get; set; } = new AssetCollection();
 		public ImageRef portraitImage { get; set; }
 
-		// Custom variables dictionary for macro system
-		private Dictionary<string, string> _variables = new Dictionary<string, string>();
+		// Token counts (for optimization)
+		public int[] lastTokenCounts { get; set; } = new int[3];
+
+		// Source URLs
+		public List<string> sources { get; set; } = new List<string>();
+
+		// Custom variables for macro system
+		public List<CustomVariable> customVariables { get; set; } = new List<CustomVariable>();
 
 		public bool TryGetVariable(string key, out string value)
 		{
-			return _variables.TryGetValue(key, out value);
+			var variable = customVariables.FirstOrDefault(v => v.Name == key);
+			if (!CustomVariableName.IsNullOrEmpty(variable.Name))
+			{
+				value = variable.Value;
+				return true;
+			}
+			value = null;
+			return false;
 		}
 
 		public void SetVariable(string key, string value)
 		{
-			_variables[key] = value;
+			var index = customVariables.FindIndex(v => v.Name == key);
+			if (index >= 0)
+				customVariables[index] = new CustomVariable(key, value);
+			else
+				customVariables.Add(new CustomVariable(key, value));
+		}
+
+		// Helper to convert extraFlags HashSet to int (for serialization)
+		public int GetExtraFlagsAsInt()
+		{
+			int result = 0;
+			foreach (var flag in extraFlags)
+				result |= (int)flag;
+			return result;
 		}
 	}
 

@@ -841,6 +841,7 @@ namespace Ginger.Integration
 		public static string LastError = null;
 
 		public static bool ConnectionEstablished { get { return Database != null; } }
+		public static bool IsConnected => ConnectionEstablished;
 
 		public static IEnumerable<CharacterInstance> Everyone { get { return Database != null ? Database.Everyone : new CharacterInstance[0]; } }
 		public static IEnumerable<CharacterInstance> Characters { get { return Database != null ? Database.Characters : new CharacterInstance[0]; } }

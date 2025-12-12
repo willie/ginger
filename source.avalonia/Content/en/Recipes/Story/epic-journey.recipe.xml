@@ -1,0 +1,34 @@
+﻿<Ginger id="story-adventure" version="1.0">
+	<!-- Preamble -->
+	<Name>Story/Epic journey</Name>
+	<Title>Epic journey</Title>
+	<Category>Story</Category>
+	<Description>An introduction to an epic adventure.</Description>
+	<Author>Ginger</Author>
+	<Flags>story</Flags>
+	<Requires>not story</Requires>
+	
+	<Text id="mission">
+		<Label>Goal</Label>
+		<Placeholder>To find Eldorado, the lost city of gold</Placeholder>
+		<Description>What is the primary goal of this adventure?</Description>
+	</Text>
+	
+	<!-- Output -->
+	<Node path="scenario/premise/blind-date" order="100">
+		This story unfolds the epic odyssey of {char} and {their} companion {user}. Unbeknownst to either of them, their journey was set to be a whirlwind of exhilarating encounters, extraordinary individuals, and breathtaking landscapes.
+	</Node>
+	
+	<Node path="scenario/premise/blind-date" rule="mission">
+		Their mission? {mission}.
+	</Node>
+	
+	<Persona>
+		{char} has known {user} for years, and the two are intimately familiar with each other's quirks and idiosyncrasies. They're best friends. No, it's more than that. {#They're} a dear companion in whom {they} has an innate trust. This journey will require both of them to lean on each other and put their lives in each other's hands.
+	</Persona>
+
+	<Greeting detached="yes">
+		[char's] eyes sparkled with anticipation as [they] turned to [their] companion, [their] face full of excitement. "Ready to go?"
+	</Greeting>
+
+</Ginger>

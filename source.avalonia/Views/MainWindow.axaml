@@ -56,34 +56,67 @@
                 <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S"/>
                 <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S"/>
                 <Separator/>
+                <MenuItem Header="_Import">
+                    <MenuItem Header="Import from _Folder..." Command="{Binding ImportFromFolderCommand}"/>
+                </MenuItem>
+                <MenuItem Header="_Export">
+                    <MenuItem Header="Export to _Folder..." Command="{Binding ExportToFolderCommand}"/>
+                    <MenuItem Header="Export as _JSON..." Command="{Binding ExportAsJsonCommand}"/>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"/>
-                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"/>
+                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"
+                          IsEnabled="{Binding CanUndo}"/>
+                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"
+                          IsEnabled="{Binding CanRedo}"/>
                 <Separator/>
                 <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
                 <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="_Dark Mode">
+                <MenuItem Header="_Dark Mode" Command="{Binding ToggleDarkModeCommand}">
                     <MenuItem.Icon>
                         <CheckBox IsChecked="{Binding IsDarkMode}" BorderThickness="0"/>
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Actors">
-                <MenuItem Header="Add Actor"/>
-                <MenuItem Header="Remove Actor"/>
+                <MenuItem Header="_Add Actor" Command="{Binding AddActorCommand}"/>
+                <MenuItem Header="_Remove Actor" Command="{Binding RemoveActorCommand}"
+                          IsEnabled="{Binding CanRemoveActor}"/>
             </MenuItem>
             <MenuItem Header="_Options">
-                <MenuItem Header="Allow NSFW"/>
+                <MenuItem Header="Allow NSFW" Command="{Binding ToggleNsfwCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding AllowNsfw}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Tools">
-                <MenuItem Header="Create Recipe"/>
-                <MenuItem Header="Create Snippet"/>
+                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
+                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
                 <Separator/>
-                <MenuItem Header="Reload Recipes" InputGesture="F5"/>
+                <MenuItem Header="_Gender Swap..." Command="{Binding GenderSwapCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Browse Recipes..." Command="{Binding BrowseRecipesCommand}"/>
+                <MenuItem Header="Create _Recipe..." Command="{Binding CreateRecipeCommand}"/>
+                <MenuItem Header="Create _Snippet..." Command="{Binding CreateSnippetCommand}"/>
+                <Separator/>
+                <MenuItem Header="Reload Recipes" Command="{Binding ReloadRecipesCommand}" InputGesture="F5"/>
+            </MenuItem>
+            <MenuItem Header="_Backyard">
+                <MenuItem Header="_Browse Characters..." Command="{Binding BrowseBackyardCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Connect" Command="{Binding ConnectBackyardCommand}"/>
+                <MenuItem Header="_Disconnect" Command="{Binding DisconnectBackyardCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Link Character" Command="{Binding LinkCharacterCommand}"/>
+                <MenuItem Header="_Unlink Character" Command="{Binding UnlinkCharacterCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}"/>
+                <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About Ginger" Command="{Binding AboutCommand}"/>
@@ -480,9 +513,10 @@
                                                     Padding="0">
                                                 <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
                                                     <Expander.Header>
-                                                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,8,0">
-                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,8,0">
+                                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
                                                                 <Button Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" Background="Transparent">
                                                                     <PathIcon Data="M7,15L12,10L17,15H7Z" Width="12" Height="12"/>
                                                                 </Button>
@@ -495,14 +529,60 @@
                                                             </StackPanel>
                                                         </Grid>
                                                     </Expander.Header>
-                                                    <TextBox Text="{Binding Content}"
-                                                             AcceptsReturn="True"
-                                                             TextWrapping="Wrap"
-                                                             MinHeight="80"
-                                                             Margin="12,0,12,12"
-                                                             Watermark="Recipe content..."
-                                                             FontSize="12"
-                                                             FontFamily="Consolas,Menlo,Monaco,monospace"/>
+                                                    <StackPanel Margin="12,0,12,12" Spacing="8">
+                                                        <!-- Parameters -->
+                                                        <ItemsControl ItemsSource="{Binding Parameters}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4"
+                                                                          IsVisible="{Binding !IsHiddenParameter}">
+                                                                        <!-- Label -->
+                                                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                                                   VerticalAlignment="Top"
+                                                                                   Margin="0,6,8,0"
+                                                                                   MinWidth="100"
+                                                                                   FontSize="11"/>
+                                                                        <!-- Value control based on type -->
+                                                                        <Panel Grid.Column="1">
+                                                                            <!-- Text -->
+                                                                            <TextBox Text="{Binding Value}"
+                                                                                     IsVisible="{Binding IsTextParameter}"
+                                                                                     AcceptsReturn="True"
+                                                                                     TextWrapping="Wrap"
+                                                                                     MinHeight="24"
+                                                                                     FontSize="11"
+                                                                                     Watermark="{Binding Description}"/>
+                                                                            <!-- Boolean (Toggle) -->
+                                                                            <CheckBox IsChecked="{Binding BoolValue}"
+                                                                                      IsVisible="{Binding IsBoolParameter}"
+                                                                                      Content="{Binding Description}"/>
+                                                                            <!-- Number -->
+                                                                            <NumericUpDown Value="{Binding NumericValue}"
+                                                                                           IsVisible="{Binding IsNumberParameter}"
+                                                                                           Minimum="{Binding MinValue}"
+                                                                                           Maximum="{Binding MaxValue}"
+                                                                                           Increment="{Binding StepValue}"
+                                                                                           FontSize="11"/>
+                                                                            <!-- Choice -->
+                                                                            <ComboBox ItemsSource="{Binding ChoiceOptions}"
+                                                                                      SelectedItem="{Binding SelectedOption}"
+                                                                                      IsVisible="{Binding IsChoiceParameter}"
+                                                                                      FontSize="11"
+                                                                                      HorizontalAlignment="Stretch"/>
+                                                                        </Panel>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <!-- Recipe Content -->
+                                                        <TextBox Text="{Binding Content}"
+                                                                 AcceptsReturn="True"
+                                                                 TextWrapping="Wrap"
+                                                                 MinHeight="80"
+                                                                 Watermark="Recipe content..."
+                                                                 FontSize="12"
+                                                                 FontFamily="Consolas,Menlo,Monaco,monospace"/>
+                                                    </StackPanel>
                                                 </Expander>
                                             </Border>
                                         </DataTemplate>

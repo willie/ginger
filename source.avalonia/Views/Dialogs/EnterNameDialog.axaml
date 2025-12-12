@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.EnterNameDialog"
+        Title="Enter Name"
+        Width="400"
+        Height="150"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False">
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto">
+        <TextBlock x:Name="PromptText" Grid.Row="0" Text="Enter a name:"
+                   Margin="0,0,0,8"/>
+
+        <TextBox x:Name="InputBox" Grid.Row="1"
+                 Watermark="Name..."
+                 Margin="0,0,0,16"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="OkButton" Content="OK" Width="80"
+                    Click="OkButton_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80"
+                    Click="CancelButton_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

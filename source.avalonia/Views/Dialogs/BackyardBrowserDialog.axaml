@@ -1,0 +1,107 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.BackyardBrowserDialog"
+        Title="Backyard AI Characters"
+        Width="800"
+        Height="550"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Search/Filter Bar -->
+        <Border Grid.Row="0" Padding="12"
+                BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="SearchBox" Grid.Column="1"
+                         Watermark="Filter characters..."
+                         Margin="0,0,12,0"/>
+                <ComboBox x:Name="FolderFilter" Grid.Column="2"
+                          Width="150"
+                          Margin="0,0,12,0"
+                          SelectedIndex="0"/>
+                <CheckBox x:Name="ShowPartiesCheck" Grid.Column="3"
+                          Content="Show groups" IsChecked="True"/>
+            </Grid>
+        </Border>
+
+        <!-- Character List -->
+        <Grid Grid.Row="1" ColumnDefinitions="2*,3*">
+            <!-- Folders -->
+            <Border Grid.Column="0" Padding="8"
+                    BorderThickness="0,0,1,0"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Folders"
+                               FontWeight="SemiBold" Margin="4,0,0,8"/>
+                    <ListBox x:Name="FolderList"
+                             SelectionMode="Single"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Characters in Folder -->
+            <Border Grid.Column="1" Padding="8">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Characters"
+                               FontWeight="SemiBold" Margin="4,0,0,8"/>
+                    <ListBox x:Name="CharacterList"
+                             SelectionMode="Single"
+                             DoubleTapped="CharacterList_DoubleTapped">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="x:Object">
+                                <Grid ColumnDefinitions="Auto,*" Margin="4">
+                                    <Border Width="48" Height="48" CornerRadius="4"
+                                            Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                                            Margin="0,0,12,0">
+                                        <TextBlock Text="?" FontSize="24"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Opacity="0.5"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{ReflectionBinding DisplayName, FallbackValue='Character'}"
+                                                   FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Text="{ReflectionBinding TypeLabel, FallbackValue=''}"
+                                                       FontSize="11" Opacity="0.7"/>
+                                            <TextBlock Text=" - " FontSize="11" Opacity="0.5"
+                                                       IsVisible="{ReflectionBinding HasChatCount}"/>
+                                            <TextBlock Text="{ReflectionBinding ChatCountLabel, FallbackValue=''}"
+                                                       FontSize="11" Opacity="0.7"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{ReflectionBinding CreatorLabel, FallbackValue=''}"
+                                                   FontSize="10" Opacity="0.5"
+                                                   IsVisible="{ReflectionBinding HasCreator}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Buttons -->
+        <Border Grid.Row="2" Padding="12"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center"
+                           FontSize="11" Opacity="0.7"/>
+                <Button Grid.Column="2" x:Name="ImportButton"
+                        Content="Import" Width="80"
+                        Click="ImportButton_Click"
+                        IsDefault="True"
+                        Margin="0,0,8,0"/>
+                <Button Grid.Column="3" x:Name="LinkButton"
+                        Content="Link" Width="80"
+                        Click="LinkButton_Click"
+                        Margin="0,0,8,0"/>
+                <Button Grid.Column="4" Content="Close" Width="80"
+                        Click="CloseButton_Click"
+                        IsCancel="True"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
