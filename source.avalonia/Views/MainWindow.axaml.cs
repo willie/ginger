@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
+using Ginger.Models;
 using Ginger.ViewModels;
 
 namespace Ginger.Views;
@@ -17,6 +18,88 @@ public partial class MainWindow : Window
         // Enable drag-drop
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+
+        // Handle additional keyboard shortcuts
+        KeyDown += MainWindow_KeyDown;
+    }
+
+    private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        // Alt+Left: Previous Actor
+        if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Left)
+        {
+            if (vm.SelectedActorIndex > 0)
+            {
+                vm.SelectedActorIndex--;
+                vm.StatusMessage = $"Switched to actor {vm.SelectedActorIndex + 1}";
+            }
+            e.Handled = true;
+        }
+        // Alt+Right: Next Actor
+        else if (e.KeyModifiers == KeyModifiers.Alt && e.Key == Key.Right)
+        {
+            if (vm.SelectedActorIndex < Current.Characters.Count - 1)
+            {
+                vm.SelectedActorIndex++;
+                vm.StatusMessage = $"Switched to actor {vm.SelectedActorIndex + 1}";
+            }
+            e.Handled = true;
+        }
+        // Ctrl+U: Push Changes (Linked Save)
+        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.U)
+        {
+            if (vm.PushChangesCommand.CanExecute(null))
+                vm.PushChangesCommand.Execute(null);
+            e.Handled = true;
+        }
+        // Ctrl+Shift+U: Pull Changes
+        else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.U)
+        {
+            if (vm.PullChangesCommand.CanExecute(null))
+                vm.PullChangesCommand.Execute(null);
+            e.Handled = true;
+        }
+        // F5 is already mapped via menu InputGesture
+        // Ctrl+Tab: Switch view tabs
+        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab)
+        {
+            // Cycle through tabs: Recipe -> Output -> Notes -> Lorebook -> Recipe
+            if (vm.IsRecipeTabActive)
+                vm.ShowOutputTabCommand.Execute(null);
+            else if (vm.IsOutputTabActive)
+                vm.ShowNotesTabCommand.Execute(null);
+            else if (vm.IsNotesTabActive)
+                vm.ShowLorebookTabCommand.Execute(null);
+            else if (vm.IsLorebookTabActive)
+                vm.ShowRecipeTabCommand.Execute(null);
+            e.Handled = true;
+        }
+        // Alt+1-4: Quick tab selection
+        else if (e.KeyModifiers == KeyModifiers.Alt)
+        {
+            switch (e.Key)
+            {
+                case Key.D1:
+                    vm.ShowRecipeTabCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.D2:
+                    vm.ShowOutputTabCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.D3:
+                    vm.ShowNotesTabCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+                case Key.D4:
+                    vm.ShowLorebookTabCommand.Execute(null);
+                    e.Handled = true;
+                    break;
+            }
+        }
     }
 
     private void OnDragOver(object? sender, DragEventArgs e)

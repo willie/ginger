@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.EditModelSettingsDialog"
+        Title="Model Settings"
+        Width="450" Height="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+        <!-- Preset Selection -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <TextBlock Text="Preset" FontWeight="SemiBold"/>
+            <ComboBox x:Name="PresetCombo" HorizontalAlignment="Stretch"/>
+        </StackPanel>
+
+        <!-- Parameters -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <!-- Temperature -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Temperature" FontWeight="SemiBold"/>
+                    <TextBlock Text="Controls randomness. Higher values produce more creative output."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="TemperatureSlider" Minimum="0" Maximum="2" Value="0.8"
+                                TickFrequency="0.1"/>
+                        <TextBox Grid.Column="1" x:Name="TemperatureText" Text="0.8" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Min-P -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Min-P" FontWeight="SemiBold"/>
+                    <TextBlock Text="Minimum probability threshold for token selection."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="MinPSlider" Minimum="0" Maximum="1" Value="0.05"
+                                TickFrequency="0.05"/>
+                        <TextBox Grid.Column="1" x:Name="MinPText" Text="0.05" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Top-P -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Top-P (Nucleus Sampling)" FontWeight="SemiBold"/>
+                    <TextBlock Text="Cumulative probability for token selection."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="TopPSlider" Minimum="0" Maximum="1" Value="0.95"
+                                TickFrequency="0.05"/>
+                        <TextBox Grid.Column="1" x:Name="TopPText" Text="0.95" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Top-K -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Top-K" FontWeight="SemiBold"/>
+                    <TextBlock Text="Number of top tokens to consider."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="TopKSlider" Minimum="0" Maximum="100" Value="40"
+                                TickFrequency="5"/>
+                        <TextBox Grid.Column="1" x:Name="TopKText" Text="40" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Repeat Penalty -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Repeat Penalty" FontWeight="SemiBold"/>
+                    <TextBlock Text="Penalizes repeated tokens."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="RepeatPenaltySlider" Minimum="1" Maximum="2" Value="1.1"
+                                TickFrequency="0.05"/>
+                        <TextBox Grid.Column="1" x:Name="RepeatPenaltyText" Text="1.1" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Repeat Last N -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Repeat Last N Tokens" FontWeight="SemiBold"/>
+                    <TextBlock Text="How many tokens to consider for repeat penalty."
+                               FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="*,60">
+                        <Slider x:Name="RepeatLastNSlider" Minimum="16" Maximum="512" Value="64"
+                                TickFrequency="16"/>
+                        <TextBox Grid.Column="1" x:Name="RepeatLastNText" Text="64" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,16,0,0" Spacing="8">
+            <Button Content="Reset" Click="Reset_Click" Width="80"/>
+            <Button Content="OK" Click="Ok_Click" IsDefault="True" Width="80"/>
+            <Button Content="Cancel" Click="Cancel_Click" IsCancel="True" Width="80"/>
+        </StackPanel>
+    </Grid>
+</Window>

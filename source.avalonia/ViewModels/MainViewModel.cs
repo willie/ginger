@@ -1803,6 +1803,50 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task CheckForUpdates()
+    {
+        StatusMessage = "Checking for updates...";
+
+        var updateInfo = await Services.UpdateService.CheckForUpdatesAsync();
+
+        if (updateInfo.UpdateAvailable)
+        {
+            var message = $"A new version is available!\n\n" +
+                          $"Current version: {updateInfo.CurrentVersion}\n" +
+                          $"Latest version: {updateInfo.LatestVersion}\n\n" +
+                          $"Would you like to open the download page?";
+
+            var result = await _dialogService.ConfirmAsync("Update Available", message);
+            if (result)
+            {
+                // Open the release page in the default browser
+                try
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = updateInfo.ReleaseUrl,
+                        UseShellExecute = true
+                    };
+                    System.Diagnostics.Process.Start(psi);
+                }
+                catch
+                {
+                    StatusMessage = "Could not open browser";
+                }
+            }
+            StatusMessage = $"Update available: v{updateInfo.LatestVersion}";
+        }
+        else if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes) && updateInfo.ReleaseNotes.StartsWith("Error"))
+        {
+            StatusMessage = updateInfo.ReleaseNotes;
+        }
+        else
+        {
+            StatusMessage = $"You're up to date (v{updateInfo.CurrentVersion})";
+        }
+    }
+
+    [RelayCommand]
     private async Task BrowseRecipes()
     {
         var selectedRecipe = await _dialogService.ShowRecipeBrowserAsync(_recipeService.AllRecipes);
@@ -2203,6 +2247,120 @@ public partial class MainViewModel : ObservableObject
         }
 
         StatusMessage = $"Export complete: {exported} succeeded, {failed} failed";
+    }
+
+    [RelayCommand]
+    private async Task ImportFolderToBackyard()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        // Ask for folder
+        var folder = await _dialogService.ShowFolderDialogAsync("Select Folder to Import to Backyard");
+        if (string.IsNullOrEmpty(folder))
+            return;
+
+        // Find all character files in folder
+        var files = Directory.GetFiles(folder)
+            .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".charx", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+                        f.EndsWith(".byaf", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (files.Length == 0)
+        {
+            StatusMessage = "No character files found in folder";
+            return;
+        }
+
+        StatusMessage = $"Importing {files.Length} files to Backyard...";
+        int imported = 0;
+        int failed = 0;
+
+        // Try to create a folder for imports
+        Integration.Backyard.FolderInstance targetFolder = default;
+        var folderName = AppSettings.BackyardLink.BulkImportFolderName;
+        Integration.Backyard.Database.CreateNewFolder(folderName, out targetFolder);
+
+        foreach (var file in files)
+        {
+            try
+            {
+                // Load the character card
+                var (result, card) = await _cardService.LoadAsync(file);
+                if (result != CharacterCardService.LoadResult.Success || card == null)
+                {
+                    failed++;
+                    continue;
+                }
+
+                // Load character into Current for generation
+                Current.NewCharacter();
+                Current.Character.name = card.Name;
+                Current.Character.spokenName = card.SpokenName;
+                Current.Character.persona = card.Persona;
+                Current.Character.personality = card.Personality;
+                Current.Character.scenario = card.Scenario;
+                Current.Character.greeting = card.Greeting;
+                Current.Character.example = card.Example;
+                Current.Character.system = card.System;
+                if (card.PortraitData != null)
+                    Current.Card.portraitImage = ImageRef.FromBytes(card.PortraitData);
+
+                // Generate output for Backyard
+                var output = Generator.Generate(Generator.Option.Export | Generator.Option.Faraday);
+                var backyardCard = Integration.BackyardLinkCard.FromOutput(output);
+                backyardCard.EnsureSystemPrompt(false);
+
+                // Gather images for the character
+                var imageInputs = new List<Integration.Backyard.ImageInput>();
+                if (card.PortraitData != null && card.PortraitData.Length > 0)
+                {
+                    imageInputs.Add(new Integration.Backyard.ImageInput
+                    {
+                        image = ImageRef.FromBytes(card.PortraitData),
+                        fileExt = "png",
+                    });
+                }
+
+                // Create character in Backyard
+                var args = new Integration.Backyard.CreateCharacterArguments
+                {
+                    card = backyardCard,
+                    imageInput = imageInputs.ToArray(),
+                    folder = targetFolder,
+                };
+
+                Integration.Backyard.CharacterInstance newCharacter;
+                Integration.Backyard.Link.Image[] imageLinks;
+                var createError = await Task.Run(() =>
+                {
+                    return Integration.Backyard.Database.CreateNewCharacter(args, out newCharacter, out imageLinks);
+                });
+
+                if (createError == Integration.Backyard.Error.NoError)
+                    imported++;
+                else
+                    failed++;
+
+                StatusMessage = $"Imported {imported}/{files.Length} to Backyard...";
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        StatusMessage = $"Import to Backyard complete: {imported} succeeded, {failed} failed";
     }
 
     [RelayCommand]
