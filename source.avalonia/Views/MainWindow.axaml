@@ -79,6 +79,9 @@
                 <Separator/>
                 <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
                 <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
+                <Separator/>
+                <MenuItem Header="_Load Portrait..." Command="{Binding LoadPortraitCommand}" InputGesture="Ctrl+L"/>
+                <MenuItem Header="_Clear Portrait" Command="{Binding ClearPortraitCommand}"/>
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Dark Mode" Command="{Binding ToggleDarkModeCommand}">
