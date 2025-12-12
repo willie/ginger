@@ -1507,25 +1507,93 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            // Get character ID to import
+            string characterId = character?.isDefined == true ? character.Value.instanceId : null;
+            if (string.IsNullOrEmpty(characterId))
+            {
+                StatusMessage = "No character selected to import";
+                return;
+            }
+
+            StatusMessage = $"Importing from Backyard...";
+
+            // Import character from Backyard database
+            Integration.Backyard.ImageInstance[] images = null;
+            UserData userInfo = null;
+            Integration.BackyardLinkCard card = null;
+
+            var importError = await Task.Run(() =>
+            {
+                return Integration.Backyard.Database.ImportCharacter(characterId, out card, out images, out userInfo);
+            });
+
+            if (importError != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Import failed: {importError}";
+                return;
+            }
+
+            if (card == null)
+            {
+                StatusMessage = "Import failed: No character data found";
+                return;
+            }
+
+            // Reset current character and load imported data
+            Current.NewCharacter();
+
+            // Update card metadata
+            CharacterName = card.data.displayName ?? card.data.name ?? "";
+            SpokenName = card.data.name ?? "";
+            Persona = card.data.persona ?? "";
+            Scenario = card.data.scenario ?? "";
+            Greeting = card.data.greeting.text ?? "";
+            ExampleMessages = card.data.example ?? "";
+            SystemPrompt = card.data.system ?? "";
+
+            // Load portrait if available
+            if (images != null && images.Length > 0)
+            {
+                var imageUrl = images[0].imageUrl;
+                if (!string.IsNullOrEmpty(imageUrl) && File.Exists(imageUrl))
+                {
+                    try
+                    {
+                        var portraitData = await File.ReadAllBytesAsync(imageUrl);
+                        using var ms = new MemoryStream(portraitData);
+                        PortraitImage = new Bitmap(ms);
+                        Current.Card.portraitImage = ImageRef.FromBytes(portraitData);
+                    }
+                    catch { /* Ignore image load errors */ }
+                }
+            }
+
+            // Set up link if requested
             if (wantsLink)
             {
-                // Link mode - just record the link, don't import
-                StatusMessage = $"Linked to: {group.Value.GetDisplayName()}";
+                Current.Link = new Integration.Backyard.Link
+                {
+                    groupId = group.Value.instanceId,
+                    isActive = true,
+                    actors = new[] {
+                        new Integration.Backyard.Link.Actor { remoteId = characterId }
+                    }
+                };
+
+                if (Integration.Backyard.Database.GetCharacter(characterId, out var charInstance))
+                {
+                    Current.Link.updateDate = charInstance.updateDate;
+                }
+
+                StatusMessage = $"Imported and linked: {CharacterName}";
             }
             else
             {
-                // Import mode - load the character data
-                if (character?.isDefined == true)
-                {
-                    StatusMessage = $"Importing from Backyard: {character.Value.displayName ?? character.Value.name}...";
-                    // TODO: Implement full import from Backyard database
-                    StatusMessage = $"Imported: {character.Value.displayName ?? character.Value.name}";
-                }
-                else
-                {
-                    StatusMessage = $"Selected group: {group.Value.GetDisplayName()}";
-                }
+                StatusMessage = $"Imported: {CharacterName}";
             }
+
+            MarkDirty();
+            RegenerateOutput();
         }
         catch (Exception ex)
         {
