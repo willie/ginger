@@ -88,6 +88,9 @@
                 <MenuItem Header="_Add Actor" Command="{Binding AddActorCommand}"/>
                 <MenuItem Header="_Remove Actor" Command="{Binding RemoveActorCommand}"
                           IsEnabled="{Binding CanRemoveActor}"/>
+                <Separator/>
+                <MenuItem Header="_Rearrange Actors..." Command="{Binding RearrangeActorsCommand}"
+                          IsEnabled="{Binding CanRemoveActor}"/>
             </MenuItem>
             <MenuItem Header="_Options">
                 <MenuItem Header="Allow NSFW" Command="{Binding ToggleNsfwCommand}">
@@ -101,6 +104,9 @@
                 <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
                 <Separator/>
                 <MenuItem Header="_Gender Swap..." Command="{Binding GenderSwapCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Variables..." Command="{Binding EditVariablesCommand}"/>
+                <MenuItem Header="_Embedded Assets..." Command="{Binding EditAssetsCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Browse Recipes..." Command="{Binding BrowseRecipesCommand}"/>
                 <MenuItem Header="Create _Recipe..." Command="{Binding CreateRecipeCommand}"/>

@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:Ginger.Views.Dialogs"
+        x:Class="Ginger.Views.Dialogs.AssetViewDialog"
+        Title="Embedded Assets"
+        Width="700"
+        Height="450"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="True"
+        MinWidth="600"
+        MinHeight="350">
+
+    <Grid Margin="12" ColumnDefinitions="*,Auto">
+        <!-- Asset list -->
+        <Border Grid.Column="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="0,0,12,0">
+            <ListBox x:Name="AssetsList"
+                     SelectionMode="Single"
+                     SelectionChanged="AssetsList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="dialogs:AssetViewDialog+AssetItem">
+                        <Grid ColumnDefinitions="*,60,100,80" Margin="4">
+                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Extension}"
+                                       VerticalAlignment="Center" Foreground="Gray"/>
+                            <TextBlock Grid.Column="2" Text="{Binding TypeName}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{Binding SizeText}"
+                                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                                       Foreground="Gray"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <!-- Button panel -->
+        <StackPanel Grid.Column="1" Width="160" Spacing="6">
+            <TextBlock Text="Add:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <Button x:Name="AddPortraitButton" Content="Portrait..."
+                    HorizontalAlignment="Stretch"
+                    Click="AddPortraitButton_Click"/>
+            <Button x:Name="AddUserPortraitButton" Content="User Portrait..."
+                    HorizontalAlignment="Stretch"
+                    Click="AddUserPortraitButton_Click"/>
+            <Button x:Name="AddBackgroundButton" Content="Background..."
+                    HorizontalAlignment="Stretch"
+                    Click="AddBackgroundButton_Click"/>
+            <Button x:Name="AddFileButton" Content="Any File..."
+                    HorizontalAlignment="Stretch"
+                    Click="AddFileButton_Click"/>
+
+            <Border Height="12"/>
+
+            <TextBlock Text="Selected:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <Button x:Name="ViewButton" Content="View"
+                    HorizontalAlignment="Stretch"
+                    IsEnabled="False"
+                    Click="ViewButton_Click"/>
+            <Button x:Name="ExportButton" Content="Export..."
+                    HorizontalAlignment="Stretch"
+                    IsEnabled="False"
+                    Click="ExportButton_Click"/>
+            <Button x:Name="RemoveButton" Content="Remove"
+                    HorizontalAlignment="Stretch"
+                    IsEnabled="False"
+                    Click="RemoveButton_Click"/>
+
+            <Border Height="20"/>
+
+            <TextBlock Text="Note: Embedded assets are only supported in CCV3 and CHARX cards."
+                       TextWrapping="Wrap" FontSize="11" Foreground="Gray"/>
+
+            <Border VerticalAlignment="Bottom"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"
+                        VerticalAlignment="Bottom" Margin="0,12,0,0">
+                <Button x:Name="ApplyButton" Content="Apply" Width="70"
+                        Click="ApplyButton_Click" IsDefault="True"/>
+                <Button Content="Cancel" Width="70"
+                        Click="CancelButton_Click" IsCancel="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

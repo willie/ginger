@@ -323,6 +323,40 @@ public class DialogService
             return (true, dialog.GetVariables());
         return (false, null);
     }
+
+    /// <summary>
+    /// Show the rearrange actors dialog.
+    /// </summary>
+    public async Task<(bool success, int[]? newOrder, bool changed)> ShowRearrangeActorsDialogAsync(IEnumerable<CharacterData> characters)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, null, false);
+
+        var dialog = new Views.Dialogs.RearrangeActorsDialog();
+        dialog.LoadActors(characters);
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.NewOrder, dialog.Changed);
+    }
+
+    /// <summary>
+    /// Show the asset view dialog.
+    /// </summary>
+    public async Task<(bool success, AssetCollection? assets, bool changed)> ShowAssetViewDialogAsync(AssetCollection currentAssets)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, null, false);
+
+        var dialog = new Views.Dialogs.AssetViewDialog();
+        dialog.LoadAssets(currentAssets);
+        await dialog.ShowDialog(window);
+
+        if (dialog.DialogResult)
+            return (true, dialog.Assets, dialog.Changed);
+        return (false, null, false);
+    }
 }
 
 /// <summary>

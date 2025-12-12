@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -1781,6 +1782,62 @@ public partial class MainViewModel : ObservableObject
     {
         AllowNsfw = !AllowNsfw;
         StatusMessage = AllowNsfw ? "NSFW content allowed" : "NSFW content filtered";
+    }
+
+    [RelayCommand]
+    private async Task EditVariables()
+    {
+        var currentVariables = Current.Card.customVariables ?? new List<CustomVariable>();
+        var (success, variables) = await _dialogService.ShowVariablesDialogAsync(currentVariables);
+        if (success && variables != null)
+        {
+            Current.Card.customVariables = variables;
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = $"Updated {variables.Count} custom variable(s)";
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditAssets()
+    {
+        var currentAssets = Current.Card.assets ?? new AssetCollection();
+        var (success, assets, changed) = await _dialogService.ShowAssetViewDialogAsync(currentAssets);
+        if (success && changed && assets != null)
+        {
+            Current.Card.assets = assets;
+            MarkDirty();
+            StatusMessage = $"Updated embedded assets ({assets.assets.Count} total)";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RearrangeActors()
+    {
+        if (Current.Characters.Count <= 1)
+        {
+            StatusMessage = "At least 2 actors required to rearrange";
+            return;
+        }
+
+        var (success, newOrder, changed) = await _dialogService.ShowRearrangeActorsDialogAsync(Current.Characters);
+        if (success && changed && newOrder != null)
+        {
+            // Reorder the characters based on newOrder
+            var reordered = new List<CharacterData>(Current.Characters.Count);
+            foreach (var index in newOrder)
+            {
+                if (index >= 0 && index < Current.Characters.Count)
+                    reordered.Add(Current.Characters[index]);
+            }
+
+            Current.Characters.Clear();
+            Current.Characters.AddRange(reordered);
+
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = "Actors reordered";
+        }
     }
 
     #endregion

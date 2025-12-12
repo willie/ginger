@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.RearrangeActorsDialog"
+        Title="Rearrange Actors"
+        Width="500"
+        Height="300"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False">
+
+    <Grid Margin="12" ColumnDefinitions="*,Auto">
+        <!-- Actor list -->
+        <ListBox x:Name="ActorsList" Grid.Column="0"
+                 SelectionMode="Single"
+                 Margin="0,0,12,0"
+                 SelectionChanged="ActorsList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" Padding="8,4"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Button panel -->
+        <StackPanel Grid.Column="1" Width="120" Spacing="8">
+            <Button x:Name="MoveUpButton" Content="Move Up"
+                    HorizontalAlignment="Stretch"
+                    Click="MoveUpButton_Click"
+                    IsEnabled="False"/>
+            <Button x:Name="MoveDownButton" Content="Move Down"
+                    HorizontalAlignment="Stretch"
+                    Click="MoveDownButton_Click"
+                    IsEnabled="False"/>
+
+            <Border Height="20"/>
+
+            <Button x:Name="ConfirmButton" Content="Confirm"
+                    HorizontalAlignment="Stretch"
+                    Click="ConfirmButton_Click"
+                    IsDefault="True"/>
+            <Button Content="Cancel"
+                    HorizontalAlignment="Stretch"
+                    Click="CancelButton_Click"
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
