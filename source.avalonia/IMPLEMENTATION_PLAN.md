@@ -1,6 +1,6 @@
 # Ginger Avalonia Port - 100% Parity Implementation Plan
 
-## Current Status: ~55% Complete
+## Current Status: ~60% Complete
 
 ### What Works
 - Core generation engine (Generator.cs)
@@ -8,14 +8,14 @@
 - Basic character editing UI
 - All character card formats (TavernV2, TavernV3, Ginger, Agnaistic, Pygmalion, Faraday, TextGenWebUI, CHARX, BYAF)
 - Export to multiple formats (PNG, JSON, YAML, CHARX, BYAF)
-- 11 dialogs implemented (added FileFormatDialog, VariablesDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog)
+- 13 dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, etc.)
 - Backyard connection with Push/Pull sync
 - AppSettings with JSON persistence
 
 ### Remaining Gaps
-- 8 dialogs still missing
+- 6 dialogs still missing
 - No chat log support
-- Incomplete multi-actor support
+- BulkExporter/BulkImporter not yet implemented
 
 ---
 
@@ -246,9 +246,9 @@ Copy from original:
 
 ### Week 3: Missing Dialogs
 12. [x] Create VariablesDialog
-13. [ ] Create RearrangeActorsDialog
-14. [ ] Create AssetViewDialog
-15. [ ] Wire dialogs to menu commands
+13. [x] Create RearrangeActorsDialog
+14. [x] Create AssetViewDialog
+15. [x] Wire dialogs to menu commands
 
 ### Week 4: Chat & Polish
 16. [ ] Implement BackyardChatV2
