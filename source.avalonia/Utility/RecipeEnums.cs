@@ -124,6 +124,8 @@ namespace Ginger
 		public int minor;
 		public int build;
 
+		public static readonly VersionNumber Zero = new VersionNumber(0, 0, 0);
+
 		public VersionNumber(int major, int minor = 0, int build = 0)
 		{
 			this.major = major;

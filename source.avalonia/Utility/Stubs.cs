@@ -96,5 +96,45 @@ namespace Ginger
 				PlainText,
 			}
 		}
+
+		public static class BackyardLink
+		{
+			public static bool Enabled = false;
+			public static string Location = "";
+			public static bool PruneExampleChat = true;
+			public static bool Strict = false;
+			public static bool UsePortraitAsBackground = false;
+			public static bool WriteAuthorNote = false;
+			public static bool MarkNSFW = false;
+			public static ActiveChatSetting ApplyChatSettings = ActiveChatSetting.First;
+
+			public enum ActiveChatSetting
+			{
+				First,
+				Last,
+				All
+			}
+		}
+
+		public static class BackyardSettings
+		{
+			public static bool AutoArrangePortraits = true;
+			public static UserSettingsData UserSettings = new UserSettingsData();
+
+			public class UserSettingsData
+			{
+				public string id { get; set; }
+				public string name { get; set; }
+				public string persona { get; set; }
+			}
+		}
+	}
+
+	/// <summary>
+	/// Stub for BackyardModelDatabase - not used in MVP
+	/// </summary>
+	public static class BackyardModelDatabase
+	{
+		public static void Refresh() { }
 	}
 }

@@ -65,6 +65,7 @@ namespace Ginger
 		public static bool IsDirty { get; set; }
 		public static bool IsFileDirty { get; set; }
 		public static bool IsLoading { get; set; }
+		public static bool IsNSFW { get; set; } // For Backyard integration
 
 		public static IEnumerable<Recipe> AllRecipes => Characters.SelectMany(c => c.recipes);
 		public static IRuleSupplier[] RuleSuppliers => new IRuleSupplier[] { Strings };
@@ -195,19 +196,23 @@ namespace Ginger
 	public class CardData
 	{
 		[Flags]
-		public enum Flag
+		public enum Flag : int
 		{
 			None = 0,
 			PruneScenario = 1 << 0,
-			OmitAttributes = 1 << 1,
-			OmitPersonality = 1 << 2,
-			OmitSystemPrompt = 1 << 3,
-			OmitUserPersona = 1 << 4,
-			OmitScenario = 1 << 5,
-			OmitExample = 1 << 6,
-			OmitGrammar = 1 << 7,
-			OmitGreeting = 1 << 8,
-			OmitLore = 1 << 9,
+			UserPersonaInScenario = 1 << 1,
+
+			OmitPersonality = 1 << 23,
+			OmitUserPersona = 1 << 24,
+			OmitSystemPrompt = 1 << 25,
+			OmitAttributes = 1 << 26,
+			OmitScenario = 1 << 27,
+			OmitExample = 1 << 28,
+			OmitGreeting = 1 << 29,
+			OmitGrammar = 1 << 30,
+			OmitLore = 1 << 31,
+
+			Default = None,
 		}
 
 		public string uuid { get; set; } = Guid.NewGuid().ToString();
@@ -231,14 +236,19 @@ namespace Ginger
 			Bold,       // Double asterisks
 			Parentheses,// Parentheses instead of asterisks
 			Japanese,   // Japanese quotes
+			Default = None,
 		}
-		public TextStyle textStyle { get; set; } = TextStyle.None;
+		public TextStyle textStyle { get; set; } = TextStyle.Default;
 
 		// Extra flags for generation options
 		public HashSet<Flag> extraFlags { get; set; } = new HashSet<Flag>();
 
 		// Whether to use style grammar
 		public bool useStyleGrammar { get; set; } = false;
+
+		// For Backyard integration
+		public AssetCollection assets { get; set; } = new AssetCollection();
+		public ImageRef portraitImage { get; set; }
 
 		// Custom variables dictionary for macro system
 		private Dictionary<string, string> _variables = new Dictionary<string, string>();

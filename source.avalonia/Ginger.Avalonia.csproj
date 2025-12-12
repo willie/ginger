@@ -16,7 +16,14 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="YamlDotNet" Version="16.2.0" />
+  </ItemGroup>
+
+  <!-- Exclude Backyard integration files that need porting from System.Data.SQLite to Microsoft.Data.Sqlite -->
+  <!-- TODO: Port these files to use Microsoft.Data.Sqlite API -->
+  <ItemGroup>
+    <Compile Remove="Services/Backyard/**/*.cs" />
   </ItemGroup>
 </Project>
