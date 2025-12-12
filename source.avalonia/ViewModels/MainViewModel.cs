@@ -1044,6 +1044,75 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ExportAs()
+    {
+        if (_currentCard == null)
+        {
+            StatusMessage = "No character to export";
+            return;
+        }
+
+        // Show format selection dialog
+        var (success, format) = await _dialogService.ShowFileFormatDialogAsync();
+        if (!success)
+            return;
+
+        // Get file extension and filter for selected format
+        string extension = format switch
+        {
+            Views.Dialogs.FileFormatDialog.ExportFormat.Png => ".png",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Json => ".json",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Yaml => ".yaml",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Charx => ".charx",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Byaf => ".byaf",
+            _ => ".png"
+        };
+
+        string filter = format switch
+        {
+            Views.Dialogs.FileFormatDialog.ExportFormat.Png => "*.png",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Json => "*.json",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Yaml => "*.yaml",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Charx => "*.charx",
+            Views.Dialogs.FileFormatDialog.ExportFormat.Byaf => "*.byaf",
+            _ => "*.png"
+        };
+
+        var fileName = string.IsNullOrWhiteSpace(CharacterName) ? "character" : CharacterName;
+        var file = await _fileService.SaveFileAsync(
+            $"Export as {extension.ToUpperInvariant().TrimStart('.')}",
+            fileName,
+            new[] { filter });
+
+        if (file != null)
+        {
+            try
+            {
+                // Ensure correct extension
+                if (!file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                    file = Path.ChangeExtension(file, extension);
+
+                var card = ToCard();
+                if (await _cardService.SaveAsync(file, card))
+                {
+                    StatusMessage = $"Exported as {Path.GetFileName(file)}";
+                }
+                else
+                {
+                    if (format == Views.Dialogs.FileFormatDialog.ExportFormat.Png && card.PortraitData == null)
+                        StatusMessage = "Export failed: PNG format requires a portrait image";
+                    else
+                        StatusMessage = "Export failed";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Export error: {ex.Message}";
+            }
+        }
+    }
+
     private static string SanitizeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
@@ -1584,10 +1653,42 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            // TODO: Implement full push to Backyard database
-            // This would use Integration.Backyard.UpdateCharacter() when implemented
-            StatusMessage = "Push to Backyard AI not yet fully implemented";
-            await Task.CompletedTask;
+            StatusMessage = "Pushing changes to Backyard AI...";
+
+            // Generate output for Faraday format
+            var output = Generator.Generate(Generator.Option.Export | Generator.Option.Faraday | Generator.Option.Linked);
+
+            // Create BackyardLinkCard from output
+            var card = Integration.BackyardLinkCard.FromOutput(output);
+
+            // Ensure system prompt for solo characters
+            if (Current.Link.linkType == Integration.Backyard.Link.LinkType.Solo ||
+                Current.Link.linkType == Integration.Backyard.Link.LinkType.Group)
+            {
+                card.EnsureSystemPrompt(false);
+            }
+
+            // Call UpdateCharacter (synchronous, wrapped in Task.Run)
+            DateTime updateDate = default;
+            Integration.Backyard.Link.Image[] imageLinks = null;
+            var updateError = await Task.Run(() =>
+            {
+                return Integration.Backyard.Database.UpdateCharacter(Current.Link, card, null, out updateDate, out imageLinks);
+            });
+
+            if (updateError != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Push failed: {updateError}";
+                return;
+            }
+
+            // Update link with new timestamp
+            Current.Link.updateDate = updateDate;
+            Current.Link.imageLinks = imageLinks;
+            Current.Link.isDirty = false;
+
+            StatusMessage = "Changes pushed to Backyard AI";
+            MarkDirty();
         }
         catch (Exception ex)
         {
@@ -1616,10 +1717,55 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            // TODO: Implement full pull from Backyard database
-            // This would refresh character data from the Backyard database
-            StatusMessage = "Pull from Backyard AI not yet fully implemented";
-            await Task.CompletedTask;
+            StatusMessage = "Pulling changes from Backyard AI...";
+
+            // Get the main actor's character ID
+            string characterId = Current.Link.mainActorId;
+            if (string.IsNullOrEmpty(characterId))
+            {
+                StatusMessage = "Pull failed: No character ID in link";
+                return;
+            }
+
+            // Import character from Backyard database
+            Integration.Backyard.ImageInstance[] images = null;
+            UserData userInfo = null;
+            Integration.BackyardLinkCard card = null;
+
+            var importError = await Task.Run(() =>
+            {
+                return Integration.Backyard.Database.ImportCharacter(characterId, out card, out images, out userInfo);
+            });
+
+            if (importError != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Pull failed: {importError}";
+                return;
+            }
+
+            if (card == null)
+            {
+                StatusMessage = "Pull failed: No character data found";
+                return;
+            }
+
+            // Update ViewModel properties from the pulled data
+            CharacterName = card.data.displayName ?? card.data.name ?? "";
+            Persona = card.data.persona ?? "";
+            Scenario = card.data.scenario ?? "";
+            Greeting = card.data.greeting.text ?? "";
+            ExampleMessages = card.data.example ?? "";
+            SystemPrompt = card.data.system ?? "";
+
+            // Update Current.Link timestamp
+            if (Integration.Backyard.Database.GetCharacter(characterId, out var charInstance))
+            {
+                Current.Link.updateDate = charInstance.updateDate;
+            }
+            Current.Link.isDirty = false;
+
+            StatusMessage = "Changes pulled from Backyard AI";
+            MarkDirty();
         }
         catch (Exception ex)
         {

@@ -40,6 +40,8 @@ public class CharacterCardService
                 ".json" => await LoadFromJsonAsync(filePath),
                 ".yaml" => await LoadFromYamlAsync(filePath),
                 ".byaf" => await LoadFromByafAsync(filePath),
+                ".charx" => await LoadFromCharxAsync(filePath),
+                ".xml" => await LoadFromXmlAsync(filePath),
                 _ => (LoadResult.InvalidFormat, null)
             };
         }
@@ -74,6 +76,13 @@ public class CharacterCardService
             {
                 byte[] jsonBytes = Convert.FromBase64String(ccv3Base64);
                 string json = Encoding.UTF8.GetString(jsonBytes);
+                var tavernV3 = TavernCardV3.FromJson(json, out _);
+                if (tavernV3 != null)
+                {
+                    var card = CharacterCard.FromTavernV3(tavernV3, imageData);
+                    return (LoadResult.Success, card);
+                }
+                // Fall back to V2 parser if V3 fails
                 var tavernV2 = TavernCardV2.FromJson(json, out _);
                 if (tavernV2 != null)
                 {
@@ -102,11 +111,21 @@ public class CharacterCardService
             catch { }
         }
 
-        // Try ginger format
+        // Try Ginger native format (XML)
         if (metadata.TryGetValue("ginger", out string? gingerBase64))
         {
-            // Ginger native format (XML) - for now just fall through
-            // TODO: Implement GingerCardV1 parser
+            try
+            {
+                byte[] xmlBytes = Convert.FromBase64String(gingerBase64);
+                string xml = Encoding.UTF8.GetString(xmlBytes);
+                var gingerCard = GingerCardV1.FromXml(xml);
+                if (gingerCard != null)
+                {
+                    var card = CharacterCard.FromGingerV1(gingerCard, imageData);
+                    return (LoadResult.Success, card);
+                }
+            }
+            catch { }
         }
 
         return (LoadResult.NoDataFound, null);
@@ -119,12 +138,31 @@ public class CharacterCardService
     {
         string json = await File.ReadAllTextAsync(filePath);
 
-        // Try TavernCardV2 format first
+        // Try TavernCardV3 format first (newest)
+        var tavernV3 = TavernCardV3.FromJson(json, out _);
+        if (tavernV3 != null)
+        {
+            var card = CharacterCard.FromTavernV3(tavernV3);
+            return (LoadResult.Success, card);
+        }
+
+        // Try TavernCardV2 format
         var tavernV2 = TavernCardV2.FromJson(json, out _);
         if (tavernV2 != null)
         {
             var card = CharacterCard.FromTavernV2(tavernV2);
             return (LoadResult.Success, card);
+        }
+
+        // Try Agnaistic format
+        if (AgnaisticCard.Validate(json))
+        {
+            var agn = AgnaisticCard.FromJson(json, out _);
+            if (agn != null)
+            {
+                var card = CharacterCard.FromAgnaistic(agn);
+                return (LoadResult.Success, card);
+            }
         }
 
         // Try Faraday format
@@ -136,6 +174,14 @@ public class CharacterCardService
                 var card = faraday.ToCharacterCard();
                 return (LoadResult.Success, card);
             }
+        }
+
+        // Try Pygmalion format
+        var pygmalion = PygmalionCard.FromJson(json);
+        if (pygmalion != null)
+        {
+            var card = pygmalion.ToCharacterCard();
+            return (LoadResult.Success, card);
         }
 
         return (LoadResult.InvalidFormat, null);
@@ -268,6 +314,129 @@ public class CharacterCardService
     }
 
     /// <summary>
+    /// Load a character card from a .charx (Character Archive) file.
+    /// CHARX is a zip archive containing card.json and optional assets.
+    /// </summary>
+    private async Task<(LoadResult result, CharacterCard? card)> LoadFromCharxAsync(string filePath)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                using var archive = new ZipArchive(fs, ZipArchiveMode.Read);
+
+                // Look for card.json (standard CHARX format)
+                var cardEntry = archive.GetEntry("card.json");
+                if (cardEntry == null)
+                {
+                    // Try alternate names
+                    cardEntry = archive.Entries.FirstOrDefault(e =>
+                        e.Name.Equals("card.json", StringComparison.OrdinalIgnoreCase) ||
+                        e.Name.Equals("character.json", StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (cardEntry == null)
+                    return (LoadResult.NoDataFound, null);
+
+                string json;
+                using (var reader = new StreamReader(cardEntry.Open()))
+                {
+                    json = reader.ReadToEnd();
+                }
+
+                // Try TavernCardV3 format first
+                var tavernV3 = TavernCardV3.FromJson(json, out _);
+                if (tavernV3 != null)
+                {
+                    var card = CharacterCard.FromTavernV3(tavernV3);
+                    card.SourceFormat = CharacterCard.CardFormat.TavernV3;
+
+                    // Try to find portrait image
+                    card.PortraitData = ExtractPortraitFromArchive(archive);
+                    return (LoadResult.Success, card);
+                }
+
+                // Try TavernCardV2 format
+                var tavernV2 = TavernCardV2.FromJson(json, out _);
+                if (tavernV2 != null)
+                {
+                    var card = CharacterCard.FromTavernV2(tavernV2);
+
+                    // Try to find portrait image
+                    card.PortraitData = ExtractPortraitFromArchive(archive);
+                    return (LoadResult.Success, card);
+                }
+
+                return (LoadResult.InvalidFormat, null);
+            }
+            catch
+            {
+                return (LoadResult.ReadError, null);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Extract portrait image from a zip archive.
+    /// </summary>
+    private static byte[]? ExtractPortraitFromArchive(ZipArchive archive)
+    {
+        // Look for common image file names
+        var imageEntry = archive.Entries.FirstOrDefault(e =>
+            e.Name.Equals("avatar.png", StringComparison.OrdinalIgnoreCase) ||
+            e.Name.Equals("portrait.png", StringComparison.OrdinalIgnoreCase) ||
+            e.Name.Equals("image.png", StringComparison.OrdinalIgnoreCase) ||
+            e.Name.Equals("card.png", StringComparison.OrdinalIgnoreCase));
+
+        // Fall back to any PNG/JPG/WEBP in root or assets folder
+        if (imageEntry == null)
+        {
+            imageEntry = archive.Entries.FirstOrDefault(e =>
+                !e.FullName.Contains('/') &&
+                (e.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                 e.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                 e.Name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (imageEntry == null)
+        {
+            imageEntry = archive.Entries.FirstOrDefault(e =>
+                e.FullName.StartsWith("assets/", StringComparison.OrdinalIgnoreCase) &&
+                (e.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                 e.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                 e.Name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (imageEntry != null)
+        {
+            using var ms = new MemoryStream();
+            using var imgStream = imageEntry.Open();
+            imgStream.CopyTo(ms);
+            return ms.ToArray();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Load a character card from a standalone XML file (Ginger native format).
+    /// </summary>
+    private async Task<(LoadResult result, CharacterCard? card)> LoadFromXmlAsync(string filePath)
+    {
+        string xml = await File.ReadAllTextAsync(filePath);
+
+        var gingerCard = GingerCardV1.FromXml(xml);
+        if (gingerCard != null)
+        {
+            var card = CharacterCard.FromGingerV1(gingerCard);
+            return (LoadResult.Success, card);
+        }
+
+        return (LoadResult.InvalidFormat, null);
+    }
+
+    /// <summary>
     /// Save a character card to a file.
     /// </summary>
     public async Task<bool> SaveAsync(string filePath, CharacterCard card)
@@ -280,6 +449,9 @@ public class CharacterCardService
             {
                 ".png" => await SaveToPngAsync(filePath, card),
                 ".json" => await SaveToJsonAsync(filePath, card),
+                ".yaml" => await SaveToYamlAsync(filePath, card),
+                ".charx" => await SaveToCharxAsync(filePath, card),
+                ".byaf" => await SaveToByafAsync(filePath, card),
                 _ => false
             };
         }
@@ -324,5 +496,153 @@ public class CharacterCardService
         string json = tavernCard.ToJson();
         await File.WriteAllTextAsync(filePath, json);
         return true;
+    }
+
+    /// <summary>
+    /// Save a character card to a YAML file (TextGenWebUI format).
+    /// </summary>
+    private async Task<bool> SaveToYamlAsync(string filePath, CharacterCard card)
+    {
+        var textGenCard = new TextGenWebUICard
+        {
+            name = card.Name,
+            context = CombinePersonaAndScenario(card),
+            greeting = card.Greeting,
+            example = card.Example,
+        };
+        string yaml = textGenCard.ToYaml();
+        if (yaml == null)
+            return false;
+
+        await File.WriteAllTextAsync(filePath, yaml);
+        return true;
+    }
+
+    private static string CombinePersonaAndScenario(CharacterCard card)
+    {
+        var sb = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(card.Persona))
+            sb.AppendLine(card.Persona);
+        if (!string.IsNullOrWhiteSpace(card.Scenario))
+            sb.AppendLine(card.Scenario);
+        return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Save a character card to a CHARX archive (zip with card.json).
+    /// </summary>
+    private async Task<bool> SaveToCharxAsync(string filePath, CharacterCard card)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                using var archive = new ZipArchive(fs, ZipArchiveMode.Create);
+
+                // Add card.json
+                var tavernCard = card.ToTavernV2();
+                string json = tavernCard.ToJson();
+                var cardEntry = archive.CreateEntry("card.json");
+                using (var writer = new StreamWriter(cardEntry.Open()))
+                {
+                    writer.Write(json);
+                }
+
+                // Add portrait image if available
+                if (card.PortraitData != null && card.PortraitData.Length > 0)
+                {
+                    var imageEntry = archive.CreateEntry("avatar.png");
+                    using var imageStream = imageEntry.Open();
+                    imageStream.Write(card.PortraitData, 0, card.PortraitData.Length);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Save a character card to a Backyard Archive (.byaf) file.
+    /// </summary>
+    private async Task<bool> SaveToByafAsync(string filePath, CharacterCard card)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                using var archive = new ZipArchive(fs, ZipArchiveMode.Create);
+
+                string charId = Guid.NewGuid().ToString();
+                string charPath = $"characters/{charId}/character.json";
+                string imagePath = $"characters/{charId}/images/avatar.png";
+
+                // Create manifest
+                var manifest = new ByafManifest
+                {
+                    Characters = new[] { charPath }
+                };
+                string manifestJson = Newtonsoft.Json.JsonConvert.SerializeObject(manifest);
+                var manifestEntry = archive.CreateEntry("manifest.json");
+                using (var writer = new StreamWriter(manifestEntry.Open()))
+                {
+                    writer.Write(manifestJson);
+                }
+
+                // Create character JSON (using ByafCharacter format)
+                var byafChar = new ByafCharacter
+                {
+                    SchemaVersion = 1,
+                    Id = charId,
+                    Name = card.SpokenName ?? card.Name,
+                    DisplayName = card.Name,
+                    Persona = card.Persona,
+                };
+
+                // Add image reference if portrait exists
+                if (card.PortraitData != null && card.PortraitData.Length > 0)
+                {
+                    byafChar.Images = new[] { new ByafCharacter.ByafImage { Path = "images/avatar.png" } };
+                }
+
+                // Add lore items
+                if (card.Lorebook?.Entries.Count > 0)
+                {
+                    byafChar.LoreItems = card.Lorebook.Entries
+                        .Select(e => new ByafCharacter.ByafLoreItem
+                        {
+                            Key = e.Keys.Length > 0 ? e.Keys[0] : "",
+                            Value = e.Content
+                        })
+                        .ToArray();
+                }
+
+                string charJson = Newtonsoft.Json.JsonConvert.SerializeObject(byafChar);
+                var charEntry = archive.CreateEntry(charPath);
+                using (var writer = new StreamWriter(charEntry.Open()))
+                {
+                    writer.Write(charJson);
+                }
+
+                // Add portrait image
+                if (card.PortraitData != null && card.PortraitData.Length > 0)
+                {
+                    var imageEntry = archive.CreateEntry(imagePath);
+                    using var imageStream = imageEntry.Open();
+                    imageStream.Write(card.PortraitData, 0, card.PortraitData.Length);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
     }
 }

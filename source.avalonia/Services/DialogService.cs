@@ -289,6 +289,40 @@ public class DialogService
 
         return (dialog.DialogResult, dialog.FileName, dialog.Output);
     }
+
+    /// <summary>
+    /// Show the file format dialog for export format selection.
+    /// </summary>
+    public async Task<(bool success, Views.Dialogs.FileFormatDialog.ExportFormat format)> ShowFileFormatDialogAsync(
+        Views.Dialogs.FileFormatDialog.ExportFormat defaultFormat = Views.Dialogs.FileFormatDialog.ExportFormat.Png)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, default);
+
+        var dialog = new Views.Dialogs.FileFormatDialog(defaultFormat);
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.SelectedFormat);
+    }
+
+    /// <summary>
+    /// Show the variables editor dialog.
+    /// </summary>
+    public async Task<(bool success, List<CustomVariable> variables)> ShowVariablesDialogAsync(IEnumerable<CustomVariable> currentVariables)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, null);
+
+        var dialog = new Views.Dialogs.VariablesDialog();
+        dialog.LoadVariables(currentVariables);
+        await dialog.ShowDialog(window);
+
+        if (dialog.DialogResult)
+            return (true, dialog.GetVariables());
+        return (false, null);
+    }
 }
 
 /// <summary>

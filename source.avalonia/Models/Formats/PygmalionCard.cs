@@ -144,5 +144,22 @@ namespace Ginger
 				return false;
 			}
 		}
+
+		public Ginger.Models.CharacterCard ToCharacterCard(byte[] portraitData = null)
+		{
+			return new Ginger.Models.CharacterCard
+			{
+				SourceFormat = Ginger.Models.CharacterCard.CardFormat.Pygmalion,
+				Name = name,
+				SpokenName = name,
+				Creator = metaData?.creator ?? "",
+				CreatorNotes = metaData?.comment ?? "",
+				Persona = persona ?? "",
+				Scenario = scenario ?? "",
+				Greeting = greeting ?? "",
+				Example = example ?? "",
+				PortraitData = portraitData,
+			};
+		}
 	}
 }

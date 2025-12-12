@@ -60,6 +60,8 @@
                     <MenuItem Header="Import from _Folder..." Command="{Binding ImportFromFolderCommand}"/>
                 </MenuItem>
                 <MenuItem Header="_Export">
+                    <MenuItem Header="Export _As..." Command="{Binding ExportAsCommand}" InputGesture="Ctrl+E"/>
+                    <Separator/>
                     <MenuItem Header="Export to _Folder..." Command="{Binding ExportToFolderCommand}"/>
                     <MenuItem Header="Export as _JSON..." Command="{Binding ExportAsJsonCommand}"/>
                 </MenuItem>
