@@ -49,6 +49,7 @@
         <Menu DockPanel.Dock="Top" FontSize="12">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="Ctrl+D"/>
                 <Separator/>
                 <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="Ctrl+O"/>
                 <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}"/>
@@ -118,6 +119,7 @@
             </MenuItem>
             <MenuItem Header="_Backyard">
                 <MenuItem Header="_Browse Characters..." Command="{Binding BrowseBackyardCommand}"/>
+                <MenuItem Header="_Export All to Folder..." Command="{Binding ExportAllBackyardCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Connect" Command="{Binding ConnectBackyardCommand}"/>
                 <MenuItem Header="_Disconnect" Command="{Binding DisconnectBackyardCommand}"/>

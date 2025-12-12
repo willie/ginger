@@ -1,6 +1,6 @@
 # Ginger Avalonia Port - 100% Parity Implementation Plan
 
-## Current Status: ~65% Complete
+## Current Status: ~70% Complete
 
 ### What Works
 - Core generation engine (Generator.cs)
@@ -9,7 +9,7 @@
 - All character card formats (TavernV2, TavernV3, Ginger, Agnaistic, Pygmalion, Faraday, TextGenWebUI, CHARX, BYAF)
 - Export to multiple formats (PNG, JSON, YAML, CHARX, BYAF)
 - 15 dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterUrlDialog, PasteTextDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, etc.)
-- Backyard connection with Push/Pull sync
+- Backyard connection with Push/Pull sync and bulk export
 - AppSettings with JSON persistence
 
 ### Remaining Gaps

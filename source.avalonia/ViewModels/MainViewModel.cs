@@ -834,6 +834,24 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void Duplicate()
+    {
+        // Clear file path so it becomes a new file
+        _currentFilePath = null;
+
+        // Append "Copy" to the name if there isn't already a copy suffix
+        if (!string.IsNullOrEmpty(CharacterName))
+        {
+            if (!CharacterName.EndsWith(" (Copy)"))
+                CharacterName = CharacterName + " (Copy)";
+        }
+
+        MarkDirty();
+        UpdateWindowTitle();
+        StatusMessage = "Character duplicated - save to create a new file";
+    }
+
+    [RelayCommand]
     private async Task OpenAsync()
     {
         var file = await _fileService.OpenFileAsync(
@@ -1699,6 +1717,110 @@ public partial class MainViewModel : ObservableObject
         Current.Link = null;
         StatusMessage = "Unlinked from Backyard AI";
         MarkDirty();
+    }
+
+    [RelayCommand]
+    private async Task ExportAllBackyard()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        var characters = Integration.Backyard.Characters.ToList();
+        if (characters.Count == 0)
+        {
+            StatusMessage = "No characters found in Backyard AI";
+            return;
+        }
+
+        // Ask for folder
+        var folder = await _dialogService.ShowFolderDialogAsync("Select Export Folder");
+        if (string.IsNullOrEmpty(folder))
+            return;
+
+        StatusMessage = $"Exporting {characters.Count} characters...";
+        int exported = 0;
+        int failed = 0;
+
+        foreach (var character in characters)
+        {
+            try
+            {
+                // Import character from Backyard
+                Integration.Backyard.ImageInstance[] images = null;
+                UserData userInfo = null;
+                Integration.BackyardLinkCard card = null;
+
+                var importError = await Task.Run(() =>
+                {
+                    return Integration.Backyard.Database.ImportCharacter(character.instanceId, out card, out images, out userInfo);
+                });
+
+                if (importError != Integration.Backyard.Error.NoError || card == null)
+                {
+                    failed++;
+                    continue;
+                }
+
+                // Create a filename from the character name
+                var name = card.data.displayName ?? card.data.name ?? "Unknown";
+                var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+                var filePath = Path.Combine(folder, $"{safeName}.png");
+
+                // Avoid overwriting
+                int counter = 1;
+                while (File.Exists(filePath))
+                {
+                    filePath = Path.Combine(folder, $"{safeName} ({counter}).png");
+                    counter++;
+                }
+
+                // Create a minimal CharacterCard for export
+                var exportCard = new CharacterCard
+                {
+                    Name = card.data.displayName ?? card.data.name ?? "",
+                    Persona = card.data.persona ?? "",
+                    Scenario = card.data.scenario ?? "",
+                    Greeting = card.data.greeting.text ?? "",
+                    Example = card.data.example ?? "",
+                    System = card.data.system ?? "",
+                };
+
+                // Try to load portrait
+                if (images != null && images.Length > 0)
+                {
+                    var imageUrl = images[0].imageUrl;
+                    if (!string.IsNullOrEmpty(imageUrl) && File.Exists(imageUrl))
+                    {
+                        exportCard.PortraitData = await File.ReadAllBytesAsync(imageUrl);
+                    }
+                }
+
+                // Save as PNG
+                if (await _cardService.SaveAsync(filePath, exportCard))
+                {
+                    exported++;
+                }
+                else
+                {
+                    failed++;
+                }
+
+                StatusMessage = $"Exported {exported}/{characters.Count}...";
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        StatusMessage = $"Export complete: {exported} succeeded, {failed} failed";
     }
 
     [RelayCommand]
