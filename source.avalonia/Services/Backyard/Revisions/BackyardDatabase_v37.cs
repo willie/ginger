@@ -946,8 +946,12 @@ namespace Ginger.Integration
 							// Create custom user (default user as base)
 							if (bAllowUserPersona)
 							{
-								BackyardUtil.ConvertToIDPlaceholders(ref userInfo.persona, characterId);
-								WriteUser(connection, null, userInfo, userPortrait, out userId, out userConfigId, out userPortrait, ref updates, ref expectedUpdates);
+								var personaTemp = userInfo.persona;
+								BackyardUtil.ConvertToIDPlaceholders(ref personaTemp, characterId);
+								userInfo.persona = personaTemp;
+								ImageOutput userPortraitTemp;
+								WriteUser(connection, null, userInfo, userPortrait, out userId, out userConfigId, out userPortraitTemp, ref updates, ref expectedUpdates);
+								userPortrait = userPortraitTemp;
 							}
 
 							// Write group
@@ -984,9 +988,13 @@ namespace Ginger.Integration
 							else // One or more chats
 							{
 								// Write chats
-								foreach (var chat in chats)
-									PrepareGreetingAndExampleChat(ref chat.staging, new string[] { userId, characterId });
-									
+								for (int i = 0; i < chats.Length; i++)
+								{
+									var stagingTemp = chats[i].staging;
+									PrepareGreetingAndExampleChat(ref stagingTemp, new string[] { userId, characterId });
+									chats[i].staging = stagingTemp;
+								}
+
 								WriteChats(connection, chats, staging, ids, out chatIds, ref updates, ref expectedUpdates);
 
 								// Add background images
@@ -1206,10 +1214,14 @@ namespace Ginger.Integration
 							// Create/update custom user
 							if (bAllowUserPersona && bWriteGroup)
 							{
-								BackyardUtil.ConvertToIDPlaceholders(ref userInfo.persona, characterId);
+								var personaTemp = userInfo.persona;
+								BackyardUtil.ConvertToIDPlaceholders(ref personaTemp, characterId);
+								userInfo.persona = personaTemp;
 
 								string userConfigId = null;
-								WriteUser(connection, groupId, userInfo, userPortrait, out userId, out userConfigId, out userPortrait, ref updates, ref expectedUpdates);
+								ImageOutput userPortraitTemp;
+								WriteUser(connection, groupId, userInfo, userPortrait, out userId, out userConfigId, out userPortraitTemp, ref updates, ref expectedUpdates);
+								userPortrait = userPortraitTemp;
 							}
 
 							// Update character persona
@@ -1717,8 +1729,12 @@ namespace Ginger.Integration
 							// Create custom user (default user as base)
 							if (bAllowUserPersona)
 							{
-								BackyardUtil.ConvertToIDPlaceholders(ref userInfo.persona, characterIds);
-								WriteUser(connection, null, userInfo, userPortrait, out userId, out userConfigId, out userPortrait, ref updates, ref expectedUpdates);
+								var personaTemp = userInfo.persona;
+								BackyardUtil.ConvertToIDPlaceholders(ref personaTemp, characterIds);
+								userInfo.persona = personaTemp;
+								ImageOutput userPortraitTemp;
+								WriteUser(connection, null, userInfo, userPortrait, out userId, out userConfigId, out userPortraitTemp, ref updates, ref expectedUpdates);
+								userPortrait = userPortraitTemp;
 							}
 
 							// Resolve message speaker ids
@@ -1748,8 +1764,12 @@ namespace Ginger.Integration
 							else // One or more chats
 							{
 								// Write chats
-								foreach (var chat in chats)
-									PrepareGreetingAndExampleChat(ref chat.staging, Utility.PrependArray(userId, characterIds));
+								for (int j = 0; j < chats.Length; j++)
+								{
+									var stagingTemp = chats[j].staging;
+									PrepareGreetingAndExampleChat(ref stagingTemp, Utility.PrependArray(userId, characterIds));
+									chats[j].staging = stagingTemp;
+								}
 
 								WriteChats(connection, chats, staging, ids, out chatIds, ref updates, ref expectedUpdates);
 
@@ -1988,10 +2008,14 @@ namespace Ginger.Integration
 							// Create/update custom user
 							if (bAllowUserPersona)
 							{
-								BackyardUtil.ConvertToIDPlaceholders(ref userInfo.persona, characterIds);
+								var personaTemp = userInfo.persona;
+								BackyardUtil.ConvertToIDPlaceholders(ref personaTemp, characterIds);
+								userInfo.persona = personaTemp;
 
 								string userConfigId = null;
-								WriteUser(connection, groupId, userInfo, userPortrait, out userId, out userConfigId, out userPortrait, ref updates, ref expectedUpdates);
+								ImageOutput userPortraitTemp;
+								WriteUser(connection, groupId, userInfo, userPortrait, out userId, out userConfigId, out userPortraitTemp, ref updates, ref expectedUpdates);
+								userPortrait = userPortraitTemp;
 							}
 
 							for (int i = 0; i < cards.Length; ++i)
@@ -3007,7 +3031,7 @@ namespace Ginger.Integration
 
 							PrepareGreetingAndExampleChat(ref staging, groupMembers);
 
-							using (var cmdCreateChat = new SqliteCommand(connection))
+							using (var cmdCreateChat = connection.CreateCommand())
 							{
 								var sbCommand = new StringBuilder();
 
@@ -3058,7 +3082,7 @@ namespace Ginger.Integration
 							// Write background
 							if (hasBackground)
 							{
-								using (var cmdBackground = new SqliteCommand(connection))
+								using (var cmdBackground = connection.CreateCommand())
 								{
 									var sbCommand = new StringBuilder();
 
@@ -3677,7 +3701,7 @@ namespace Ginger.Integration
 			for (int i = 0; i < messageIds.Length; ++i)
 				messageIds[i] = Cuid.NewCuid();
 
-			using (var cmdMessages = new SqliteCommand(connection))
+			using (var cmdMessages = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -4162,7 +4186,7 @@ namespace Ginger.Integration
 						try
 						{
 							// Clear chat backgrounds
-							using (var cmdDelete = new SqliteCommand(connection))
+							using (var cmdDelete = connection.CreateCommand())
 							{
 								var sbCommand = new StringBuilder();
 
@@ -4181,7 +4205,7 @@ namespace Ginger.Integration
 							// Set chat backgrounds
 							if (string.IsNullOrEmpty(imageUrl) == false)
 							{
-								using (var cmdBackground = new SqliteCommand(connection))
+								using (var cmdBackground = connection.CreateCommand())
 								{
 									var sbCommand = new StringBuilder();
 
@@ -4342,7 +4366,7 @@ namespace Ginger.Integration
 							int updates = 0;
 							int expectedUpdates = 0;
 
-							using (var cmdCreateFolder = new SqliteCommand(connection))
+							using (var cmdCreateFolder = connection.CreateCommand())
 							{
 								var sbCommand = new StringBuilder();
 
@@ -5115,7 +5139,7 @@ namespace Ginger.Integration
 			if (loreItems != null && loreItems.Length > 0 && loreItems.Length == existingLoreItems.Count)
 			{
 				// If there's an identical number of lore items in the DB already, only update the values
-				using (var cmdLore = new SqliteCommand(connection))
+				using (var cmdLore = connection.CreateCommand())
 				{
 					var sbCommand = new StringBuilder();
 					for (int i = 0; i < loreItems.Length; ++i)
@@ -5149,7 +5173,7 @@ namespace Ginger.Integration
 				// Delete old lore
 				if (existingLoreItems.Count > 0)
 				{
-					using (var cmdDeleteLore = new SqliteCommand(connection))
+					using (var cmdDeleteLore = connection.CreateCommand())
 					{
 						var sbCommand = new StringBuilder();
 						sbCommand.AppendLine(
@@ -5179,7 +5203,7 @@ namespace Ginger.Integration
 					for (int i = 0; i < uids.Length; ++i)
 						uids[i] = Cuid.NewCuid();
 
-					using (var cmdInsertLore = new SqliteCommand(connection))
+					using (var cmdInsertLore = connection.CreateCommand())
 					{
 						var sbCommand = new StringBuilder();
 						sbCommand.AppendLine(
@@ -5207,7 +5231,7 @@ namespace Ginger.Integration
 						updates += cmdInsertLore.ExecuteNonQuery();
 					}
 
-					using (var cmdLoreRef = new SqliteCommand(connection))
+					using (var cmdLoreRef = connection.CreateCommand())
 					{
 						var sbCommand = new StringBuilder();
 						sbCommand.AppendLine(
@@ -5856,7 +5880,7 @@ namespace Ginger.Integration
 			string instanceId = characterId ?? Cuid.NewCuid();
 			string configId = Cuid.NewCuid();
 
-			using (var cmdCreate = new SqliteCommand(connection))
+			using (var cmdCreate = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -5914,7 +5938,7 @@ namespace Ginger.Integration
 		{
 			string groupId = Cuid.NewCuid();
 
-			using (var cmdCreateGroup = new SqliteCommand(connection))
+			using (var cmdCreateGroup = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -5955,7 +5979,7 @@ namespace Ginger.Integration
 		private static void WriteGroupMemberships(SqliteConnection connection, string groupId, string[] groupMembers, long createdAt, ref int updates, ref int expectedUpdates)
 		{
 			var existingCharacters = new List<string>();
-			using (var cmdExistingMembers = new SqliteCommand(connection))
+			using (var cmdExistingMembers = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -5979,7 +6003,7 @@ namespace Ginger.Integration
 				}
 			}
 
-			using (var cmdDelete = new SqliteCommand(connection))
+			using (var cmdDelete = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -5995,7 +6019,7 @@ namespace Ginger.Integration
 				updates += nDeletes;
 			}
 
-			using (var cmdGroup = new SqliteCommand(connection))
+			using (var cmdGroup = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6104,7 +6128,7 @@ namespace Ginger.Integration
 			if (newUserPortrait.hasAsset)
 			{
 				// Delete old entries
-				using (var cmdDeleteImage = new SqliteCommand(connection))
+				using (var cmdDeleteImage = connection.CreateCommand())
 				{
 					var sbCommand = new StringBuilder();
 
@@ -6132,7 +6156,7 @@ namespace Ginger.Integration
 					updates += nDeletes;
 				}
 
-				using (var cmdAppImage = new SqliteCommand(connection))
+				using (var cmdAppImage = connection.CreateCommand())
 				{
 					var sbCommand = new StringBuilder();
 
@@ -6178,7 +6202,7 @@ namespace Ginger.Integration
 			if (images == null || images.Count == 0)
 				return; // No images
 
-			using (var cmdImages = new SqliteCommand(connection))
+			using (var cmdImages = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6228,7 +6252,7 @@ namespace Ginger.Integration
 
 		private static bool WriteChatBackground(SqliteConnection connection, string chatId, ImageOutput background, ref int updates, ref int expectedUpdates)
 		{
-			using (var cmdBackground = new SqliteCommand(connection))
+			using (var cmdBackground = connection.CreateCommand())
 			{
 				StringBuilder sbCommand = new StringBuilder();
 
@@ -6255,7 +6279,7 @@ namespace Ginger.Integration
 
 		private static bool WriteChatBackgrounds(SqliteConnection connection, BackupData.Chat[] chats, string[] chatIds, Dictionary<string, ImageOutput> backgroundUrlByName, ref int updates, ref int expectedUpdates)
 		{
-			using (var cmdBackground = new SqliteCommand(connection))
+			using (var cmdBackground = connection.CreateCommand())
 			{
 				StringBuilder sbCommand = new StringBuilder();
 				for (int i = 0; i < chats.Length && i < chatIds.Length; ++i)
@@ -6303,7 +6327,7 @@ namespace Ginger.Integration
 			long createdAt = now.ToUnixTimeMilliseconds();
 			chatId = Cuid.NewCuid();
 
-			using (var cmdChat = new SqliteCommand(connection))
+			using (var cmdChat = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6376,7 +6400,7 @@ namespace Ginger.Integration
 				BackyardUtil.ConvertToIDPlaceholders(stagings[i], ids.characterIds);
 			}
 
-			using (var cmdChat = new SqliteCommand(connection))
+			using (var cmdChat = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6530,7 +6554,7 @@ namespace Ginger.Integration
 				userInfo.name = null;
 
 			// Create new user character
-			using (var cmdCreate = new SqliteCommand(connection))
+			using (var cmdCreate = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6608,7 +6632,7 @@ namespace Ginger.Integration
 				userInfo.name = null;
 
 			// Update user
-			using (var cmdCreate = new SqliteCommand(connection))
+			using (var cmdCreate = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6638,7 +6662,7 @@ namespace Ginger.Integration
 
 		private static void ReplaceCharacterInGroup(SqliteConnection connection, string groupId, string oldCharacterId, string newCharacterId, ref int updates, ref int expectedUpdates)
 		{
-			using (var cmdReplace = new SqliteCommand(connection))
+			using (var cmdReplace = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6660,7 +6684,7 @@ namespace Ginger.Integration
 				updates += cmdReplace.ExecuteNonQuery();
 			}
 
-			using (var cmdMessage = new SqliteCommand(connection))
+			using (var cmdMessage = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6891,7 +6915,7 @@ namespace Ginger.Integration
 			string defaultModel;
 			FetchDefaultModel(connection, out defaultModel);
 
-			using (var cmdCreateChat = new SqliteCommand(connection))
+			using (var cmdCreateChat = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6954,7 +6978,7 @@ namespace Ginger.Integration
 		private static void WriteUpdateChatBackgrounds(SqliteConnection connection, string groupId, Dictionary<string, ImageOutput> chatBackgrounds, ref int updates, ref int expectedUpdates)
 		{
 			// Delete backgrounds
-			using (var cmdDeleteBG = new SqliteCommand(connection))
+			using (var cmdDeleteBG = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 
@@ -6976,7 +7000,7 @@ namespace Ginger.Integration
 			// Add backgrounds
 			if (chatBackgrounds != null && chatBackgrounds.Count > 0)
 			{
-				using (var cmdUpdateBG = new SqliteCommand(connection))
+				using (var cmdUpdateBG = connection.CreateCommand())
 				{
 					var sbCommand = new StringBuilder();
 					sbCommand.AppendLine(
@@ -7017,7 +7041,7 @@ namespace Ginger.Integration
 			};
 
 			// Update GroupConfig
-			using (var cmdUpdateGroup = new SqliteCommand(connection))
+			using (var cmdUpdateGroup = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -7040,7 +7064,7 @@ namespace Ginger.Integration
 			}
 
 			// Update chat data
-			using (var cmdChat = new SqliteCommand(connection))
+			using (var cmdChat = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				if (AppSettings.BackyardLink.ApplyChatSettings == AppSettings.BackyardLink.ActiveChatSetting.All) // Update all chats
@@ -7120,7 +7144,7 @@ namespace Ginger.Integration
 				FetchPrimaryCharacterForChat(connection, chatId, out characterId);
 
 			// Write greeting
-			using (var cmdGreeting = new SqliteCommand(connection))
+			using (var cmdGreeting = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -7150,7 +7174,7 @@ namespace Ginger.Integration
 
 		private static void FetchPrimaryCharacterForChat(SqliteConnection connection, string chatId, out string characterId)
 		{
-			using (var cmdPrimaryCharacter = new SqliteCommand(connection))
+			using (var cmdPrimaryCharacter = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -7194,7 +7218,7 @@ namespace Ginger.Integration
 				FetchPrimaryCharacterForChat(connection, primaryChatId, out characterId);
 
 			// Delete existing greeting(s)
-			using (var cmdDelete = new SqliteCommand(connection))
+			using (var cmdDelete = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				if (AppSettings.BackyardLink.ApplyChatSettings == AppSettings.BackyardLink.ActiveChatSetting.All)
@@ -7231,7 +7255,7 @@ namespace Ginger.Integration
 				return; // Nothing to write
 
 			// Write greeting
-			using (var cmdGreeting = new SqliteCommand(connection))
+			using (var cmdGreeting = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				for (int i = 0; i < chats.Count; ++i)
@@ -7279,7 +7303,7 @@ namespace Ginger.Integration
 				primaryChatId = chats.OrderByDescending(c => c.creationDate).Select(c => c.instanceId).FirstOrDefault();
 			
 			// Delete existing example chat
-			using (var cmdDelete = new SqliteCommand(connection))
+			using (var cmdDelete = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				if (AppSettings.BackyardLink.ApplyChatSettings == AppSettings.BackyardLink.ActiveChatSetting.All)
@@ -7316,7 +7340,7 @@ namespace Ginger.Integration
 				return; // Nothing to write
 
 			// Write example chat
-			using (var cmdExample = new SqliteCommand(connection))
+			using (var cmdExample = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				int param = 0;
@@ -7365,7 +7389,7 @@ namespace Ginger.Integration
 				return;
 
 			// Write example chat
-			using (var cmdExample = new SqliteCommand(connection))
+			using (var cmdExample = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				int hash = chatId.GetHashCode();
@@ -7401,7 +7425,7 @@ namespace Ginger.Integration
 
 		private static void WriteUpdateCharacter(SqliteConnection connection, FaradayCard card, string displayName, string characterId, string configId, long updatedAt, ref int updates, ref int expectedUpdates)
 		{
-			using (var cmdUpdate = new SqliteCommand(connection))
+			using (var cmdUpdate = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 				sbCommand.AppendLine(
@@ -7478,7 +7502,7 @@ namespace Ginger.Integration
 
 		private static void DeleteImages(SqliteConnection connection, string configId, ref int updates, ref int expectedUpdates)
 		{
-			using (var cmdImage = new SqliteCommand(connection))
+			using (var cmdImage = connection.CreateCommand())
 			{
 				var sbCommand = new StringBuilder();
 

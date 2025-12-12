@@ -20,8 +20,15 @@ namespace Ginger
 		public string filename { get; set; }
 		public string uid { get; set; } = Guid.NewGuid().ToString();
 
+		// Capitalized versions for compatibility with original code
+		public int Width { get => width; set => width = value; }
+		public int Height { get => height; set => height = value; }
+
 		public static ImageRef FromImage(byte[] data) => new ImageRef { data = data };
 		public static ImageRef FromBytes(byte[] data) => new ImageRef { data = data };
+
+		// Implicit conversion from byte[] to ImageRef
+		public static implicit operator ImageRef(byte[] data) => new ImageRef { data = data };
 
 		public bool isEmpty => data == null || data.Length == 0;
 		public int length => data?.Length ?? 0;
@@ -53,10 +60,26 @@ namespace Ginger
 		public AssetFile GetPortrait() => assets.FirstOrDefault(a => a.type == AssetFile.AssetType.Portrait);
 		public void Remove(AssetFile asset) => assets.Remove(asset);
 		public void Add(AssetFile asset) => assets.Add(asset);
+
+		// Overload taking params array
 		public bool ContainsNoneOf(params AssetFile.AssetType[] types)
 			=> !assets.Any(a => types.Contains(a.type));
+
+		// Overload taking predicate (for lambda expressions)
+		public bool ContainsNoneOf(Func<AssetFile, bool> predicate)
+			=> !assets.Any(predicate);
+
 		public AssetCollection Clone() => new AssetCollection { assets = new List<AssetFile>(assets) };
+
+		// Overload without return
 		public void AddBackgroundFromPortrait(ImageRef portrait) { }
+
+		// Overload with out parameter
+		public bool AddBackgroundFromPortrait(out AssetFile background)
+		{
+			background = null;
+			return false;
+		}
 
 		// LINQ support
 		public IEnumerable<AssetFile> Where(Func<AssetFile, bool> predicate) => assets.Where(predicate);
@@ -67,14 +90,28 @@ namespace Ginger
 	/// <summary>
 	/// Stub for AssetData
 	/// </summary>
-	public class AssetData
+	public struct AssetData
 	{
-		public string id { get; set; }
 		public byte[] data { get; set; }
 		public byte[] bytes { get => data; set => data = value; }
+		public long length => data?.Length ?? 0;
 		public bool isEmpty => data == null || data.Length == 0;
 
 		public static AssetData FromBytes(byte[] data) => new AssetData { data = data };
+		public static AssetData FromFile(string filename)
+		{
+			try
+			{
+				return new AssetData { data = System.IO.File.ReadAllBytes(filename) };
+			}
+			catch
+			{
+				return new AssetData();
+			}
+		}
+
+		// Implicit conversion from byte[] to AssetData
+		public static implicit operator AssetData(byte[] data) => new AssetData { data = data };
 	}
 
 	/// <summary>
@@ -89,10 +126,16 @@ namespace Ginger
 		public string name { get; set; }
 		public AssetType type { get; set; }
 		public AssetType assetType { get => type; set => type = value; }
-		public byte[] data { get; set; }
+		public AssetData data { get; set; }
 		public string ext { get; set; }
 		public string uri { get; set; }
 		public bool isEmbeddedAsset { get; set; }
+
+		// Additional properties for compatibility
+		public bool isMainPortraitOverride { get; set; }
+		public int actorIndex { get; set; } = -1;
+		public int knownWidth { get; set; }
+		public int knownHeight { get; set; }
 	}
 
 	/// <summary>
@@ -124,7 +167,11 @@ namespace Ginger
 		{
 			public string id { get; set; }
 			public string name { get; set; }
-			public ChatHistory history { get; set; }
+			public string backgroundName { get; set; }
+			public DateTime creationDate { get; set; }
+			public DateTime updateDate { get; set; }
+			public Integration.Backyard.ChatParameters parameters { get; set; }
+			public Integration.ChatHistory history { get; set; }
 			public Integration.Backyard.ChatStaging staging { get; set; }
 		}
 	}
@@ -241,45 +288,8 @@ namespace Ginger
 
 	// TavernCardV1, V2, V3 are defined in Models/TavernCardV2.cs
 	// Do NOT duplicate them here - they're different from FaradayCardV1-V4
-}
 
-namespace Ginger.Integration
-{
-	/// <summary>
-	/// Stub for BackyardLinkCard - used by Backyard integration (excluded from build for now)
-	/// </summary>
-	public class BackyardLinkCard
-	{
-		public Data data = new Data();
-		public string creator { get; set; }
-		public string hubCharacterId { get; set; }
-		public string hubAuthorUsername { get; set; }
-		public string authorNote { get; set; }
-		public string userPersona { get; set; }
-
-		public class Data
-		{
-			public string id { get; set; }
-			public string displayName { get; set; }
-			public string name { get; set; }
-			public string persona { get; set; }
-			public string scenario { get; set; }
-			public string greeting { get; set; }
-			public string example { get; set; }
-			public string system { get; set; }
-			public string grammar { get; set; }
-			public bool isNSFW { get; set; }
-			public string creationDate { get; set; }
-			public string updateDate { get; set; }
-		}
-
-		public static BackyardLinkCard FromFaradayCard(FaradayCardV4 card) => new BackyardLinkCard();
-		public FaradayCardV4 ToFaradayCard() => new FaradayCardV4();
-	}
-}
-
-namespace Ginger
-{
+	// BackyardLinkCard is defined in BackyardLinkCard.cs - do NOT duplicate here
 	/// <summary>
 	/// Alias for JsonExtensionData (was GingerJsonExtensionData in original)
 	/// </summary>

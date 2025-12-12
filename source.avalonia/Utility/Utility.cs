@@ -1484,5 +1484,89 @@ namespace Ginger
 		{
 			return Guid.NewGuid().ToString();
 		}
+
+		// Image-related stubs for Backyard integration (originally use System.Drawing)
+		public enum ImageFileFormat
+		{
+			Png,
+			Jpeg,
+			Bmp,
+			Gif,
+			Webp
+		}
+
+		// Stub: Convert image to memory (needs proper implementation with cross-platform image library)
+		public static byte[] ImageToMemory(ImageRef image, ImageFileFormat format = ImageFileFormat.Png)
+		{
+			return image?.data;
+		}
+
+		public static byte[] ImageToMemory(ImageRef image)
+		{
+			return image?.data;
+		}
+
+		// Stub: Get image dimensions (needs proper implementation with cross-platform image library)
+		public static bool GetImageDimensions(byte[] data, out int width, out int height)
+		{
+			width = 0;
+			height = 0;
+			if (data == null || data.Length < 24)
+				return false;
+
+			// Try to parse PNG header
+			if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+			{
+				width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
+				height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
+				return true;
+			}
+
+			// Try to parse JPEG header
+			if (data[0] == 0xFF && data[1] == 0xD8)
+			{
+				// Basic JPEG parsing - look for SOF0 marker
+				int offset = 2;
+				while (offset < data.Length - 10)
+				{
+					if (data[offset] == 0xFF)
+					{
+						byte marker = data[offset + 1];
+						if (marker == 0xC0 || marker == 0xC2) // SOF0 or SOF2
+						{
+							height = (data[offset + 5] << 8) | data[offset + 6];
+							width = (data[offset + 7] << 8) | data[offset + 8];
+							return true;
+						}
+						int length = (data[offset + 2] << 8) | data[offset + 3];
+						offset += 2 + length;
+					}
+					else
+					{
+						offset++;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		// Concatenate arrays
+		public static T[] ConcatArrays<T>(T[] array1, T[] array2)
+		{
+			if (array1 == null) return array2;
+			if (array2 == null) return array1;
+			var result = new T[array1.Length + array2.Length];
+			Array.Copy(array1, 0, result, 0, array1.Length);
+			Array.Copy(array2, 0, result, array1.Length, array2.Length);
+			return result;
+		}
+
+		// Load image from memory (stub)
+		public static bool LoadImageFromMemory(byte[] data, out object image)
+		{
+			image = null;
+			return data != null && data.Length > 0;
+		}
 	}
 }

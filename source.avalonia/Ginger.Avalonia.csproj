@@ -21,9 +21,4 @@
     <PackageReference Include="YamlDotNet" Version="16.2.0" />
   </ItemGroup>
 
-  <!-- Exclude Backyard integration files that need porting from System.Data.SQLite to Microsoft.Data.Sqlite -->
-  <!-- TODO: Port these files to use Microsoft.Data.Sqlite API -->
-  <ItemGroup>
-    <Compile Remove="Services/Backyard/**/*.cs" />
-  </ItemGroup>
 </Project>

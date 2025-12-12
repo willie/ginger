@@ -126,6 +126,12 @@ namespace Ginger
 				public string id { get; set; }
 				public string name { get; set; }
 				public string persona { get; set; }
+
+				// Implicit conversion to ChatParameters for compatibility
+				public static implicit operator Integration.Backyard.ChatParameters(UserSettingsData data)
+				{
+					return new Integration.Backyard.ChatParameters();
+				}
 			}
 		}
 	}
@@ -136,5 +142,33 @@ namespace Ginger
 	public static class BackyardModelDatabase
 	{
 		public static void Refresh() { }
+
+		public static string[] FindModels(string pattern)
+		{
+			// Stub: Returns empty array - full implementation would search model database
+			return Array.Empty<string>();
+		}
+
+		// Takes two strings (modelDirectory, modelsJson) - original signature
+		public static void FindModels(string modelDirectory, string modelsJson)
+		{
+			// Stub: Does nothing - full implementation would parse and store model info
+		}
+
+		public static string[] FindModels(string pattern, out string[] modelNames)
+		{
+			// Stub: Returns empty arrays - full implementation would search model database
+			modelNames = Array.Empty<string>();
+			return Array.Empty<string>();
+		}
+	}
+
+	/// <summary>
+	/// Stub for Resources - Windows Forms resource system
+	/// </summary>
+	public static class Resources
+	{
+		public static byte[] portrait_default => null;
+		public static byte[] default_portrait => null;
 	}
 }

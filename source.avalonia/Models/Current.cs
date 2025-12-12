@@ -157,6 +157,12 @@ namespace Ginger
 		// Recipes for this character
 		public List<Recipe> recipes { get; set; } = new List<Recipe>();
 
+		// Overload without options parameter
+		public Context GetContext(ContextType type)
+		{
+			return GetContext(type, Generator.Option.None, true);
+		}
+
 		public Context GetContext(ContextType type, Generator.Option options, bool includeCard = true)
 		{
 			var context = new Context();
