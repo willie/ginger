@@ -118,7 +118,7 @@ public class GeneratorService
         };
 
         // Apply each recipe in order
-        foreach (var recipe in recipes.Where(r => r.IsEnabled))
+        foreach (var recipe in recipes.Where(r => r.isEnabled))
         {
             ApplyRecipe(recipe, values);
         }
@@ -141,15 +141,16 @@ public class GeneratorService
     /// </summary>
     private void ApplyRecipe(Recipe recipe, Dictionary<string, string> values)
     {
-        foreach (var param in recipe.Parameters)
+        foreach (var param in recipe.parameters)
         {
-            if (!param.IsEnabled || string.IsNullOrEmpty(param.Id))
+            if (!param.isEnabled || StringHandle.IsNullOrEmpty(param.id))
                 continue;
 
-            string value = param.Value ?? "";
+            string paramId = param.id.ToString();
+            string value = param.defaultValue ?? "";
 
             // Handle different parameter modes
-            switch (param.Id.ToLowerInvariant())
+            switch (paramId.ToLowerInvariant())
             {
                 case "system":
                 case "persona":
@@ -160,20 +161,20 @@ public class GeneratorService
                 case "user_persona":
                 case "grammar":
                     // Direct assignment or append based on parameter mode
-                    if (values.TryGetValue(param.Id, out string? existing) && !string.IsNullOrEmpty(existing))
+                    if (values.TryGetValue(paramId, out string? existing) && !string.IsNullOrEmpty(existing))
                     {
                         // Append with separator
-                        values[param.Id] = existing + "\n\n" + value;
+                        values[paramId] = existing + "\n\n" + value;
                     }
                     else
                     {
-                        values[param.Id] = value;
+                        values[paramId] = value;
                     }
                     break;
 
                 default:
                     // Store as variable for later substitution
-                    values[param.Id] = value;
+                    values[paramId] = value;
                     break;
             }
         }

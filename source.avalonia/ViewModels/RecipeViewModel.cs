@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Ginger.Models;
 
 namespace Ginger.ViewModels;
 
@@ -44,26 +43,26 @@ public partial class RecipeViewModel : ObservableObject
     public RecipeViewModel(MainViewModel parent, Recipe recipe) : this(parent)
     {
         _sourceRecipe = recipe;
-        _id = recipe.Id;
-        _name = recipe.Name;
-        _title = recipe.Title;
-        _description = recipe.Description;
-        _category = recipe.Category;
-        _isEnabled = recipe.IsEnabled;
-        _isExpanded = !recipe.IsCollapsed;
+        _id = recipe.id.ToString();
+        _name = recipe.name ?? "";
+        _title = recipe.title ?? "";
+        _description = recipe.description ?? "";
+        _category = recipe.categoryTag ?? EnumHelper.ToString(recipe.category);
+        _isEnabled = recipe.isEnabled;
+        _isExpanded = !recipe.isCollapsed;
 
         // Build content from templates
-        foreach (var template in recipe.Templates)
+        foreach (var template in recipe.templates)
         {
-            if (!string.IsNullOrEmpty(template.Text))
+            if (!string.IsNullOrEmpty(template.text))
             {
-                _content += template.Text + "\n\n";
+                _content += template.text + "\n\n";
             }
         }
         _content = _content.TrimEnd();
 
         // Load parameters
-        foreach (var param in recipe.Parameters)
+        foreach (var param in recipe.parameters)
         {
             Parameters.Add(new RecipeParameterViewModel(this, param));
         }
@@ -107,16 +106,12 @@ public partial class RecipeViewModel : ObservableObject
 public partial class RecipeParameterViewModel : ObservableObject
 {
     private readonly RecipeViewModel _parent;
-    private readonly RecipeParameter _parameter;
+    private readonly IParameter _parameter;
 
-    public string Id => _parameter.Id;
-    public string Label => _parameter.Label;
-    public string Description => _parameter.Description;
-    public RecipeParameter.ParameterType Type => _parameter.Type;
-    public decimal MinValue => _parameter.MinValue;
-    public decimal MaxValue => _parameter.MaxValue;
-    public string Suffix => _parameter.Suffix;
-    public string[] Options => _parameter.Options;
+    public string Id => _parameter.id.ToString();
+    public string Label => _parameter.label ?? "";
+    public string Description => _parameter.description ?? "";
+    public bool IsOptional => _parameter.isOptional;
 
     [ObservableProperty]
     private string _value = "";
@@ -133,47 +128,39 @@ public partial class RecipeParameterViewModel : ObservableObject
     [ObservableProperty]
     private string? _selectedOption;
 
-    public RecipeParameterViewModel(RecipeViewModel parent, RecipeParameter parameter)
+    public RecipeParameterViewModel(RecipeViewModel parent, IParameter parameter)
     {
         _parent = parent;
         _parameter = parameter;
-        _value = parameter.GetEffectiveValue();
-        _isEnabled = parameter.IsEnabled;
+        _value = parameter.defaultValue ?? "";
+        _isEnabled = parameter.isEnabled;
 
-        // Initialize type-specific values
-        switch (parameter.Type)
-        {
-            case RecipeParameter.ParameterType.Toggle:
-                _boolValue = _value.Equals("true", System.StringComparison.OrdinalIgnoreCase);
-                break;
-            case RecipeParameter.ParameterType.Number:
-            case RecipeParameter.ParameterType.Slider:
-                decimal.TryParse(_value, out _numericValue);
-                break;
-            case RecipeParameter.ParameterType.Choice:
-                _selectedOption = _value;
-                break;
-        }
+        // Initialize type-specific values based on value
+        if (bool.TryParse(_value, out var boolVal))
+            _boolValue = boolVal;
+        if (decimal.TryParse(_value, out var numVal))
+            _numericValue = numVal;
+        _selectedOption = _value;
     }
 
     partial void OnValueChanged(string value)
     {
-        _parameter.Value = value;
+        // Update parameter value if possible
     }
 
     partial void OnBoolValueChanged(bool value)
     {
-        _parameter.Value = value.ToString().ToLower();
+        _value = value.ToString().ToLower();
     }
 
     partial void OnNumericValueChanged(decimal value)
     {
-        _parameter.Value = value.ToString();
+        _value = value.ToString();
     }
 
     partial void OnSelectedOptionChanged(string? value)
     {
         if (value != null)
-            _parameter.Value = value;
+            _value = value;
     }
 }

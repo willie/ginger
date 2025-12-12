@@ -18,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IFileService _fileService;
     private readonly CharacterCardService _cardService;
     private readonly RecipeService _recipeService;
+    private readonly DialogService _dialogService;
     private CharacterCard? _currentCard;
     private string? _currentFilePath;
     private bool _isDirty;
@@ -233,15 +234,16 @@ public partial class MainViewModel : ObservableObject
 
     #endregion
 
-    public MainViewModel() : this(new FileService(), new CharacterCardService(), new RecipeService())
+    public MainViewModel() : this(new FileService(), new CharacterCardService(), new RecipeService(), new DialogService())
     {
     }
 
-    public MainViewModel(IFileService fileService, CharacterCardService cardService, RecipeService recipeService)
+    public MainViewModel(IFileService fileService, CharacterCardService cardService, RecipeService recipeService, DialogService dialogService)
     {
         _fileService = fileService;
         _cardService = cardService;
         _recipeService = recipeService;
+        _dialogService = dialogService;
         _selectedDetailLevel = "Normal detail";
 
         // Try to find content path
@@ -297,10 +299,10 @@ public partial class MainViewModel : ObservableObject
         {
             collection.Add(new RecipeLibraryItem
             {
-                Id = recipe.Id,
-                Name = recipe.Name,
-                Title = recipe.Title,
-                Description = recipe.Description,
+                Id = recipe.id.ToString(),
+                Name = recipe.name ?? "",
+                Title = recipe.title ?? "",
+                Description = recipe.description ?? "",
             });
         }
     }
@@ -317,7 +319,7 @@ public partial class MainViewModel : ObservableObject
         Recipes.Add(vm);
         MarkDirty();
         RegenerateOutput();
-        StatusMessage = $"Added recipe: {recipe.Title}";
+        StatusMessage = $"Added recipe: {recipe.title}";
     }
 
     [RelayCommand]
@@ -660,11 +662,11 @@ public partial class MainViewModel : ObservableObject
         // Lorebook
         if (LorebookEntries.Count > 0)
         {
-            card.Lorebook = new Lorebook();
+            card.Lorebook = new Ginger.Models.Lorebook();
             int id = 1;
             foreach (var entry in LorebookEntries)
             {
-                card.Lorebook.Entries.Add(new Lorebook.LorebookEntry
+                card.Lorebook.Entries.Add(new Ginger.Models.Lorebook.LorebookEntry
                 {
                     Id = id++,
                     Keys = entry.Keys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
@@ -939,10 +941,31 @@ public partial class MainViewModel : ObservableObject
     private void Redo() => StatusMessage = "Redo not yet implemented";
 
     [RelayCommand]
-    private void Find() => StatusMessage = "Find not yet implemented";
+    private void Find() => ShowFindDialog(findOnly: true);
 
     [RelayCommand]
-    private void FindReplace() => StatusMessage = "Find/Replace not yet implemented";
+    private void FindReplace() => ShowFindDialog(findOnly: false);
+
+    private void ShowFindDialog(bool findOnly)
+    {
+        _dialogService.ShowFindReplaceDialog(
+            onFind: (search, replace, matchCase, wholeWord) =>
+            {
+                // TODO: Implement find in current text field
+                StatusMessage = $"Find: \"{search}\" (case={matchCase}, whole={wholeWord})";
+            },
+            onReplace: (search, replace, matchCase, wholeWord) =>
+            {
+                // TODO: Implement replace in current text field
+                StatusMessage = $"Replace: \"{search}\" with \"{replace}\"";
+            },
+            onReplaceAll: (search, replace, matchCase, wholeWord) =>
+            {
+                // TODO: Implement replace all
+                StatusMessage = $"Replace All: \"{search}\" with \"{replace}\"";
+            }
+        );
+    }
 
     #endregion
 
@@ -1014,9 +1037,9 @@ public partial class MainViewModel : ObservableObject
     #region Other Commands
 
     [RelayCommand]
-    private void About()
+    private async Task AboutAsync()
     {
-        StatusMessage = "Ginger - Cross-platform character card editor";
+        await _dialogService.ShowAboutAsync();
     }
 
     #endregion

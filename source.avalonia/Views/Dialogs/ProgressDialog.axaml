@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.ProgressDialog"
+        Title="Processing..."
+        Width="400"
+        Height="150"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20" RowDefinitions="Auto, Auto, Auto">
+        <!-- Message -->
+        <TextBlock Grid.Row="0"
+                   x:Name="MessageText"
+                   Text="Please wait..."
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,15"/>
+
+        <!-- Progress Bar -->
+        <ProgressBar Grid.Row="1"
+                     x:Name="ProgressBar"
+                     Height="20"
+                     IsIndeterminate="True"
+                     Margin="0,0,0,15"/>
+
+        <!-- Cancel Button -->
+        <Button Grid.Row="2"
+                x:Name="CancelButton"
+                Content="Cancel"
+                Width="100"
+                HorizontalAlignment="Right"
+                Click="CancelButton_Click"
+                IsCancel="True"/>
+    </Grid>
+</Window>

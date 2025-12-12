@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.FindReplaceDialog"
+        Title="Find and Replace"
+        Width="450"
+        Height="220"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+
+    <Grid Margin="15" RowDefinitions="Auto, Auto, Auto, Auto, *">
+        <!-- Find -->
+        <Grid Grid.Row="0" ColumnDefinitions="80, *" Margin="0,0,0,10">
+            <TextBlock Text="Find:"
+                       VerticalAlignment="Center"
+                       Grid.Column="0"/>
+            <TextBox x:Name="FindTextBox"
+                     Grid.Column="1"
+                     Watermark="Search text..."/>
+        </Grid>
+
+        <!-- Replace -->
+        <Grid Grid.Row="1" ColumnDefinitions="80, *" Margin="0,0,0,10">
+            <TextBlock Text="Replace:"
+                       VerticalAlignment="Center"
+                       Grid.Column="0"/>
+            <TextBox x:Name="ReplaceTextBox"
+                     Grid.Column="1"
+                     Watermark="Replacement text..."/>
+        </Grid>
+
+        <!-- Options -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="20" Margin="0,0,0,15">
+            <CheckBox x:Name="MatchCaseCheckBox"
+                      Content="Match case"/>
+            <CheckBox x:Name="WholeWordCheckBox"
+                      Content="Whole word"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10">
+            <Button x:Name="FindNextButton"
+                    Content="Find Next"
+                    Width="100"
+                    Click="FindNextButton_Click"
+                    IsDefault="True"/>
+            <Button x:Name="ReplaceButton"
+                    Content="Replace"
+                    Width="100"
+                    Click="ReplaceButton_Click"/>
+            <Button x:Name="ReplaceAllButton"
+                    Content="Replace All"
+                    Width="100"
+                    Click="ReplaceAllButton_Click"/>
+            <Button Content="Close"
+                    Width="80"
+                    Click="CloseButton_Click"
+                    IsCancel="True"/>
+        </StackPanel>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="4"
+                   x:Name="StatusText"
+                   VerticalAlignment="Bottom"
+                   Opacity="0.7"
+                   FontSize="12"/>
+    </Grid>
+</Window>

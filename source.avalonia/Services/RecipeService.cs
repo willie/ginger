@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Ginger.Models;
 
 namespace Ginger.Services;
 
@@ -56,12 +55,18 @@ public class RecipeService
         foreach (var file in files)
         {
             var recipe = Recipe.LoadFromFile(file);
-            if (recipe != null && !string.IsNullOrEmpty(recipe.Id))
+            if (recipe != null && !StringHandle.IsNullOrEmpty(recipe.id))
             {
-                _recipes[recipe.Id] = recipe;
+                var recipeId = recipe.id.ToString();
+                _recipes[recipeId] = recipe;
 
                 // Index by category
-                var category = string.IsNullOrEmpty(recipe.Category) ? "Other" : recipe.Category;
+                var category = !string.IsNullOrEmpty(recipe.categoryTag)
+                    ? recipe.categoryTag
+                    : EnumHelper.ToString(recipe.category);
+                if (string.IsNullOrEmpty(category))
+                    category = "Other";
+
                 if (!_recipesByCategory.ContainsKey(category))
                     _recipesByCategory[category] = new List<Recipe>();
                 _recipesByCategory[category].Add(recipe);
@@ -75,8 +80,8 @@ public class RecipeService
         {
             list.Sort((a, b) =>
             {
-                int orderCompare = a.Order.CompareTo(b.Order);
-                return orderCompare != 0 ? orderCompare : string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+                int orderCompare = (a.order ?? 50).CompareTo(b.order ?? 50);
+                return orderCompare != 0 ? orderCompare : string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase);
             });
         }
 
@@ -125,54 +130,6 @@ public class RecipeService
     /// </summary>
     public Recipe CloneRecipe(Recipe original)
     {
-        var clone = new Recipe
-        {
-            Id = original.Id,
-            Name = original.Name,
-            Title = original.Title,
-            Description = original.Description,
-            Author = original.Author,
-            Category = original.Category,
-            Flags = (string[])original.Flags.Clone(),
-            Order = original.Order,
-            FileName = original.FileName,
-            IsEnabled = true,
-            IsCollapsed = false,
-        };
-
-        // Clone parameters with their default values
-        foreach (var param in original.Parameters)
-        {
-            clone.Parameters.Add(new RecipeParameter
-            {
-                Id = param.Id,
-                Type = param.Type,
-                Label = param.Label,
-                Description = param.Description,
-                DefaultValue = param.DefaultValue,
-                Value = param.DefaultValue,
-                IsEnabled = param.IsEnabled,
-                IsRequired = param.IsRequired,
-                IsRaw = param.IsRaw,
-                MinValue = param.MinValue,
-                MaxValue = param.MaxValue,
-                Suffix = param.Suffix,
-                Options = (string[])param.Options.Clone(),
-            });
-        }
-
-        // Clone templates
-        foreach (var template in original.Templates)
-        {
-            clone.Templates.Add(new Recipe.RecipeTemplate
-            {
-                Channel = template.Channel,
-                Text = template.Text,
-                Condition = template.Condition,
-                IsRaw = template.IsRaw,
-            });
-        }
-
-        return clone;
+        return (Recipe)original.Clone();
     }
 }
