@@ -1347,6 +1347,10 @@ public partial class MainViewModel : ObservableObject
         {
             StatusMessage = $"Saving {Path.GetFileName(filePath)}...";
 
+            // Sync UI state to Current model before saving
+            // This is required for Ginger XML export which reads from Current
+            SyncToCurrent();
+
             var card = ToCard();
             bool success = await _cardService.SaveAsync(filePath, card);
 
@@ -1425,6 +1429,9 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            // Sync UI state to Current model before export
+            SyncToCurrent();
+
             var card = ToCard();
             var fileName = string.IsNullOrWhiteSpace(card.Name) ? "character" : SanitizeFileName(card.Name);
 
@@ -1463,6 +1470,9 @@ public partial class MainViewModel : ObservableObject
         {
             try
             {
+                // Sync UI state to Current model before export
+                SyncToCurrent();
+
                 var card = ToCard();
                 if (await _cardService.SaveAsync(file, card))
                     StatusMessage = $"Exported as JSON";
@@ -1524,6 +1534,9 @@ public partial class MainViewModel : ObservableObject
                 // Ensure correct extension
                 if (!file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
                     file = Path.ChangeExtension(file, extension);
+
+                // Sync UI state to Current model before export
+                SyncToCurrent();
 
                 var card = ToCard();
                 if (await _cardService.SaveAsync(file, card))
