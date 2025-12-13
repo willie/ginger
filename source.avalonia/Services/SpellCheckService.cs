@@ -17,6 +17,25 @@ public class SpellCheckService : IDisposable
     private readonly HashSet<string> _customWords = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _ignoredWords = new(StringComparer.OrdinalIgnoreCase);
 
+    // Internal terms whitelist (Ginger commands and common character-related terms)
+    private static readonly HashSet<string> InternalTerms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Ginger commands/placeholders
+        "char", "user", "card", "name", "original", "unknown", "gender",
+        // Pronouns (including non-standard)
+        "they'll", "they're", "they've", "they'd", "they", "them", "theirs",
+        "their", "themselves", "he'll", "he's", "he'd", "he", "him", "his", "himself",
+        "she'll", "she's", "she'd", "she", "her", "hers", "herself",
+        // Verbs
+        "is", "are", "isn't", "aren't", "has", "have", "hasn't", "haven't",
+        "was", "were", "wasn't", "weren't", "does", "do", "doesn't", "don't",
+        // Suffixes
+        "s", "y", "ies", "es",
+        // Character-related terms
+        "futa", "futanari", "shemale", "trans", "transgender", "transsexual",
+        "trans-gender", "trans-sexual", "nonbinary", "non-binary",
+    };
+
     public bool IsLoaded => _isLoaded;
     public string? CurrentLanguage { get; private set; }
 
@@ -63,7 +82,19 @@ public class SpellCheckService : IDisposable
         if (string.IsNullOrWhiteSpace(word))
             return true;
 
-        // Check custom words first
+        // Skip numbers
+        if (word.Any(char.IsDigit))
+            return true;
+
+        // Skip command placeholders like {name}
+        if (word.Length > 2 && word[0] == '{' && word[^1] == '}')
+            return true;
+
+        // Check internal terms (Ginger-specific)
+        if (InternalTerms.Contains(word))
+            return true;
+
+        // Check custom words and ignored words
         if (_customWords.Contains(word) || _ignoredWords.Contains(word))
             return true;
 

@@ -484,21 +484,43 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for AssetData
+	/// Asset data container with hash computation.
 	/// </summary>
 	public struct AssetData
 	{
-		public byte[] data { get; set; }
-		public byte[] bytes { get => data; set => data = value; }
-		public long length => data?.Length ?? 0;
-		public bool isEmpty => data == null || data.Length == 0;
+		private byte[] _data;
+		private string _hash;
 
-		public static AssetData FromBytes(byte[] data) => new AssetData { data = data };
+		public byte[] data { get => _data; set { _data = value; _hash = null; } }
+		public byte[] bytes { get => _data; set { _data = value; _hash = null; } }
+		public long length => _data?.Length ?? 0;
+		public bool isEmpty => _data == null || _data.Length == 0;
+
+		public string hash
+		{
+			get
+			{
+				if (_hash == null && _data != null && _data.Length > 0)
+				{
+					using (var sha256 = System.Security.Cryptography.SHA256.Create())
+					{
+						_hash = string.Concat(sha256.ComputeHash(_data).Select(x => x.ToString("X2")));
+					}
+				}
+				return _hash ?? "";
+			}
+		}
+
+		public static AssetData FromBytes(byte[] data)
+		{
+			return new AssetData { _data = data };
+		}
+
 		public static AssetData FromFile(string filename)
 		{
 			try
 			{
-				return new AssetData { data = System.IO.File.ReadAllBytes(filename) };
+				return new AssetData { _data = System.IO.File.ReadAllBytes(filename) };
 			}
 			catch
 			{
@@ -507,44 +529,219 @@ namespace Ginger
 		}
 
 		// Implicit conversion from byte[] to AssetData
-		public static implicit operator AssetData(byte[] data) => new AssetData { data = data };
+		public static implicit operator AssetData(byte[] data) => new AssetData { _data = data };
 	}
 
 	/// <summary>
-	/// Stub for AssetFile
+	/// Asset file with support for embedded assets, URIs, and tags.
 	/// </summary>
-	public class AssetFile : IXmlLoadable, IXmlSaveable
+	public class AssetFile : ICloneable, IXmlLoadable, IXmlSaveable
 	{
-		public enum AssetType { Undefined, Unknown, Portrait, Background, Emotion, Other, Icon, Expression, UserIcon }
+		public static readonly string MainAssetName = "main";
+		public static readonly string PortraitOverrideName = "Portrait (main)";
+		public static readonly string DefaultUri = "ccdefault:";
+		public static readonly string CharXEmbedUriPrefix = "embeded://";
+		public static readonly string PNGEmbedUriPrefix = "__asset:";
+
+		public enum AssetType
+		{
+			Undefined = 0,
+			Icon = 1,
+			UserIcon = 2,
+			Background = 3,
+			Expression = 4, // Emotion
+			Other = 5,
+			Custom = 6,
+			// Legacy aliases
+			Portrait = 1,
+			Emotion = 4,
+			Unknown = 0,
+		}
+
+		public enum UriType
+		{
+			Undefined,
+			Default,
+			Embedded,
+			Custom,
+		}
 
 		public string id { get; set; }
 		public string uid { get; set; } = Guid.NewGuid().ToString();
 		public string name { get; set; }
-		public AssetType type { get; set; }
+		public string typeString { get; set; }
+		public AssetType type
+		{
+			get => AssetTypeFromString(typeString);
+			set => typeString = GetTypeName(value);
+		}
 		public AssetType assetType { get => type; set => type = value; }
 		public AssetData data { get; set; }
 		public string ext { get; set; }
-		public string uri { get; set; }
-		public bool isEmbeddedAsset { get; set; }
+		public HashSet<StringHandle> tags { get; set; }
 
-		// Additional properties for compatibility
-		public bool isMainPortraitOverride { get; set; }
-		public int actorIndex { get; set; } = -1;
+		// URI properties
+		public UriType uriType { get; set; } = UriType.Undefined;
+		public string fullUri { get; set; }
+		public string uriPath { get; set; }
+		public string uriName { get; set; }
+
+		// Computed properties
+		public bool isDefaultAsset => uriType == UriType.Default;
+		public bool isEmbeddedAsset
+		{
+			get => uriType == UriType.Embedded;
+			set { if (value) uriType = UriType.Embedded; }
+		}
+		public bool isRemoteAsset => uriType == UriType.Custom;
+
+		public bool isMainAsset =>
+			isEmbeddedAsset &&
+			string.Compare(name, MainAssetName, StringComparison.OrdinalIgnoreCase) == 0 &&
+			actorIndex <= 0;
+
+		public bool isMainPortraitOverride
+		{
+			get => assetType == AssetType.Icon &&
+				   isEmbeddedAsset &&
+				   (string.Compare(name, PortraitOverrideName, StringComparison.OrdinalIgnoreCase) == 0 ||
+					HasTag(Tag.PortraitOverride));
+			set { if (value) AddTags(Tag.PortraitOverride); else RemoveTags(Tag.PortraitOverride); }
+		}
+
+		public bool isPortrait => assetType == AssetType.Icon || assetType == AssetType.UserIcon || assetType == AssetType.Expression;
+
 		public int knownWidth { get; set; }
 		public int knownHeight { get; set; }
 
+		public int actorIndex
+		{
+			get
+			{
+				if (tags == null || tags.Count == 0 || assetType != AssetType.Icon)
+					return -1;
+
+				var actorTag = tags.FirstOrDefault(t => t.BeginsWith(Tag.ActorAsset.ToString()));
+				if (StringHandle.IsNullOrEmpty(actorTag))
+					return -1;
+
+				if (int.TryParse(actorTag.ToString().Substring(Tag.ActorAsset.Length), out int index))
+					return Math.Max(index, 0);
+				return -1;
+			}
+			set
+			{
+				if (tags != null)
+				{
+					var existing = tags.Where(t => t.BeginsWith(Tag.ActorAsset.ToString())).ToArray();
+					tags.ExceptWith(existing);
+				}
+
+				if (value < 0)
+					return;
+
+				if (tags == null)
+					tags = new HashSet<StringHandle>();
+
+				tags.Add(string.Concat(Tag.ActorAsset, value));
+			}
+		}
+
+		// Tag methods
+		public bool HasTag(StringHandle tag) => tags != null && tags.Contains(tag);
+
+		public void AddTags(params StringHandle[] tagsToAdd)
+		{
+			if (tags == null)
+				tags = new HashSet<StringHandle>(tagsToAdd);
+			else
+				tags.UnionWith(tagsToAdd);
+		}
+
+		public void RemoveTags(params StringHandle[] tagsToRemove)
+		{
+			if (tags == null || tags.Count == 0)
+				return;
+			tags.ExceptWith(tagsToRemove);
+		}
+
+		// Static helpers
+		public static AssetType AssetTypeFromString(string value)
+		{
+			if (string.IsNullOrEmpty(value))
+				return AssetType.Undefined;
+
+			switch (value.Trim().ToLowerInvariant())
+			{
+				case "icon": return AssetType.Icon;
+				case "user_icon": return AssetType.UserIcon;
+				case "background": return AssetType.Background;
+				case "emotion": return AssetType.Expression;
+				case "other": return AssetType.Other;
+				default: return AssetType.Custom;
+			}
+		}
+
+		public static string GetTypeName(AssetType type)
+		{
+			switch (type)
+			{
+				case AssetType.Icon: return "icon";
+				case AssetType.UserIcon: return "user_icon";
+				case AssetType.Background: return "background";
+				case AssetType.Expression: return "emotion";
+				default: return "other";
+			}
+		}
+
+		public string GetTypeName() => GetTypeName(assetType);
+
+		public static AssetFile MakeDefault(AssetType type, string name, string ext = null)
+		{
+			return new AssetFile()
+			{
+				assetType = type,
+				fullUri = DefaultUri,
+				uriType = UriType.Default,
+				name = name ?? MainAssetName,
+				ext = ext ?? "unknown",
+				uriName = null,
+				uriPath = null,
+			};
+		}
+
+		// Clone
+		public object Clone()
+		{
+			var clone = (AssetFile)MemberwiseClone();
+			if (tags != null)
+				clone.tags = new HashSet<StringHandle>(tags);
+			return clone;
+		}
+
+		// XML serialization
 		public bool LoadFromXml(System.Xml.XmlNode xmlNode)
 		{
 			uid = xmlNode.GetAttribute("uid", uid);
 			name = xmlNode.GetAttribute("name", null);
-			type = xmlNode.GetAttributeEnum("type", AssetType.Undefined);
+			typeString = xmlNode.GetAttribute("type", null);
 			ext = xmlNode.GetAttribute("ext", null);
-			uri = xmlNode.GetValueElement("URI", null);
-			isEmbeddedAsset = xmlNode.GetAttributeBool("embedded", false);
+			fullUri = xmlNode.GetValueElement("URI", null);
+			uriType = xmlNode.GetAttributeEnum("uriType", UriType.Undefined);
 			actorIndex = xmlNode.GetAttributeInt("actor", -1);
 			knownWidth = xmlNode.GetAttributeInt("width", 0);
 			knownHeight = xmlNode.GetAttributeInt("height", 0);
-			isMainPortraitOverride = xmlNode.GetAttributeBool("main-portrait", false);
+
+			var tagsNode = xmlNode.GetFirstElement("Tags");
+			if (tagsNode != null)
+			{
+				var tagsText = tagsNode.GetTextValue();
+				if (!string.IsNullOrEmpty(tagsText))
+				{
+					tags = new HashSet<StringHandle>(
+						tagsText.Split(',').Select(s => new StringHandle(s.Trim())));
+				}
+			}
 			return true;
 		}
 
@@ -553,22 +750,36 @@ namespace Ginger
 			xmlNode.AddAttribute("uid", uid);
 			if (!string.IsNullOrEmpty(name))
 				xmlNode.AddAttribute("name", name);
-			if (type != AssetType.Undefined)
-				xmlNode.AddAttribute("type", EnumHelper.ToString(type));
+			if (!string.IsNullOrEmpty(typeString))
+				xmlNode.AddAttribute("type", typeString);
 			if (!string.IsNullOrEmpty(ext))
 				xmlNode.AddAttribute("ext", ext);
-			if (!string.IsNullOrEmpty(uri))
-				xmlNode.AddValueElement("URI", uri);
-			if (isEmbeddedAsset)
-				xmlNode.AddAttribute("embedded", true);
+			if (!string.IsNullOrEmpty(fullUri))
+				xmlNode.AddValueElement("URI", fullUri);
+			if (uriType != UriType.Undefined)
+				xmlNode.AddAttribute("uriType", EnumHelper.ToString(uriType));
 			if (actorIndex >= 0)
 				xmlNode.AddAttribute("actor", actorIndex);
 			if (knownWidth > 0)
 				xmlNode.AddAttribute("width", knownWidth);
 			if (knownHeight > 0)
 				xmlNode.AddAttribute("height", knownHeight);
-			if (isMainPortraitOverride)
-				xmlNode.AddAttribute("main-portrait", true);
+			if (tags != null && tags.Count > 0)
+			{
+				var tagsNode = xmlNode.AddElement("Tags");
+				tagsNode.AddTextValue(string.Join(",", tags));
+			}
+		}
+
+		// Tag constants
+		public static class Tag
+		{
+			public static StringHandle PortraitOverride = "portrait-override";
+			public static StringHandle PortraitBackground = "portrait-background";
+			public static StringHandle MainBackground = "main-background";
+			public static StringHandle Animation = "animation";
+			public static StringHandle ActorAsset = "actor-";
+			public static StringHandle Linked = "linked";
 		}
 	}
 

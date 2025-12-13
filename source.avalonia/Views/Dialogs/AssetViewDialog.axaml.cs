@@ -326,12 +326,10 @@ public partial class AssetViewDialog : Window
         {
             string typeName = asset.type switch
             {
-                AssetFile.AssetType.Portrait => "Portrait",
                 AssetFile.AssetType.Icon => "Portrait",
                 AssetFile.AssetType.UserIcon => "User Portrait",
                 AssetFile.AssetType.Background => "Background",
                 AssetFile.AssetType.Expression => "Expression",
-                AssetFile.AssetType.Emotion => "Expression",
                 _ => "Other"
             };
 
