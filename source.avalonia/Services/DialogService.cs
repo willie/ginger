@@ -40,6 +40,15 @@ public class DialogService
     }
 
     /// <summary>
+    /// Show a confirmation dialog with Yes/No buttons.
+    /// </summary>
+    public async Task<bool> ShowConfirmationDialogAsync(string title, string message)
+    {
+        var result = await ShowMessageBoxAsync(title, message, MessageBoxButtons.YesNo);
+        return result == MessageBoxResult.Yes;
+    }
+
+    /// <summary>
     /// Show the About dialog.
     /// </summary>
     public async Task ShowAboutAsync()

@@ -133,6 +133,39 @@ public partial class RecipeViewModel : ObservableObject
     {
         _parent.OnRecipeChanged();
     }
+
+    /// <summary>
+    /// Bake the recipe - flatten parameters into the content text.
+    /// </summary>
+    public void Bake()
+    {
+        if (_sourceRecipe == null) return;
+
+        // Generate the baked output using the recipe's generator
+        var output = Generator.Generate(_sourceRecipe, Generator.Option.Bake);
+
+        if (!output.isEmpty)
+        {
+            // Combine all output components into content
+            var sb = new System.Text.StringBuilder();
+            if (!output.system.IsNullOrEmpty())
+                sb.AppendLine(output.system.ToString());
+            if (!output.persona.IsNullOrEmpty())
+                sb.AppendLine(output.persona.ToString());
+            if (!output.scenario.IsNullOrEmpty())
+                sb.AppendLine(output.scenario.ToString());
+            if (!output.greeting.IsNullOrEmpty())
+                sb.AppendLine(output.greeting.ToString());
+            if (!output.example.IsNullOrEmpty())
+                sb.AppendLine(output.example.ToString());
+
+            // Replace content with baked output
+            Content = sb.ToString().Trim();
+
+            // Clear parameters since they're now baked
+            Parameters.Clear();
+        }
+    }
 }
 
 public partial class RecipeParameterViewModel : ObservableObject

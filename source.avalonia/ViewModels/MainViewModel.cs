@@ -2511,8 +2511,558 @@ public partial class MainViewModel : ObservableObject
     private void ToggleNsfw()
     {
         AllowNsfw = !AllowNsfw;
+        AppSettings.Settings.AllowNSFW = AllowNsfw;
+        AppSettings.Save();
         StatusMessage = AllowNsfw ? "NSFW content allowed" : "NSFW content filtered";
     }
+
+    #region Backyard Options Properties
+
+    [ObservableProperty]
+    private bool _backyardAutosave = true;
+
+    [ObservableProperty]
+    private bool _backyardAlwaysLink = true;
+
+    [ObservableProperty]
+    private bool _backyardUsePortraitAsBackground = false;
+
+    [ObservableProperty]
+    private bool _backyardImportAltGreetings = false;
+
+    [ObservableProperty]
+    private bool _backyardWriteUserPersona = false;
+
+    [ObservableProperty]
+    private bool _backyardWriteAuthorNote = true;
+
+    [RelayCommand]
+    private void ToggleBackyardAutosave()
+    {
+        BackyardAutosave = !BackyardAutosave;
+        AppSettings.BackyardLink.Autosave = BackyardAutosave;
+        AppSettings.Save();
+        StatusMessage = BackyardAutosave ? "Backyard autosave enabled" : "Backyard autosave disabled";
+    }
+
+    [RelayCommand]
+    private void ToggleBackyardAlwaysLink()
+    {
+        BackyardAlwaysLink = !BackyardAlwaysLink;
+        AppSettings.BackyardLink.AlwaysLinkOnImport = BackyardAlwaysLink;
+        AppSettings.Save();
+        StatusMessage = BackyardAlwaysLink ? "Always link on import enabled" : "Always link on import disabled";
+    }
+
+    [RelayCommand]
+    private void ToggleBackyardUsePortraitAsBackground()
+    {
+        BackyardUsePortraitAsBackground = !BackyardUsePortraitAsBackground;
+        AppSettings.BackyardLink.UsePortraitAsBackground = BackyardUsePortraitAsBackground;
+        AppSettings.Save();
+        StatusMessage = BackyardUsePortraitAsBackground ? "Use portrait as background enabled" : "Use portrait as background disabled";
+    }
+
+    [RelayCommand]
+    private void ToggleBackyardImportAltGreetings()
+    {
+        BackyardImportAltGreetings = !BackyardImportAltGreetings;
+        AppSettings.BackyardLink.ImportAlternateGreetings = BackyardImportAltGreetings;
+        AppSettings.Save();
+        StatusMessage = BackyardImportAltGreetings ? "Import alternate greetings enabled" : "Import alternate greetings disabled";
+    }
+
+    [RelayCommand]
+    private void ToggleBackyardWriteUserPersona()
+    {
+        BackyardWriteUserPersona = !BackyardWriteUserPersona;
+        AppSettings.BackyardLink.WriteUserPersona = BackyardWriteUserPersona;
+        AppSettings.Save();
+        StatusMessage = BackyardWriteUserPersona ? "Write user persona enabled" : "Write user persona disabled";
+    }
+
+    [RelayCommand]
+    private void ToggleBackyardWriteAuthorNote()
+    {
+        BackyardWriteAuthorNote = !BackyardWriteAuthorNote;
+        AppSettings.BackyardLink.WriteAuthorNote = BackyardWriteAuthorNote;
+        AppSettings.Save();
+        StatusMessage = BackyardWriteAuthorNote ? "Write author note enabled" : "Write author note disabled";
+    }
+
+    [RelayCommand]
+    private void SetBackyardApplyChatSettings(string setting)
+    {
+        AppSettings.BackyardLink.ApplyChatSettings = setting switch
+        {
+            "First" => AppSettings.BackyardLink.ActiveChatSetting.First,
+            "Last" => AppSettings.BackyardLink.ActiveChatSetting.Last,
+            "All" => AppSettings.BackyardLink.ActiveChatSetting.All,
+            _ => AppSettings.BackyardLink.ActiveChatSetting.Last
+        };
+        AppSettings.Save();
+        StatusMessage = $"Chat settings will apply to {setting.ToLower()} chat";
+    }
+
+    #endregion
+
+    #region Backyard Utilities Commands
+
+    [RelayCommand]
+    private async Task CreateBackyardBackup()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        var filePath = await _fileService.SaveFileAsync(
+            "Save Backup",
+            "backyard_backup.db",
+            new[] { "*.db" });
+
+        if (string.IsNullOrEmpty(filePath))
+            return;
+
+        StatusMessage = "Creating backup...";
+        try
+        {
+            // Get database location from Backyard settings
+            var dbLocation = AppSettings.BackyardLink.Location;
+            if (!string.IsNullOrEmpty(dbLocation) && File.Exists(dbLocation))
+            {
+                File.Copy(dbLocation, filePath, overwrite: true);
+                StatusMessage = $"Backup created: {Path.GetFileName(filePath)}";
+            }
+            else
+            {
+                StatusMessage = "Could not locate Backyard database. Connect to Backyard first.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Backup failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestoreBackyardBackup()
+    {
+        var confirm = await _dialogService.ShowConfirmationDialogAsync(
+            "Restore Backup",
+            "This will replace your current Backyard database. Are you sure?");
+        if (!confirm)
+            return;
+
+        var filePath = await _fileService.OpenFileAsync(
+            "Open Backup",
+            new[] { "*.db" });
+
+        if (string.IsNullOrEmpty(filePath))
+            return;
+
+        StatusMessage = "Restoring backup...";
+        try
+        {
+            var dbLocation = AppSettings.BackyardLink.Location;
+            if (string.IsNullOrEmpty(dbLocation))
+            {
+                StatusMessage = "No Backyard database location configured";
+                return;
+            }
+
+            // Disconnect first
+            Integration.Backyard.Disconnect();
+
+            // Copy backup over
+            File.Copy(filePath, dbLocation, overwrite: true);
+            StatusMessage = "Backup restored. Reconnect to Backyard to see changes.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Restore failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void PurgeUnusedImages()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // This feature requires implementation in the Backyard database layer
+        StatusMessage = "Purge unused images: Feature not yet fully implemented";
+    }
+
+    #endregion
+
+    #region Options Menu Properties and Commands
+
+    // Token Budget options
+    public ObservableCollection<string> TokenBudgetOptions { get; } = new()
+    {
+        "None",
+        "1024 tokens",
+        "2048 tokens",
+        "4096 tokens",
+        "6144 tokens",
+        "8192 tokens",
+        "12288 tokens",
+        "16384 tokens",
+        "24576 tokens",
+        "32768 tokens"
+    };
+
+    private static readonly int[] TokenBudgetValues = { 0, 1024, 2048, 4096, 6144, 8192, 12288, 16384, 24576, 32768 };
+
+    [ObservableProperty]
+    private string _selectedTokenBudget = "None";
+
+    partial void OnSelectedTokenBudgetChanged(string value)
+    {
+        int index = TokenBudgetOptions.IndexOf(value);
+        if (index >= 0 && index < TokenBudgetValues.Length)
+        {
+            AppSettings.Settings.TokenBudget = TokenBudgetValues[index];
+            AppSettings.Save();
+            StatusMessage = value == "None" ? "Token budget disabled" : $"Token budget set to {value}";
+        }
+    }
+
+    [RelayCommand]
+    private void SetTokenBudget(string budget)
+    {
+        SelectedTokenBudget = budget;
+    }
+
+    // Output Preview options
+    public ObservableCollection<string> OutputPreviewOptions { get; } = new()
+    {
+        "Default",
+        "SillyTavern",
+        "Faraday",
+        "Faraday (Party)",
+        "Plain Text"
+    };
+
+    [ObservableProperty]
+    private string _selectedOutputPreview = "Default";
+
+    partial void OnSelectedOutputPreviewChanged(string value)
+    {
+        AppSettings.Settings.PreviewFormat = value switch
+        {
+            "SillyTavern" => AppSettings.Settings.OutputPreviewFormat.SillyTavern,
+            "Faraday" => AppSettings.Settings.OutputPreviewFormat.Faraday,
+            "Faraday (Party)" => AppSettings.Settings.OutputPreviewFormat.FaradayParty,
+            "Plain Text" => AppSettings.Settings.OutputPreviewFormat.PlainText,
+            _ => AppSettings.Settings.OutputPreviewFormat.Default
+        };
+        AppSettings.Save();
+        RegenerateOutput();
+        StatusMessage = $"Output preview set to {value}";
+    }
+
+    [RelayCommand]
+    private void SetOutputPreview(string preview)
+    {
+        SelectedOutputPreview = preview;
+    }
+
+    // Spell Checking toggle
+    [ObservableProperty]
+    private bool _spellCheckEnabled = true;
+
+    [RelayCommand]
+    private void ToggleSpellCheck()
+    {
+        SpellCheckEnabled = !SpellCheckEnabled;
+        AppSettings.Settings.SpellChecking = SpellCheckEnabled;
+        AppSettings.Save();
+        StatusMessage = SpellCheckEnabled ? "Spell checking enabled" : "Spell checking disabled";
+    }
+
+    // Auto Convert Name toggle
+    [ObservableProperty]
+    private bool _autoConvertName = true;
+
+    [RelayCommand]
+    private void ToggleAutoConvertName()
+    {
+        AutoConvertName = !AutoConvertName;
+        AppSettings.Settings.AutoConvertNames = AutoConvertName;
+        AppSettings.Save();
+        StatusMessage = AutoConvertName ? "Auto convert name enabled" : "Auto convert name disabled";
+    }
+
+    // Auto Break toggle
+    [ObservableProperty]
+    private bool _autoBreak = true;
+
+    [RelayCommand]
+    private void ToggleAutoBreak()
+    {
+        AutoBreak = !AutoBreak;
+        AppSettings.Settings.AutoBreakLine = AutoBreak;
+        AppSettings.Save();
+        StatusMessage = AutoBreak ? "Auto break lines enabled" : "Auto break lines disabled";
+    }
+
+    // Rearrange Lore toggle
+    [ObservableProperty]
+    private bool _rearrangeLoreEnabled = false;
+
+    [RelayCommand]
+    private void ToggleRearrangeLore()
+    {
+        RearrangeLoreEnabled = !RearrangeLoreEnabled;
+        AppSettings.Settings.EnableRearrangeLoreMode = RearrangeLoreEnabled;
+        AppSettings.Save();
+        StatusMessage = RearrangeLoreEnabled ? "Rearrange lore mode enabled" : "Rearrange lore mode disabled";
+    }
+
+    #endregion
+
+    #region File Menu Commands
+
+    [RelayCommand]
+    private void NewWindow()
+    {
+        // Open a new instance of the application
+        try
+        {
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+                StatusMessage = "Opening new window...";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not open new window: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveIncremental()
+    {
+        if (string.IsNullOrEmpty(_currentFilePath))
+        {
+            // No file saved yet, do regular Save As
+            await SaveAsAsync();
+            return;
+        }
+
+        // Generate incremental filename
+        var dir = Path.GetDirectoryName(_currentFilePath) ?? ".";
+        var name = Path.GetFileNameWithoutExtension(_currentFilePath);
+        var ext = Path.GetExtension(_currentFilePath);
+
+        // Find next available number
+        int number = 1;
+        string newPath;
+        do
+        {
+            newPath = Path.Combine(dir, $"{name}_{number:D2}{ext}");
+            number++;
+        } while (File.Exists(newPath) && number < 100);
+
+        if (File.Exists(newPath))
+        {
+            StatusMessage = "Too many incremental saves";
+            return;
+        }
+
+        // Save to new path
+        var card = ToCard();
+        if (await _cardService.SaveAsync(newPath, card))
+        {
+            _currentFilePath = newPath;
+            _isDirty = false;
+            UpdateWindowTitle();
+            AppSettings.AddToMRU(newPath, CharacterName);
+            AppSettings.Save();
+            StatusMessage = $"Saved as: {Path.GetFileName(newPath)}";
+        }
+        else
+        {
+            StatusMessage = "Failed to save file";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RevertFile()
+    {
+        if (string.IsNullOrEmpty(_currentFilePath))
+        {
+            StatusMessage = "No file to revert to";
+            return;
+        }
+
+        if (!File.Exists(_currentFilePath))
+        {
+            StatusMessage = "Original file no longer exists";
+            return;
+        }
+
+        // Confirm revert if dirty
+        if (_isDirty)
+        {
+            var confirm = await _dialogService.ShowConfirmationDialogAsync(
+                "Revert to Saved",
+                "Discard all changes and revert to the last saved version?");
+            if (!confirm)
+                return;
+        }
+
+        // Reload the file
+        var (result, card) = await _cardService.LoadAsync(_currentFilePath);
+        if (result == CharacterCardService.LoadResult.Success && card != null)
+        {
+            LoadFromCard(card);
+            _isDirty = false;
+            UpdateWindowTitle();
+            StatusMessage = $"Reverted to: {Path.GetFileName(_currentFilePath)}";
+        }
+        else
+        {
+            StatusMessage = $"Failed to reload file: {result}";
+        }
+    }
+
+    #endregion
+
+    #region Help Menu Commands
+
+    [RelayCommand]
+    private void ViewHelp()
+    {
+        try
+        {
+            var helpUrl = "https://github.com/DominaeDev/ginger/wiki";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = helpUrl,
+                UseShellExecute = true
+            });
+            StatusMessage = "Opening help...";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not open help: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void VisitGitHub()
+    {
+        try
+        {
+            var githubUrl = "https://github.com/DominaeDev/ginger";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = githubUrl,
+                UseShellExecute = true
+            });
+            StatusMessage = "Opening GitHub page...";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not open GitHub: {ex.Message}";
+        }
+    }
+
+    #endregion
+
+    #region Tools Menu Commands
+
+    [RelayCommand]
+    private void BakeAll()
+    {
+        // Bake all recipes - flatten to text
+        int bakedCount = 0;
+        foreach (var recipe in Recipes.Where(r => r.IsEnabled))
+        {
+            recipe.Bake();
+            bakedCount++;
+        }
+        MarkDirty();
+        RegenerateOutput();
+        StatusMessage = $"Baked {bakedCount} recipe(s)";
+    }
+
+    [RelayCommand]
+    private void BakeActor()
+    {
+        // Bake recipes for current actor only
+        int bakedCount = 0;
+        foreach (var recipe in Recipes.Where(r => r.IsEnabled))
+        {
+            recipe.Bake();
+            bakedCount++;
+        }
+        MarkDirty();
+        RegenerateOutput();
+        StatusMessage = $"Baked {bakedCount} recipe(s) for current actor";
+    }
+
+    [RelayCommand]
+    private void MergeLore()
+    {
+        if (LorebookEntries.Count < 2)
+        {
+            StatusMessage = "At least 2 lore entries required to merge";
+            return;
+        }
+
+        // Find entries with duplicate keys
+        var groups = LorebookEntries
+            .Where(e => !string.IsNullOrWhiteSpace(e.Keys))
+            .GroupBy(e => e.Keys.Trim().ToLowerInvariant())
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        if (groups.Count == 0)
+        {
+            StatusMessage = "No duplicate lore entries found to merge";
+            return;
+        }
+
+        int mergedCount = 0;
+        foreach (var group in groups)
+        {
+            var entries = group.ToList();
+            var first = entries[0];
+
+            // Merge content from other entries into first
+            var combinedContent = first.Content;
+            for (int i = 1; i < entries.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(entries[i].Content))
+                {
+                    combinedContent += "\n\n" + entries[i].Content;
+                }
+                LorebookEntries.Remove(entries[i]);
+                mergedCount++;
+            }
+            first.Content = combinedContent;
+        }
+
+        MarkDirty();
+        RegenerateOutput();
+        StatusMessage = $"Merged {mergedCount} duplicate lore entries";
+    }
+
+    #endregion
 
     [RelayCommand]
     private async Task EditVariables()

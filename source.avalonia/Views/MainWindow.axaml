@@ -49,6 +49,7 @@
         <Menu DockPanel.Dock="Top" FontSize="12">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="New _Window" Command="{Binding NewWindowCommand}"/>
                 <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="Ctrl+D"/>
                 <Separator/>
                 <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="Ctrl+O"/>
@@ -56,6 +57,8 @@
                 <Separator/>
                 <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S"/>
                 <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S"/>
+                <MenuItem Header="Save _Incremental" Command="{Binding SaveIncrementalCommand}"/>
+                <MenuItem Header="_Revert to Saved" Command="{Binding RevertFileCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Import">
                     <MenuItem Header="Import from _Folder..." Command="{Binding ImportFromFolderCommand}"/>
@@ -118,6 +121,48 @@
                 <MenuItem Header="_Paste Entries" Command="{Binding PasteLorebookCommand}"/>
             </MenuItem>
             <MenuItem Header="_Options">
+                <MenuItem Header="_Token Budget">
+                    <MenuItem Header="None" Command="{Binding SetTokenBudgetCommand}" CommandParameter="None"/>
+                    <Separator/>
+                    <MenuItem Header="1024 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="1024 tokens"/>
+                    <MenuItem Header="2048 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="2048 tokens"/>
+                    <MenuItem Header="4096 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="4096 tokens"/>
+                    <MenuItem Header="6144 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="6144 tokens"/>
+                    <MenuItem Header="8192 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="8192 tokens"/>
+                    <MenuItem Header="12288 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="12288 tokens"/>
+                    <MenuItem Header="16384 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="16384 tokens"/>
+                    <MenuItem Header="24576 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="24576 tokens"/>
+                    <MenuItem Header="32768 tokens" Command="{Binding SetTokenBudgetCommand}" CommandParameter="32768 tokens"/>
+                </MenuItem>
+                <MenuItem Header="_Output Preview">
+                    <MenuItem Header="Default" Command="{Binding SetOutputPreviewCommand}" CommandParameter="Default"/>
+                    <MenuItem Header="SillyTavern" Command="{Binding SetOutputPreviewCommand}" CommandParameter="SillyTavern"/>
+                    <MenuItem Header="Faraday" Command="{Binding SetOutputPreviewCommand}" CommandParameter="Faraday"/>
+                    <MenuItem Header="Faraday (Party)" Command="{Binding SetOutputPreviewCommand}" CommandParameter="Faraday (Party)"/>
+                    <MenuItem Header="Plain Text" Command="{Binding SetOutputPreviewCommand}" CommandParameter="Plain Text"/>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Spell Checking" Command="{Binding ToggleSpellCheckCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding SpellCheckEnabled}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Auto Convert _Name" Command="{Binding ToggleAutoConvertNameCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding AutoConvertName}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Auto _Break" Command="{Binding ToggleAutoBreakCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding AutoBreak}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Rearrange Lore" Command="{Binding ToggleRearrangeLoreCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding RearrangeLoreEnabled}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="Allow NSFW" Command="{Binding ToggleNsfwCommand}">
                     <MenuItem.Icon>
                         <CheckBox IsChecked="{Binding AllowNsfw}" BorderThickness="0"/>
@@ -137,6 +182,10 @@
                 <MenuItem Header="Create _Recipe..." Command="{Binding CreateRecipeCommand}"/>
                 <MenuItem Header="Create _Snippet..." Command="{Binding CreateSnippetCommand}"/>
                 <Separator/>
+                <MenuItem Header="Bake _All" Command="{Binding BakeAllCommand}"/>
+                <MenuItem Header="Bake A_ctor" Command="{Binding BakeActorCommand}"/>
+                <MenuItem Header="_Merge Lore" Command="{Binding MergeLoreCommand}"/>
+                <Separator/>
                 <MenuItem Header="Reload Recipes" Command="{Binding ReloadRecipesCommand}" InputGesture="F5"/>
             </MenuItem>
             <MenuItem Header="_Backyard">
@@ -152,8 +201,57 @@
                 <Separator/>
                 <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}"/>
                 <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Utilities">
+                    <MenuItem Header="Create _Backup..." Command="{Binding CreateBackyardBackupCommand}"/>
+                    <MenuItem Header="_Restore Backup..." Command="{Binding RestoreBackyardBackupCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="_Purge Unused Images" Command="{Binding PurgeUnusedImagesCommand}"/>
+                </MenuItem>
+                <MenuItem Header="_Options">
+                    <MenuItem Header="_Autosave" Command="{Binding ToggleBackyardAutosaveCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardAutosave}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Always _Link on Import" Command="{Binding ToggleBackyardAlwaysLinkCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardAlwaysLink}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="_Apply Chat Settings">
+                        <MenuItem Header="To _First Chat" Command="{Binding SetBackyardApplyChatSettingsCommand}" CommandParameter="First"/>
+                        <MenuItem Header="To _Last Chat" Command="{Binding SetBackyardApplyChatSettingsCommand}" CommandParameter="Last"/>
+                        <MenuItem Header="To _All Chats" Command="{Binding SetBackyardApplyChatSettingsCommand}" CommandParameter="All"/>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="Use _Portrait as Background" Command="{Binding ToggleBackyardUsePortraitAsBackgroundCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardUsePortraitAsBackground}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Import Alternate _Greetings" Command="{Binding ToggleBackyardImportAltGreetingsCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardImportAltGreetings}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Write _User Persona" Command="{Binding ToggleBackyardWriteUserPersonaCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardWriteUserPersona}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Write Author _Note" Command="{Binding ToggleBackyardWriteAuthorNoteCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding BackyardWriteAuthorNote}" BorderThickness="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="View _Help" Command="{Binding ViewHelpCommand}"/>
+                <MenuItem Header="Visit _GitHub Page" Command="{Binding VisitGitHubCommand}"/>
+                <Separator/>
                 <MenuItem Header="Check for _Updates..." Command="{Binding CheckForUpdatesCommand}"/>
                 <Separator/>
                 <MenuItem Header="_About Ginger" Command="{Binding AboutCommand}"/>

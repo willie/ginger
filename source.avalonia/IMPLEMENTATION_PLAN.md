@@ -1,6 +1,8 @@
-# Ginger Avalonia Port - 100% Parity Implementation Plan
+# Ginger Avalonia Port - Implementation Plan
 
-## Current Status: 100% Complete
+## Current Status: ~95% Complete
+
+**Last Updated: 2025-12-12** - Significant improvements made to close the gap with the original WinForms implementation.
 
 ### What Works
 - Core generation engine (Generator.cs)
@@ -21,7 +23,61 @@
 - Chat log export to GingerChatV2 and BackyardChatBackupV2 formats
 - Update checker (Help > Check for Updates)
 
-### All Features Complete!
+### Recently Implemented Features (2025-12-12)
+
+#### File Menu:
+- [x] New Window command
+- [x] Save Incremental command
+- [x] Revert File command
+- [ ] New from Template command
+- [ ] Change Language menu
+
+#### Options/Settings Menu:
+- [x] Token Budget settings (None, 1K-32K)
+- [x] Output Preview modes (Default, SillyTavern, Faraday, Faraday Group, Plain Text)
+- [x] Spell Checking toggle menu item
+- [x] Auto Convert Name option
+- [x] Auto Break option
+- [x] Rearrange Lore option
+
+#### Tools Menu:
+- [x] Bake All command
+- [x] Bake Actor command
+- [x] Merge Lore command
+
+#### Backyard Menu:
+- [x] Create/Restore Backup utilities
+- [x] Enable Autosave option
+- [x] Always Link on Import option
+- [x] Apply Chat Settings (First/Last/All)
+- [x] Use Portrait as Background option
+- [x] Import Alternate Greetings option
+- [x] Write User Persona option
+- [x] Write Author Note option
+- [x] Purge Unused Images (stub)
+- [ ] Save Linked command
+- [ ] Save New Linked command
+- [ ] Save as New Party command
+- [ ] Revert Linked command
+- [ ] Reestablish Link command
+- [ ] Chat History dialog wiring
+- [ ] Edit Current Model Settings wiring
+- [ ] Bulk Edit Model Settings
+- [ ] Bulk Export Parties
+- [ ] Delete Characters
+- [ ] Repair Broken Images utility
+- [ ] Repair Legacy Chats utility
+- [ ] Reset Models Location utility
+- [ ] Reset Model Settings utility
+
+#### Help Menu:
+- [x] View Help command
+- [x] Visit GitHub Page command
+
+#### UI Polish (Remaining):
+- [ ] Show Recipe Category toggle
+- [ ] Sort Recipes option
+- [ ] Find Next / Find Previous commands
 
 ---
 
@@ -305,17 +361,25 @@ source/src/Interface/Forms/Dialogs/AssetViewDialog.cs → AXAML
 - [x] All dialogs implemented (20+ done)
 - [x] Settings persist between sessions
 - [x] Multi-actor characters work
+- [x] Options menu (Token Budget, Output Preview modes)
+- [x] File menu (New Window, Save Incremental, Revert)
+- [ ] Full Backyard menu parity (Save Linked, some Utilities)
+- [ ] New from Template command
 
 ### Should Have
 - [x] Chat log export to file formats (GingerChatV2, BackyardChatBackupV2)
 - [x] Spell checking works (context menu in WriteDialog)
 - [x] Token counting works
 - [x] Clipboard copy/paste works (Recipe + Lorebook)
+- [x] Spell checking toggle menu
+- [x] Bake All/Actor commands
 
 ### Nice to Have
 - [x] Update checker (Help > Check for Updates)
 - [ ] Syntax highlighting (not in original either)
 - [x] Full keyboard shortcuts (Ctrl+N/O/S/D/L/F/H/Z/Y, Alt+Left/Right, Alt+1-4, Ctrl+Tab)
+- [x] View Help menu
+- [x] Visit GitHub Page menu
 
 ---
 
