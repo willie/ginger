@@ -1,6 +1,6 @@
 # Ginger Avalonia Port - Implementation Plan
 
-## Current Status: ~97% Complete
+## Current Status: ~98% Complete
 
 **Last Updated: 2025-12-12** - Almost complete feature parity with the original WinForms implementation.
 
@@ -33,7 +33,7 @@
 - [x] New Window command
 - [x] Save Incremental command
 - [x] Revert File command
-- [ ] New from Template command
+- [x] New from Template command (with 5 built-in templates)
 - [ ] Change Language menu
 
 #### Options/Settings Menu:
@@ -63,9 +63,9 @@
 - [x] Revert Linked command
 - [x] Chat History dialog wiring
 - [x] Edit Current Model Settings wiring
+- [x] Reestablish Link command
 - [ ] Save Linked command (direct database save)
 - [ ] Save as New Party command
-- [ ] Reestablish Link command
 - [ ] Bulk Edit Model Settings
 - [ ] Bulk Export Parties
 - [ ] Delete Characters

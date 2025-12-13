@@ -1057,6 +1057,65 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task NewFromTemplate(string? templateName)
+    {
+        if (string.IsNullOrEmpty(templateName))
+        {
+            StatusMessage = "No template selected";
+            return;
+        }
+
+        // Check for unsaved changes
+        if (_isDirty)
+        {
+            var result = await _dialogService.ShowConfirmationDialogAsync(
+                "Unsaved Changes",
+                "You have unsaved changes. Do you want to continue without saving?");
+            if (!result)
+                return;
+        }
+
+        // Find the template
+        var preset = RecipeBook.GetPresetByID(templateName);
+        if (preset == null)
+        {
+            StatusMessage = $"Template '{templateName}' not found";
+            return;
+        }
+
+        // Create new character from template
+        New();
+
+        // Add recipes from the preset
+        Current.NewCharacter();
+        var instances = Current.MainCharacter.AddRecipePreset(preset);
+
+        // Clear the default recipe and add the preset recipes
+        Recipes.Clear();
+        foreach (var recipe in instances)
+        {
+            Recipes.Add(new RecipeViewModel(this, recipe));
+        }
+
+        Current.IsDirty = false;
+        _isDirty = false;
+        UpdateWindowTitle();
+        RegenerateOutput();
+        StatusMessage = $"Created new character from template: {preset.name}";
+    }
+
+    /// <summary>
+    /// Gets the list of available templates for the menu.
+    /// </summary>
+    public IEnumerable<(string Id, string Name)> GetAvailableTemplates()
+    {
+        foreach (var preset in RecipeBook.allPresets)
+        {
+            yield return (preset.id.ToString(), preset.name);
+        }
+    }
+
+    [RelayCommand]
     private void Duplicate()
     {
         // Clear file path so it becomes a new file
@@ -2600,13 +2659,15 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        if (!Backyard.ConnectionEstablished)
+        if (!Integration.Backyard.ConnectionEstablished)
         {
             StatusMessage = "Not connected to Backyard AI";
             return;
         }
 
-        var window = GetMainWindow();
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        var window = desktop.MainWindow;
         if (window == null) return;
 
         var dialog = new Views.Dialogs.LinkEditChatDialog();
@@ -2617,7 +2678,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task EditModelSettings()
     {
-        var window = GetMainWindow();
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        var window = desktop.MainWindow;
         if (window == null) return;
 
         var dialog = new Views.Dialogs.EditModelSettingsDialog();
@@ -2644,6 +2707,72 @@ public partial class MainViewModel : ObservableObject
             AppSettings.Settings.DefaultRepeatLastN = dialog.RepeatLastN;
             AppSettings.Save();
             StatusMessage = "Model settings saved";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ReestablishLink()
+    {
+        if (Current.Link == null)
+        {
+            StatusMessage = "No link to reestablish";
+            return;
+        }
+
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // Refresh the character list
+        var error = Integration.Backyard.RefreshCharacters();
+        if (error != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = "Failed to refresh Backyard characters";
+            return;
+        }
+
+        // Try to find the character by group ID
+        bool found = false;
+        if (!string.IsNullOrEmpty(Current.Link.groupId))
+        {
+            // Check if group exists in the database
+            found = Integration.Backyard.Groups.Any(g => g.instanceId == Current.Link.groupId);
+        }
+
+        // If not found by group, try by actor ID
+        if (!found && !string.IsNullOrEmpty(Current.Link.mainActorId))
+        {
+            var character = Integration.Backyard.Characters.FirstOrDefault(c => c.instanceId == Current.Link.mainActorId);
+            if (!string.IsNullOrEmpty(character.instanceId))
+            {
+                Current.Link.groupId = character.groupId;
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            Current.Link.filename = _currentFilePath;
+            Current.Link.isActive = true;
+            Current.Link.RefreshState();
+            Current.IsFileDirty = true;
+            UpdateWindowTitle();
+            StatusMessage = "Link reestablished successfully";
+        }
+        else
+        {
+            var confirm = await _dialogService.ShowConfirmationDialogAsync(
+                "Link Not Found",
+                "Could not find the linked character in Backyard AI. Remove the link?");
+            if (confirm)
+            {
+                Current.Link = null;
+                Current.IsFileDirty = true;
+                UpdateWindowTitle();
+                StatusMessage = "Link removed";
+            }
         }
     }
 

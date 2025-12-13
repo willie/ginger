@@ -1,0 +1,24 @@
+﻿<Ginger id="backstory" version="1.1">
+	<!-- Preamble -->
+	<Name>Premise</Name>
+	<Title>Premise</Title>
+	<Description>Describe the premise for the interaction.</Description>
+	<Author>Ginger</Author>
+	<Category>Story</Category>
+	<Order>-100</Order>
+	<Multiple>Yes</Multiple>
+	
+	<!-- Parameters -->
+	<Text id="text" style="flex">
+		<Label>Premise</Label>
+		<Description>Describe a starting off point for the story.</Description>
+	</Text>
+		
+	<!-- Output -->
+	<Node path="scenario/output/premise" style="block" order="600">
+		[p]Premise:  
+		{inner} 
+	</Node>
+	<Node path="scenario/output/premise/text" rule="text">{text}.</Node>
+
+</Ginger>

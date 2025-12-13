@@ -49,6 +49,13 @@
         <Menu DockPanel.Dock="Top" FontSize="12">
             <MenuItem Header="_File">
                 <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="New from _Template">
+                    <MenuItem Header="Assistant" Command="{Binding NewFromTemplateCommand}" CommandParameter="assistant"/>
+                    <MenuItem Header="Chat Bot" Command="{Binding NewFromTemplateCommand}" CommandParameter="chat-bot"/>
+                    <MenuItem Header="Classic" Command="{Binding NewFromTemplateCommand}" CommandParameter="classic"/>
+                    <MenuItem Header="Companion" Command="{Binding NewFromTemplateCommand}" CommandParameter="companion"/>
+                    <MenuItem Header="Roleplay" Command="{Binding NewFromTemplateCommand}" CommandParameter="roleplay"/>
+                </MenuItem>
                 <MenuItem Header="New _Window" Command="{Binding NewWindowCommand}"/>
                 <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="Ctrl+D"/>
                 <Separator/>
@@ -210,6 +217,7 @@
                 <Separator/>
                 <MenuItem Header="_Link Character" Command="{Binding LinkCharacterCommand}"/>
                 <MenuItem Header="_Unlink Character" Command="{Binding UnlinkCharacterCommand}"/>
+                <MenuItem Header="_Reestablish Link" Command="{Binding ReestablishLinkCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}" InputGesture="Ctrl+U"/>
                 <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}" InputGesture="Ctrl+Shift+U"/>

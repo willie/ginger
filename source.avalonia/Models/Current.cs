@@ -427,6 +427,21 @@ namespace Ginger
 			return false;
 		}
 
+		public Recipe[] AddRecipePreset(RecipePreset preset)
+		{
+			var instances = new List<Recipe>();
+
+			foreach (var presetRecipe in preset.recipes)
+			{
+				// Clone the recipe from the preset
+				var recipe = (Recipe)presetRecipe.Clone();
+				if (AddRecipe(recipe))
+					instances.Add(recipe);
+			}
+
+			return instances.ToArray();
+		}
+
 		public bool IsEmpty()
 		{
 			if (recipes.Count > 0 || !string.IsNullOrEmpty(_spokenName))

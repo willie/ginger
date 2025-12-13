@@ -1,0 +1,160 @@
+<!--
+	This file contains a global recipe which is implicitly included during text generation.
+	It sets up common nodes for other recipes to use.
+
+	** CAUTION **
+	Modifying this file may have unwanted consequences and is not recommended.
+-->
+
+<Ginger id="__global">
+
+	<!-- System prompt guidelines -->
+	<Node path="system/guidelines" style="number-list" mode="exclude" order="-200">
+		# GUIDELINES:  
+		{inner}
+	</Node>
+
+	<!-- Exceptions block -->
+	<Node path="system/exceptions" style="number-list" mode="exclude" order="-100">
+		# EXCEPTIONS:  
+		{inner}  
+	</Node>
+		
+	<!-- Important block -->
+	<Node path="system/important" style="default" mode="exclude" order="-0" rule="not (__bake or __snippet or __tavern or __author-note)">
+		# IMPORTANT:  
+		{inner}
+	</Node>
+	<Node path="system/important" style="line" mode="exclude" order="-0" rule="__tavern or __author-note"/>
+	<Node path="system/important/output" mode="exclude" style="default"/>
+	
+	<Node path="persona/header" order="0" rule="multi-character and not (__bake or __snippet)" mode="sibling">
+		# {char}:
+	</Node>
+	
+	<!-- Attribute root node -->
+	<Node path="persona/attributes" style="line" order="200"/>
+		
+	<!-- Setup common attribute styles and ordering -->
+	<Node path="persona/attributes/age" style="number" order="20">[!__attrib:Age]{inner}</Node>
+	<Node path="persona/attributes/nationality" style="attribute" order="100">[!__attrib:Nationality]{inner}</Node>
+	<Node path="persona/attributes/occupation" style="attribute" order="100">[!__attrib:Occupation]{inner}</Node>
+	<Node path="persona/attributes/personality" style="list" order="200">[!__attrib:Personality]{inner}</Node>
+	<Node path="persona/attributes/likes" style="list" order="200">[!__attrib:Likes]{inner}</Node>
+	<Node path="persona/attributes/dislikes" style="list" order="200">[!__attrib:Dislikes]{inner}</Node>
+	<Node path="persona/attributes/hobbies" style="list" order="200">[!__attrib:Hobbies]{inner}</Node>
+	<Node path="persona/attributes/fears" style="list" order="300">[!__attrib:Fears]{inner}</Node>
+	<Node path="persona/attributes/goals" style="list" order="300">[!__attrib:Goals]{inner}</Node>
+	<Node path="persona/attributes/priorities" style="list" order="300">[!__attrib:Priorities]{inner}</Node>
+	<Node path="persona/attributes/appearance" style="list" order="400">[!__attrib:Appearance]{inner}</Node>
+
+	<!-- Auto-summary -->
+	<Node path="persona/summary/auto" order="100" mode="exclude" rule="normal-detail and has-summary and __tavern and not (system-summary or __personality)">[char] is [summary].</Node>
+
+	<!-- Description block -->
+	<Node path="persona/description" style="block" order="600" rule="not multi-character and less-detail"/>
+	<Node path="persona/description" style="block" order="600" rule="not multi-character and normal-detail">
+		Description:  
+		{inner}
+	</Node>
+	<Node path="persona/description" style="block" order="600" rule="multi-character and not (__bake or __snippet)">
+		[char's] description:  
+		{inner}
+	</Node>
+
+	<!-- Appearance block -->
+	<Node path="persona/appearance" style="block" order="650" rule="not multi-character and less-detail"/>
+	<Node path="persona/appearance" style="block" order="650" rule="not multi-character and normal-detail">
+		Appearance:  
+		{inner}
+	</Node>
+	<Node path="persona/appearance" style="block" order="650" rule="multi-character and not (__bake or __snippet)">
+		[char's] appearance:  
+		{inner}
+	</Node>
+	
+	<!-- Sexuality block -->
+	<Node path="persona/sexuality" style="block" order="700" rule="not multi-character and less-detail"/>
+	<Node path="persona/sexuality" style="block" order="700" rule="not multi-character and normal-detail">
+		Sexuality:  
+		{inner}
+	</Node>
+	<Node path="persona/sexuality" style="block" order="700" rule="multi-character and not (__bake or __snippet)">
+		[char's] sexuality:  
+		{inner}
+	</Node>
+	
+	<!-- Relationship block -->
+	<Node path="persona/relationship" style="block" order="750" rule="not multi-character and less-detail"/>
+	<Node path="persona/relationship" style="block" order="750" rule="not multi-character and normal-detail">
+		Relationships:  
+		{inner}
+	</Node>
+	<Node path="persona/relationship" style="block" order="750" rule="multi-character and not (__bake or __snippet)">
+		[char's] relationships:  
+		{inner}
+	</Node>
+	
+	<!-- User persona block -->
+	<Node path="user/header" order="0" rule="(multi-character or __user-persona-in-scenario) and not (__write-user or __bake or __snippet)" mode="sibling">
+		# {user}:
+	</Node>
+	
+	<Node path="user/attributes" style="line" order="200">
+		[["{user}":  
+		{inner}  
+		]]
+	</Node>
+	
+	<!-- Scenario block -->
+	<Node path="scenario/header" order="0" rule="__single-prompt and not (__bake or __snippet)" mode="sibling">
+		# Scenario:
+	</Node>
+	
+	<!-- Story block -->
+	<Node path="scenario/premise" order="190" rule="not less-detail">
+		PREMISE:  
+		{inner}  
+	</Node>
+	<Node path="scenario/premise" order="190" rule="less-detail"/>
+	
+	<!-- Story block -->
+	<Node path="scenario/story" order="200" rule="not less-detail">
+		STORY:  
+		{inner}  
+	</Node>
+	<Node path="scenario/story" order="200" rule="less-detail"/>
+	
+	<!-- Story hints -->
+	<Node path="scenario/hint" order="800" style="bullet-list" rule="not less-detail">
+		STORY HINTS:  
+		{inner}  
+	</Node>	
+	<Node path="scenario/hint" order="800" style="bullet-list" rule="less-detail"/>
+
+	<!-- World block -->
+	<Node path="scenario/world" style="paragraph" order="400"/>
+		
+	<!-- Attribute: Name -->
+	<Attribute rule="normal-detail and not (__single or full-name)" order="0" mode="sibling">
+		<Name>Name</Name>
+		<Value>{char}</Value>
+	</Attribute>
+	
+	<Attribute rule="normal-detail and full-name and not __single" order="0" mode="sibling">
+		<Name>Full name</Name>
+		<Value>{full-name}</Value>
+	</Attribute>
+
+	<!-- Attribute: Gender -->
+	<Attribute rule="(normal-detail or custom-gender) and not __single" order="1" mode="sibling">
+		<Name>Gender</Name>
+		<Value>{gender.capital}</Value>
+	</Attribute>
+	
+	<!-- Default character adjectives/noun -->
+	<Noun priority="-200" rule="not species or race">[species or race?[{species.lower}|{race.lower}]|[man-or-woman]]</Noun>
+	
+	<Name>__global</Name>
+	<Flags>__nobake, __internal, __hidden</Flags>
+</Ginger>

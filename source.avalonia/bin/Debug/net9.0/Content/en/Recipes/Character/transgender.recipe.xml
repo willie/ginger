@@ -1,0 +1,95 @@
+﻿<Ginger version="1.2">
+	<!-- Preamble -->
+	<Name>Gender/Transgender</Name>
+	<Title>Transgender</Title>
+	<Description>Makes the character transgender.</Description>
+	<Author>Ginger</Author>
+	<Category>Character</Category>
+	<Flags>trans, transgender, override-gender</Flags>
+	<Requires>not (override-gender or custom-gender)</Requires>
+	<Order>0</Order>
+	
+	<!-- Parameters -->
+	<Choice id="trans-gender" required="yes">
+		<Label>Sex</Label>
+		<Option id="male">Transgender man</Option>
+		<Option id="female">Transgender woman</Option>
+	</Choice>
+	
+	<Choice id="trans-pronouns" rule="not custom-pronoun">
+		<Label>Pronouns</Label>
+		<Option id="pronouns-he">He / Him</Option>
+		<Option id="pronouns-she">She / Her</Option>
+		<Option id="pronouns-them">They / Them</Option>
+		<Default>[female?pronouns-she|[male?pronouns-he|pronouns-they]]</Default>
+	</Choice>
+	
+	<Text id="more" style="flex">
+		<Label>Additional details</Label>
+	</Text>
+	
+	<!-- Set gender -->
+	<Erase scope="both">gender</Erase>
+	<Erase scope="both">male, female, non-binary, futanari</Erase>
+	<SetFlag scope="both" rule="trans-gender is male">male</SetFlag>
+	<SetFlag scope="both" rule="trans-gender is female">female</SetFlag>
+	<SetVar scope="both" id="gender">{trans-gender}</SetVar>
+	
+	<!-- Set pronouns -->
+	<SetFlag scope="both" rule="trans-pronouns">custom-pronoun</SetFlag>
+	<Erase scope="both" rule="trans-pronouns">pronoun-masculine, pronoun-feminine, pronoun-neutral, pronoun-objective</Erase>
+	<SetFlag scope="both" rule="pronouns-he">pronoun-masculine</SetFlag>
+	<SetFlag scope="both" rule="pronouns-she">pronoun-feminine</SetFlag>
+	<SetFlag scope="both" rule="pronouns-them">pronoun-neutral</SetFlag>
+	
+	<!-- Set flags -->
+	<SetFlag scope="both" rule="trans-male">trans-male</SetFlag>
+	<SetFlag scope="both" rule="trans-female">trans-female</SetFlag>
+	
+	<!-- Output -->
+	<Rule id="trans-male">trans-gender:id is male</Rule>
+	<Rule id="trans-female">trans-gender:id is female</Rule>
+	
+	<String id="descriptor">
+		<String rule="age and age le 18" priority="1">
+			<String rule="is-man">boy</String>
+			<String rule="is-woman">girl</String>
+		</String>
+		<String rule="is-man">man</String>
+		<String rule="is-woman">woman</String>
+	</String>	
+	
+	<!-- Override gender -->
+	<Attribute mode="replace" order="10">
+		<Name>Gender</Name>
+		<Value>Transgender [@descriptor]</Value>
+	</Attribute>
+	
+	<!-- Pronouns -->
+	<Attribute mode="exclude" order="10" rule="normal-detail and trans-pronouns:local and pronouns-he">
+		<Name>Pronouns</Name>
+		<Value>He/Him</Value>
+	</Attribute>
+	<Attribute mode="exclude" order="10" rule="normal-detail and trans-pronouns:local and pronouns-she">
+		<Name>Pronouns</Name>
+		<Value>She/Her</Value>
+	</Attribute>
+	<Attribute mode="exclude" order="10" rule="normal-detail and trans-pronouns:local and pronouns-them">
+		<Name>Pronouns</Name>
+		<Value>They/Them</Value>
+	</Attribute>
+	
+	<Persona rule="trans-female">
+		[char] grew up as a boy, and thus has typical male interests,
+		combined with more recent fascination for all things feminine, and typical female interests like beauty, fashion, and relationships.
+		[more?{more}.]
+	</Persona>
+
+	<Persona rule="trans-male">
+		[char] grew up as a girl, and thus has typical female interests,
+		combined with more recent fascination for all things masculine, and typical male interests like sports, video games, and physical training.
+		[more?{more}.]
+	</Persona>
+	
+	<Adjective order="quality" rule="normal-detail">trans</Adjective>
+</Ginger>
