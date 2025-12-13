@@ -60,32 +60,7 @@ namespace Ginger
 		public bool ContainsKey(TKey key) => _dict.ContainsKey(key);
 	}
 
-	/// <summary>
-	/// Stub for BackyardModelDatabase - not used in MVP
-	/// </summary>
-	public static class BackyardModelDatabase
-	{
-		public static void Refresh() { }
-
-		public static string[] FindModels(string pattern)
-		{
-			// Stub: Returns empty array - full implementation would search model database
-			return Array.Empty<string>();
-		}
-
-		// Takes two strings (modelDirectory, modelsJson) - original signature
-		public static void FindModels(string modelDirectory, string modelsJson)
-		{
-			// Stub: Does nothing - full implementation would parse and store model info
-		}
-
-		public static string[] FindModels(string pattern, out string[] modelNames)
-		{
-			// Stub: Returns empty arrays - full implementation would search model database
-			modelNames = Array.Empty<string>();
-			return Array.Empty<string>();
-		}
-	}
+	// BackyardModelDatabase is now implemented in Utility/ModelInfo.cs
 
 	/// <summary>
 	/// Stub for Resources - Windows Forms resource system

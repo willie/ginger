@@ -195,5 +195,37 @@ namespace Ginger
 	/// </summary>
 	public class JsonExtensionData : Dictionary<string, object>
 	{
+		public JsonExtensionData() : base() { }
+
+		public JsonExtensionData(Newtonsoft.Json.Linq.JObject jObject) : base()
+		{
+			if (jObject != null)
+			{
+				foreach (var prop in jObject.Properties())
+				{
+					this[prop.Name] = prop.Value;
+				}
+			}
+		}
+
+		public JsonExtensionData(IDictionary<string, object> dict) : base(dict ?? new Dictionary<string, object>())
+		{
+		}
+
+		public JsonExtensionData(JsonExtensionData other) : base(other ?? new Dictionary<string, object>())
+		{
+		}
+
+		/// <summary>
+		/// Add or update the Ginger version in extensions.
+		/// </summary>
+		public JsonExtensionData WithGingerVersion()
+		{
+			this["ginger"] = new Dictionary<string, object>
+			{
+				["version"] = AppVersion.ProductVersion
+			};
+			return this;
+		}
 	}
 }

@@ -73,6 +73,39 @@ namespace Ginger
 				|| ext == "apng" || ext == "bmp" || ext == "webp";
 		}
 
+		/// <summary>
+		/// Check if data is a WebP image based on header bytes.
+		/// </summary>
+		public static bool IsWebP(byte[] buffer)
+		{
+			if (buffer == null || buffer.Length < 12)
+				return false;
+
+			return buffer[0] == 'R' && buffer[1] == 'I' && buffer[2] == 'F' && buffer[3] == 'F'
+				&& buffer[8] == 'W' && buffer[9] == 'E' && buffer[10] == 'B' && buffer[11] == 'P';
+		}
+
+		/// <summary>
+		/// Check if file is a WebP image.
+		/// </summary>
+		public static bool IsWebP(string filename)
+		{
+			byte[] buffer = new byte[12];
+			try
+			{
+				using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+				{
+					int bytes_read = fs.Read(buffer, 0, buffer.Length);
+					fs.Close();
+					return IsWebP(buffer);
+				}
+			}
+			catch
+			{
+				return false;
+			}
+		}
+
 		public static int StringToInt(string s, int default_value = 0)
 		{
 			int value;

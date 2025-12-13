@@ -1,5 +1,5 @@
 // Lorebook class for character world information
-// Simplified version for Avalonia port - full version includes many card format converters
+// Full implementation with all format converters
 
 using System;
 using System.Collections.Generic;
@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Text;
+using Ginger.Models;
 
 namespace Ginger
 {
@@ -25,6 +26,15 @@ namespace Ginger
 			ByIndex,			// By addition order
 			ByKey,				// Alphabetical
 			ByOrder,			// By sort order
+		}
+
+		public enum LoadError
+		{
+			NoError = 0,
+			UnknownFormat,
+			NoData,
+			FileError,
+			InvalidJson,
 		}
 
 		public bool isEmpty
@@ -238,6 +248,475 @@ namespace Ginger
 		public Lorebook()
 		{
 		}
+
+		#region Import Methods
+
+		public LoadError LoadFromJson(string filename, out int errors)
+		{
+			string json;
+			try
+			{
+				json = File.ReadAllText(filename);
+			}
+			catch
+			{
+				errors = 0;
+				return LoadError.FileError;
+			}
+
+			try
+			{
+				Newtonsoft.Json.Linq.JObject.Parse(json);
+			}
+			catch
+			{
+				errors = 0;
+				return LoadError.InvalidJson;
+			}
+
+			// Try to read Tavern format (World book)
+			TavernWorldBook worldBook = TavernWorldBook.FromJson(json, out errors);
+			if (worldBook != null)
+			{
+				ReadTavernBook(worldBook);
+				if (string.IsNullOrEmpty(name))
+					name = Path.GetFileNameWithoutExtension(filename);
+				return entries.Count > 0 ? LoadError.NoError : LoadError.NoData;
+			}
+
+			// Try to read Tavern format (Characterbook V2)
+			TavernCardV2.CharacterBook characterBook = null;
+			try
+			{
+				characterBook = Newtonsoft.Json.JsonConvert.DeserializeObject<TavernCardV2.CharacterBook>(json);
+				if (characterBook?.entries != null && characterBook.entries.Length > 0)
+				{
+					ReadTavernBook(characterBook);
+					if (string.IsNullOrEmpty(name))
+						name = Path.GetFileNameWithoutExtension(filename);
+					return entries.Count > 0 ? LoadError.NoError : LoadError.NoData;
+				}
+			}
+			catch { }
+
+			// Try to read Tavern format (v3 lorebook)
+			TavernLorebookV3 lorebookV3 = TavernLorebookV3.FromJson(json, out errors);
+			if (lorebookV3 != null)
+			{
+				ReadTavernBook(lorebookV3.data);
+				if (string.IsNullOrEmpty(name))
+					name = Path.GetFileNameWithoutExtension(filename);
+				return entries.Count > 0 ? LoadError.NoError : LoadError.NoData;
+			}
+
+			// Try to read Agnaistic format
+			errors = 0;
+			try
+			{
+				var agnaiBook = Newtonsoft.Json.JsonConvert.DeserializeObject<AgnaisticCard.CharacterBook>(json);
+				if (agnaiBook?.entries != null && agnaiBook.entries.Length > 0)
+				{
+					ReadAgnaisticBook(agnaiBook);
+					if (string.IsNullOrEmpty(name))
+						name = Path.GetFileNameWithoutExtension(filename);
+					return entries.Count > 0 ? LoadError.NoError : LoadError.NoData;
+				}
+			}
+			catch { }
+
+			return LoadError.UnknownFormat;
+		}
+
+		private static readonly int CSV_KEYS = 0;
+		private static readonly int CSV_VALUE = 1;
+
+		public bool LoadFromCsv(string filename)
+		{
+			string csv;
+			try
+			{
+				csv = File.ReadAllText(filename);
+			}
+			catch
+			{
+				return false;
+			}
+
+			this.name = Path.GetFileNameWithoutExtension(filename);
+			this.entries = new List<Entry>();
+			try
+			{
+				csv = csv.ConvertLinebreaks(Linebreak.CRLF);
+				var lines = csv.Split(new[] { "\r\n" }, StringSplitOptions.None);
+				var delim = new char[] { ',' };
+				int index = 0;
+
+				foreach (var line in lines)
+				{
+					if (string.IsNullOrWhiteSpace(line))
+						continue;
+
+					// Simple CSV parsing (handles basic quoted fields)
+					var row = ParseCsvLine(line);
+					if (row.Count < 2)
+						continue;
+
+					string key = row[CSV_KEYS];
+					string value = row[CSV_VALUE];
+
+					if (string.IsNullOrWhiteSpace(key) == false && string.IsNullOrWhiteSpace(value) == false)
+					{
+						string[] keys = key.Split(delim, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToArray();
+						if (keys.Length > 0)
+						{
+							this.entries.Add(new Entry()
+							{
+								keys = keys,
+								value = GingerString.FromFaraday(value).ToString(),
+								addition_index = index++,
+							});
+						}
+					}
+				}
+			}
+			catch
+			{
+				return false;
+			}
+
+			return this.entries.Count > 0;
+		}
+
+		private static List<string> ParseCsvLine(string line)
+		{
+			var result = new List<string>();
+			var current = new StringBuilder();
+			bool inQuotes = false;
+
+			for (int i = 0; i < line.Length; i++)
+			{
+				char c = line[i];
+				if (c == '"')
+				{
+					if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+					{
+						current.Append('"');
+						i++;
+					}
+					else
+					{
+						inQuotes = !inQuotes;
+					}
+				}
+				else if (c == ',' && !inQuotes)
+				{
+					result.Add(current.ToString().Trim());
+					current.Clear();
+				}
+				else
+				{
+					current.Append(c);
+				}
+			}
+			result.Add(current.ToString().Trim());
+			return result;
+		}
+
+		#endregion
+
+		#region Format Factory Methods
+
+		public static Lorebook FromTavernBook(TavernWorldBook book)
+		{
+			var lorebook = new Lorebook();
+			lorebook.name = book.name;
+			lorebook.description = book.description;
+			lorebook.ReadTavernBook(book);
+			return lorebook;
+		}
+
+		public static Lorebook FromTavernBook(TavernCardV2.CharacterBook book)
+		{
+			var lorebook = new Lorebook();
+			lorebook.ReadTavernBook(book);
+			return lorebook;
+		}
+
+		public static Lorebook FromTavernBook(TavernCardV3.CharacterBook book)
+		{
+			var lorebook = new Lorebook();
+			lorebook.ReadTavernBook(book);
+			return lorebook;
+		}
+
+		public static Lorebook FromAgnaisticBook(AgnaisticCard.CharacterBook book)
+		{
+			var lorebook = new Lorebook();
+			lorebook.ReadAgnaisticBook(book);
+			return lorebook;
+		}
+
+		public static Lorebook FromFaradayBook(FaradayCardV1.LoreBookEntry[] entries)
+		{
+			var lorebook = new Lorebook();
+			lorebook.name = "Lorebook";
+			lorebook.entries = new List<Entry>(entries.Length);
+
+			int index = 0;
+			for (int i = 0; i < entries.Length; ++i)
+			{
+				var entry = entries[i];
+				lorebook.entries.Add(new Entry()
+				{
+					key = entry.key,
+					value = GingerString.FromFaraday(entry.value).ToParameter(),
+					addition_index = index++,
+				});
+			}
+			return lorebook;
+		}
+
+		#endregion
+
+		#region Read Methods
+
+		private void ReadTavernBook(TavernCardV2.CharacterBook book)
+		{
+			this.name = book.name;
+			this.description = book.description;
+			this.entries = new List<Entry>(book.entries.Length);
+			this.unused = new UnusedProperties()
+			{
+				recursive_scanning = book.recursive_scanning,
+				scan_depth = book.scan_depth,
+				token_budget = book.token_budget,
+				extensions = book.extensions != null ? new JsonExtensionData(book.extensions) : null,
+			};
+
+			int index = GetNextIndex();
+			foreach (var entry in book.entries)
+			{
+				if (string.IsNullOrEmpty(entry.content))
+					continue;
+
+				var keys = entry.keys?.Where(s => string.IsNullOrWhiteSpace(s) == false).ToArray();
+				if (keys == null || keys.Length == 0)
+				{
+					// No keys? Use name if present
+					if (string.IsNullOrWhiteSpace(entry.name) == false)
+						keys = new string[] { entry.name };
+					else
+						continue;
+				}
+
+				this.entries.Add(new Entry()
+				{
+					keys = keys,
+					value = GingerString.FromTavern(entry.content).ToString(),
+					sortOrder = entry.insertion_order,
+					addition_index = index++,
+					unused = new Entry.UnusedProperties()
+					{
+						name = entry.name,
+						comment = entry.comment,
+						constant = entry.constant,
+						enabled = entry.enabled,
+						priority = entry.priority,
+						case_sensitive = entry.case_sensitive,
+						placement = entry.position,
+						secondary_keys = entry.secondary_keys,
+						selective = entry.selective,
+						extensions = entry.extensions != null ? new JsonExtensionData(entry.extensions) : null,
+					}
+				});
+			}
+		}
+
+		private void ReadTavernBook(TavernCardV3.CharacterBook book)
+		{
+			this.name = book.name;
+			this.description = book.description;
+			this.entries = new List<Entry>(book.entries.Length);
+			this.unused = new UnusedProperties()
+			{
+				recursive_scanning = book.recursive_scanning,
+				scan_depth = book.scan_depth,
+				token_budget = book.token_budget,
+				extensions = book.extensions != null ? new JsonExtensionData(book.extensions) : null,
+			};
+
+			int index = GetNextIndex();
+			foreach (var entry in book.entries)
+			{
+				if (string.IsNullOrEmpty(entry.content))
+					continue;
+
+				var keys = entry.keys?.Where(s => string.IsNullOrWhiteSpace(s) == false).ToArray();
+				if (keys == null || keys.Length == 0)
+				{
+					if (string.IsNullOrWhiteSpace(entry.name) == false)
+						keys = new string[] { entry.name };
+					else
+						continue;
+				}
+
+				this.entries.Add(new Entry()
+				{
+					keys = keys,
+					value = GingerString.FromTavern(entry.content).ToString(),
+					sortOrder = entry.insertion_order,
+					addition_index = index++,
+					unused = new Entry.UnusedProperties()
+					{
+						name = entry.name,
+						comment = entry.comment,
+						constant = entry.constant,
+						enabled = entry.enabled,
+						priority = entry.priority,
+						case_sensitive = entry.case_sensitive,
+						placement = entry.position,
+						secondary_keys = entry.secondary_keys,
+						selective = entry.selective,
+						use_regex = entry.use_regex,
+						extensions = entry.extensions != null ? new JsonExtensionData(entry.extensions) : null,
+					}
+				});
+			}
+		}
+
+		private void ReadTavernBook(TavernWorldBook book)
+		{
+			this.name = book.name;
+			this.description = book.description;
+			this.entries = new List<Entry>(book.entries.Count);
+			this.unused = new UnusedProperties()
+			{
+				recursive_scanning = book.recursive_scanning,
+				scan_depth = book.scan_depth,
+				token_budget = book.token_budget,
+				extensions = book.extensions,
+			};
+
+			int index = GetNextIndex();
+			foreach (var kvp in book.entries)
+			{
+				var entry = kvp.Value;
+
+				if (entry.key == null || entry.key.Length == 0 || string.IsNullOrEmpty(entry.content))
+					continue;
+
+				this.entries.Add(new Entry()
+				{
+					keys = entry.key,
+					value = GingerString.FromTavern(entry.content).ToString(),
+					sortOrder = entry.order,
+					addition_index = index++,
+					unused = new Entry.UnusedProperties()
+					{
+						comment = entry.comment,
+						constant = entry.constant,
+						enabled = !entry.disable,
+						name = entry.comment,
+						position = entry.position,
+						secondary_keys = entry.secondary_keys,
+						selective = entry.selective,
+						addMemo = entry.addMemo,
+						depth = entry.depth,
+						excludeRecursion = entry.excludeRecursion,
+						selectiveLogic = entry.selectiveLogic,
+						useProbability = entry.useProbability,
+						probability = entry.probability,
+						group = entry.group,
+						extensions = entry.extensions,
+					}
+				});
+			}
+		}
+
+		private void ReadAgnaisticBook(AgnaisticCard.CharacterBook book)
+		{
+			this.name = book.name;
+			this.description = book.description;
+			this.entries = new List<Entry>(book.entries.Length);
+			this.unused = new UnusedProperties()
+			{
+				recursive_scanning = book.recursiveScanning,
+				scan_depth = book.scanDepth,
+				token_budget = book.tokenBudget,
+			};
+
+			int index = GetNextIndex();
+			for (int i = 0; i < book.entries.Length; ++i)
+			{
+				var entry = book.entries[i];
+				if (string.IsNullOrEmpty(entry.entry))
+					continue;
+
+				var keys = entry.keywords?.Where(s => string.IsNullOrWhiteSpace(s) == false).ToArray();
+				if (keys == null || keys.Length == 0)
+				{
+					if (string.IsNullOrWhiteSpace(entry.name) == false)
+						keys = new string[] { entry.name };
+					else
+						continue;
+				}
+
+				this.entries.Add(new Entry()
+				{
+					keys = entry.keywords,
+					value = GingerString.FromTavern(entry.entry).ToString(),
+					sortOrder = entry.priority, // Inverse
+					addition_index = index++,
+					unused = new Entry.UnusedProperties()
+					{
+						case_sensitive = false,
+						comment = entry.comment,
+						constant = entry.constant,
+						enabled = entry.enabled,
+						weight = entry.weight,
+						name = entry.name,
+						placement = entry.position,
+						priority = entry.priority,
+						secondary_keys = entry.secondaryKeys,
+						selective = entry.selective,
+					}
+				});
+			}
+
+			// Priority -> Sort order (inverse)
+			int minPriority = int.MaxValue;
+			int maxPriority = int.MinValue;
+			for (int i = 0; i < this.entries.Count; ++i)
+			{
+				var entry = this.entries[i];
+				minPriority = Math.Min(entry.sortOrder, minPriority);
+				maxPriority = Math.Max(entry.sortOrder, maxPriority);
+			}
+
+			if (minPriority != maxPriority)
+			{
+				for (int i = 0; i < this.entries.Count; ++i)
+				{
+					var entry = this.entries[i];
+					this.entries[i].sortOrder = maxPriority - (entry.sortOrder - minPriority) - minPriority;
+				}
+			}
+		}
+
+		#endregion
+
+		#region Bake Method
+
+		public void Bake()
+		{
+			foreach (var entry in entries)
+			{
+				entry.key = GingerString.FromString(entry.key).ToBaked();
+				entry.value = GingerString.FromString(entry.value).ToBaked();
+			}
+		}
+
+		#endregion
 
 		public Lorebook Clone()
 		{

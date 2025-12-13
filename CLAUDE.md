@@ -4,82 +4,104 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Ginger is a Windows Forms (.NET Framework 4.6) application for creating and editing AI character cards. It supports multiple character card formats (PNG, CHARX, JSON, YAML) compatible with various AI chat frontends like SillyTavern, Backyard AI, Agnai.chat, and others.
+Ginger is an application for creating and editing AI character cards. It supports multiple character card formats (PNG, CHARX, JSON, YAML) compatible with AI chat frontends like SillyTavern, Backyard AI, Agnai.chat, JanitorAI, Chub.ai, and others.
+
+**Two implementations exist:**
+- `source/` - Original Windows Forms (.NET Framework 4.6)
+- `source.avalonia/` - Cross-platform Avalonia port (.NET 9) with 100% feature parity
 
 ## Build Commands
 
+### Avalonia Port (Recommended for Development)
 ```bash
-# Restore NuGet packages
-nuget restore source/Ginger.sln
+# Build and run
+dotnet build source.avalonia/Ginger.Avalonia.csproj
+dotnet run --project source.avalonia/Ginger.Avalonia.csproj
 
-# Build x64 Release
-msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
-
-# Build x86 Release
-msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x86
-
-# Build Debug
-msbuild source/Ginger.sln /p:Configuration=Debug /p:Platform=x64
+# Release build
+dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release
 ```
 
-Output binaries are placed in `source/bin/{Platform}/{Configuration}/`.
+### Original Windows Forms (Windows Only)
+```bash
+nuget restore source/Ginger.sln
+msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
+```
 
-## Architecture
+## Avalonia Port Architecture (`source.avalonia/`)
 
-### Source Structure (`source/src/`)
+Uses MVVM pattern with CommunityToolkit.Mvvm:
 
-- **Application/** - App startup, settings, constants, dictionaries, localization
-  - `Program.cs` - Entry point, initializes locales, dictionaries, settings, and Backyard AI connection
-  - `AppSettings.cs` - User settings persisted to Settings.ini
-  - `Constants.cs` - Recipe colors, URLs, default values
+- **ViewModels/** - Main application state and commands
+  - `MainViewModel.cs` - Central ViewModel with all character editing state, file operations, Backyard integration
+  - `RecipeViewModel.cs` - Recipe parameter management
 
-- **Model/** - Core data structures and file format handling
-  - `GingerCharacter.cs` - Central class for character data, handles reading from multiple card formats (Ginger, Faraday, Tavern V2/V3, Agnaistic, Pygmalion, TextGenWebUI)
-  - `CardData.cs` - Character card metadata (name, creator, tags, portrait, etc.)
-  - `CharacterData.cs` - Per-character data within a card
-  - `Recipe/` - Recipe system (building blocks for character creation)
-  - `Lorebook/` - Lorebook/world info system
-  - `Formats/` - File format serialization (CharacterCards, Lorebooks, BackyardArchive, Assets, ChatLogs)
+- **Views/** - Avalonia AXAML UI
+  - `MainWindow.axaml` - Main application window
+  - `Dialogs/` - 20+ dialog windows (FileFormatDialog, BackyardBrowserDialog, RecipeBrowserDialog, etc.)
 
+- **Services/** - Business logic separated from UI
+  - `CharacterCardService.cs` - Load/save character cards in all formats
+  - `RecipeService.cs` - Recipe XML parsing and management
+  - `GeneratorService.cs` - Text generation from recipes
+  - `DialogService.cs` - Dialog presentation
+  - `SpellCheckService.cs` - WeCantSpell.Hunspell integration
+  - `UndoService.cs` - Undo/redo support
+  - `Backyard/` - Backyard AI SQLite database integration with versioned database schemas
+
+- **Models/** - Data structures
+  - `CardData.cs` - Character card metadata
+  - `TavernCardV2.cs`, `FaradayCard.cs` - Format-specific models
+  - `Formats/` - Additional format implementations
+
+- **Utility/** - Shared helpers
+  - `GingerString.cs` - Placeholder conversion between formats
+  - `ContextString/` - Text processing engine
+  - `Parameters/` - Recipe parameter types
+
+### Dependencies (Avalonia)
+- Avalonia 11.2.1 - Cross-platform UI
+- CommunityToolkit.Mvvm - MVVM infrastructure
+- Microsoft.Data.Sqlite - Backyard database access
+- WeCantSpell.Hunspell - Spell checking
+- SkiaSharp - Image processing
+
+## Original Windows Forms Architecture (`source/src/`)
+
+- **Application/** - App startup, settings, constants
+- **Model/** - Data structures and file format handling
+  - `GingerCharacter.cs` - Central character data class
+  - `Formats/` - All format parsers
 - **Interface/** - Windows Forms UI
-  - `Forms/MainForm.cs` - Main application window
-  - `Forms/MainFunctions.cs` - Core UI logic
-  - `Forms/BackyardFunctions.cs` - Backyard AI integration UI
-  - `Controls/` - Custom UI controls (RecipePanel, SnippetPanel, SidePanel, etc.)
-  - `Parameters/` - Parameter editor panels for recipe system
-  - `Theme/` - Dark mode support
-
+  - `Forms/` - Main forms and dialogs
+  - `Controls/` - Custom controls
 - **Utility/** - Helper classes
-  - `Integration/Backyard.cs` - Backyard AI SQLite database integration
-  - `SpellChecking/` - NHunspell spell checker
-  - `ContextString/` - Text processing with placeholders
-  - `GenderSwap.cs` - Pronoun replacement for gender swapping
-  - `FindReplace.cs` - Search and replace functionality
 
-### Key Concepts
+### Dependencies (WinForms)
+- Newtonsoft.Json, NHunspell, DarkNet, YamlDotNet, System.Data.SQLite
 
-**Recipes** - Building blocks for character creation stored as XML in `source/Content/en/Recipes/`. Categories include Character, Model, Personality, NSFW, and more. Recipes contain parameters that users can customize.
+## Key Concepts
 
-**Character Card Formats** - The app reads/writes multiple formats:
-- Ginger native format (GingerCardV1)
-- TavernCardV2/V3 (SillyTavern format)
-- FaradayCardV4 (Backyard AI format)
-- AgnaisticCard, PygmalionCard, TextGenWebUICard
+**Recipes** - XML building blocks in `Content/en/Recipes/` (173 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters.
 
-**GingerString** - Text processing class that handles placeholder conversion between different formats (e.g., `{{char}}`, `{{user}}` vs `<char>`, `<user>`).
+**Character Card Formats** - Reads/writes:
+- Ginger native (GingerCardV1)
+- TavernCardV2/V3 (SillyTavern)
+- FaradayCardV4 (Backyard AI)
+- AgnaisticCard, PygmalionCard, TextGenWebUICard, CHARX, BYAF
 
-### Dependencies
+**GingerString** - Handles placeholder conversion (`{{char}}`/`{{user}}` ↔ `<char>`/`<user>`)
 
-- Newtonsoft.Json - JSON serialization
-- NHunspell - Spell checking
-- DarkNet - Windows dark mode support
-- YamlDotNet - YAML parsing
-- System.Data.SQLite - Backyard AI database access
+**Backyard Integration** - Direct SQLite access to Backyard AI's local database for push/pull sync, bulk export/import, and chat history.
 
 ## Content Files
 
-- `source/Content/en/Recipes/` - Recipe XML definitions organized by category
-- `source/Content/en/Internal/` - Global macros, recipes, and styles
-- `source/Dictionaries/` - Spell check dictionaries
-- use original code as much as possible
-- don't mock tests
+- `Content/en/Recipes/` - Recipe XML definitions
+- `Content/en/Internal/` - Global macros and styles
+- `Dictionaries/` - Spell check dictionaries (en_US, en_GB)
+
+## Development Guidelines
+
+- Use original code as much as possible when porting features
+- Don't mock tests
+- See `source.avalonia/IMPLEMENTATION_PLAN.md` for feature parity tracking
