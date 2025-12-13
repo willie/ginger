@@ -14,12 +14,17 @@ Ginger is an application for creating and editing AI character cards. It support
 
 ### Avalonia Port (Recommended for Development)
 ```bash
-# Build and run
+# Build
 dotnet build source.avalonia/Ginger.Avalonia.csproj
+
+# Build and run
 dotnet run --project source.avalonia/Ginger.Avalonia.csproj
 
-# Release build
+# Release build (creates self-contained executable)
 dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release
+
+# Clean build (if experiencing issues)
+dotnet clean source.avalonia/Ginger.Avalonia.csproj && dotnet build source.avalonia/Ginger.Avalonia.csproj
 ```
 
 ### Original Windows Forms (Windows Only)
@@ -28,77 +33,67 @@ nuget restore source/Ginger.sln
 msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
 ```
 
+**Note:** There are no automated tests in this project.
+
 ## Avalonia Port Architecture (`source.avalonia/`)
 
-Uses MVVM pattern with CommunityToolkit.Mvvm:
+Uses MVVM pattern with CommunityToolkit.Mvvm. The MainViewModel.cs (3,800+ lines) is the central hub containing ~90 RelayCommands for all application functionality.
 
-- **ViewModels/** - Main application state and commands
-  - `MainViewModel.cs` - Central ViewModel with all character editing state, file operations, Backyard integration
-  - `RecipeViewModel.cs` - Recipe parameter management
+### Key Directories
+- **ViewModels/** - `MainViewModel.cs` contains all character editing state, file operations, and commands
+- **Views/** - Avalonia AXAML UI with 20+ dialogs in `Dialogs/`
+- **Services/** - Business logic: `CharacterCardService.cs` (format I/O), `RecipeService.cs`, `GeneratorService.cs`, `Backyard/` (SQLite integration)
+- **Models/** - Data structures and format parsers in `Formats/`
+- **Utility/** - Core business logic ported from original (see Code Reuse section)
 
-- **Views/** - Avalonia AXAML UI
-  - `MainWindow.axaml` - Main application window
-  - `Dialogs/` - 20+ dialog windows (FileFormatDialog, BackyardBrowserDialog, RecipeBrowserDialog, etc.)
-
-- **Services/** - Business logic separated from UI
-  - `CharacterCardService.cs` - Load/save character cards in all formats
-  - `RecipeService.cs` - Recipe XML parsing and management
-  - `GeneratorService.cs` - Text generation from recipes
-  - `DialogService.cs` - Dialog presentation
-  - `SpellCheckService.cs` - WeCantSpell.Hunspell integration
-  - `UndoService.cs` - Undo/redo support
-  - `Backyard/` - Backyard AI SQLite database integration with versioned database schemas
-
-- **Models/** - Data structures
-  - `CardData.cs` - Character card metadata
-  - `TavernCardV2.cs`, `FaradayCard.cs` - Format-specific models
-  - `Formats/` - Additional format implementations
-
-- **Utility/** - Shared helpers
-  - `GingerString.cs` - Placeholder conversion between formats
-  - `ContextString/` - Text processing engine
-  - `Parameters/` - Recipe parameter types
-
-### Dependencies (Avalonia)
-- Avalonia 11.2.1 - Cross-platform UI
-- CommunityToolkit.Mvvm - MVVM infrastructure
-- Microsoft.Data.Sqlite - Backyard database access
-- WeCantSpell.Hunspell - Spell checking
-- SkiaSharp - Image processing
+### Dependencies
+- Avalonia 11.2.1, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp
 
 ## Original Windows Forms Architecture (`source/src/`)
 
-- **Application/** - App startup, settings, constants
-- **Model/** - Data structures and file format handling
-  - `GingerCharacter.cs` - Central character data class
-  - `Formats/` - All format parsers
-- **Interface/** - Windows Forms UI
-  - `Forms/` - Main forms and dialogs
-  - `Controls/` - Custom controls
-- **Utility/** - Helper classes
+- **Model/** - `GingerCharacter.cs` (central data class), `Generation/` (Generator.cs, GingerString.cs, Recipe.cs), `Formats/` (all parsers)
+- **Interface/Forms/** - Main forms and dialogs
+- **Utility/** - Helper classes including `Integration/Backyard.cs`
 
 ### Dependencies (WinForms)
 - Newtonsoft.Json, NHunspell, DarkNet, YamlDotNet, System.Data.SQLite
 
 ## Key Concepts
 
-**Recipes** - XML building blocks in `Content/en/Recipes/` (173 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters.
+**Recipes** - XML building blocks in `Content/en/Recipes/` (170 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters that generate character descriptions.
 
 **Character Card Formats** - Reads/writes:
-- Ginger native (GingerCardV1)
-- TavernCardV2/V3 (SillyTavern)
-- FaradayCardV4 (Backyard AI)
-- AgnaisticCard, PygmalionCard, TextGenWebUICard, CHARX, BYAF
+- Ginger native (GingerCardV1), TavernCardV2/V3 (SillyTavern), FaradayCard (Backyard AI V1-V4)
+- AgnaisticCard, PygmalionCard, TextGenWebUICard, CHARX archives, BYAF archives
 
-**GingerString** - Handles placeholder conversion (`{{char}}`/`{{user}}` ↔ `<char>`/`<user>`)
+**GingerString** - Central class handling placeholder conversion between formats (`{{char}}`/`{{user}}` ↔ `{char}`/`{user}` ↔ internal markers). Located in `Utility/GingerString.cs`.
 
-**Backyard Integration** - Direct SQLite access to Backyard AI's local database for push/pull sync, bulk export/import, and chat history.
+**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Backyard.cs`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms).
 
 ## Content Files
 
-- `Content/en/Recipes/` - Recipe XML definitions
+- `Content/en/Recipes/` - 170 recipe XML definitions (identical in both implementations)
 - `Content/en/Internal/` - Global macros and styles
 - `Dictionaries/` - Spell check dictionaries (en_US, en_GB)
+
+## Code Reuse Between Implementations
+
+The Avalonia port directly reuses original code wherever possible. These files are identical or near-identical:
+
+| File | Status |
+|------|--------|
+| `GingerString.cs` | Identical (811 lines) |
+| `ContextString.cs` | Identical (1,465 lines) |
+| `StringBank.cs`, `StringHandle.cs`, `Text.cs` | Identical |
+| `Backyard.cs` | Near-identical (SQLite library swap only) |
+| `Generator.cs`, `Recipe.cs` | Adapted (WinForms code removed) |
+| All chat log formats | Adapted |
+| Content XML files | Copied verbatim |
+
+**When porting features:** Copy from original `source/src/` with minimal changes. Only adapt for:
+- `System.Drawing` → `Avalonia.Media`
+- `System.Data.SQLite` → `Microsoft.Data.Sqlite`
+- WinForms dialogs → Avalonia AXAML + code-behind
 
 ## Development Guidelines
 
