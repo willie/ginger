@@ -1393,17 +1393,58 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // Store last search for Find Next/Previous
+    private string _lastSearchTerm = "";
+    private bool _lastSearchMatchCase = false;
+    private bool _lastSearchWholeWord = false;
+
     [RelayCommand]
     private void Find() => ShowFindDialog(findOnly: true);
 
     [RelayCommand]
     private void FindReplace() => ShowFindDialog(findOnly: false);
 
+    [RelayCommand]
+    private void FindNext()
+    {
+        if (string.IsNullOrEmpty(_lastSearchTerm))
+        {
+            Find();
+            return;
+        }
+        int count = CountOccurrences(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
+        if (count > 0)
+            StatusMessage = $"Found {count} occurrence(s) of \"{_lastSearchTerm}\"";
+        else
+            StatusMessage = $"No matches found for \"{_lastSearchTerm}\"";
+    }
+
+    [RelayCommand]
+    private void FindPrevious()
+    {
+        if (string.IsNullOrEmpty(_lastSearchTerm))
+        {
+            Find();
+            return;
+        }
+        // For now, same as FindNext (would need cursor tracking for true previous)
+        int count = CountOccurrences(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
+        if (count > 0)
+            StatusMessage = $"Found {count} occurrence(s) of \"{_lastSearchTerm}\"";
+        else
+            StatusMessage = $"No matches found for \"{_lastSearchTerm}\"";
+    }
+
     private void ShowFindDialog(bool findOnly)
     {
         _dialogService.ShowFindReplaceDialog(
             onFind: (search, replace, matchCase, wholeWord) =>
             {
+                // Store search params for Find Next/Previous
+                _lastSearchTerm = search;
+                _lastSearchMatchCase = matchCase;
+                _lastSearchWholeWord = wholeWord;
+
                 // Find in all recipes
                 int count = CountOccurrences(search, matchCase, wholeWord);
                 if (count > 0)
@@ -2504,6 +2545,108 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task SaveNewLinked()
+    {
+        if (!Integration.Backyard.IsConnected)
+        {
+            var error = Integration.Backyard.EstablishConnection();
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Could not connect to Backyard AI: {error}";
+                return;
+            }
+        }
+
+        // Export as a file that can then be imported via Import Folder to Backyard
+        var filePath = await _fileService.SaveFileAsync(
+            "Save Character for Backyard",
+            $"{CharacterName.Replace(" ", "_")}.json",
+            new[] { "*.json" });
+
+        if (string.IsNullOrEmpty(filePath))
+            return;
+
+        try
+        {
+            StatusMessage = "Exporting character...";
+
+            // Use the card service to export as JSON
+            var card = ToCard();
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(card, Newtonsoft.Json.Formatting.Indented);
+            await File.WriteAllTextAsync(filePath, json);
+
+            StatusMessage = $"Character saved. Use 'Import Folder to Backyard' to add to Backyard AI";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error exporting character: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RevertLinked()
+    {
+        // Revert is the same as Pull - reload from Backyard
+        await PullChanges();
+    }
+
+    [RelayCommand]
+    private async Task ShowChatHistory()
+    {
+        if (Current.Link == null || string.IsNullOrEmpty(Current.Link.groupId))
+        {
+            StatusMessage = "Character is not linked to Backyard AI";
+            return;
+        }
+
+        if (!Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        var window = GetMainWindow();
+        if (window == null) return;
+
+        var dialog = new Views.Dialogs.LinkEditChatDialog();
+        dialog.SetGroupId(Current.Link.groupId, CharacterName);
+        await dialog.ShowDialog(window);
+    }
+
+    [RelayCommand]
+    private async Task EditModelSettings()
+    {
+        var window = GetMainWindow();
+        if (window == null) return;
+
+        var dialog = new Views.Dialogs.EditModelSettingsDialog();
+
+        // Load current settings from AppSettings or defaults
+        dialog.LoadSettings(
+            AppSettings.Settings.DefaultTemperature,
+            AppSettings.Settings.DefaultMinP,
+            AppSettings.Settings.DefaultTopP,
+            AppSettings.Settings.DefaultTopK,
+            AppSettings.Settings.DefaultRepeatPenalty,
+            AppSettings.Settings.DefaultRepeatLastN);
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.DialogResult)
+        {
+            // Save the new settings
+            AppSettings.Settings.DefaultTemperature = dialog.Temperature;
+            AppSettings.Settings.DefaultMinP = dialog.MinP;
+            AppSettings.Settings.DefaultTopP = dialog.TopP;
+            AppSettings.Settings.DefaultTopK = dialog.TopK;
+            AppSettings.Settings.DefaultRepeatPenalty = dialog.RepeatPenalty;
+            AppSettings.Settings.DefaultRepeatLastN = dialog.RepeatLastN;
+            AppSettings.Save();
+            StatusMessage = "Model settings saved";
+        }
+    }
+
     [ObservableProperty]
     private bool _allowNsfw = true;
 
@@ -2823,6 +2966,40 @@ public partial class MainViewModel : ObservableObject
         AppSettings.Settings.EnableRearrangeLoreMode = RearrangeLoreEnabled;
         AppSettings.Save();
         StatusMessage = RearrangeLoreEnabled ? "Rearrange lore mode enabled" : "Rearrange lore mode disabled";
+    }
+
+    // Show Recipe Category toggle
+    [ObservableProperty]
+    private bool _showRecipeCategory = false;
+
+    [RelayCommand]
+    private void ToggleShowRecipeCategory()
+    {
+        ShowRecipeCategory = !ShowRecipeCategory;
+        StatusMessage = ShowRecipeCategory ? "Recipe categories shown" : "Recipe categories hidden";
+    }
+
+    // Sort Recipes
+    [RelayCommand]
+    private void SortRecipesByName()
+    {
+        var sorted = Recipes.OrderBy(r => r.Name).ToList();
+        Recipes.Clear();
+        foreach (var r in sorted)
+            Recipes.Add(r);
+        MarkDirty();
+        StatusMessage = "Recipes sorted by name";
+    }
+
+    [RelayCommand]
+    private void SortRecipesByCategory()
+    {
+        var sorted = Recipes.OrderBy(r => r.Category).ThenBy(r => r.Name).ToList();
+        Recipes.Clear();
+        foreach (var r in sorted)
+            Recipes.Add(r);
+        MarkDirty();
+        StatusMessage = "Recipes sorted by category";
     }
 
     #endregion

@@ -1,8 +1,8 @@
 # Ginger Avalonia Port - Implementation Plan
 
-## Current Status: ~95% Complete
+## Current Status: ~97% Complete
 
-**Last Updated: 2025-12-12** - Significant improvements made to close the gap with the original WinForms implementation.
+**Last Updated: 2025-12-12** - Almost complete feature parity with the original WinForms implementation.
 
 ### What Works
 - Core generation engine (Generator.cs)
@@ -12,16 +12,20 @@
 - Export to multiple formats (PNG, JSON, YAML, CHARX, BYAF)
 - 20+ dialogs implemented (FileFormatDialog, VariablesDialog, RearrangeActorsDialog, AssetViewDialog, EnterUrlDialog, PasteTextDialog, EnterNameDialog, CreateRecipeDialog, CreateSnippetDialog, WriteDialog, GenderSwapDialog, BackyardBrowserDialog, EditModelSettingsDialog, LinkEditChatDialog, etc.)
 - Backyard connection with Push/Pull sync, bulk export, and bulk import
+- Backyard chat history viewer with export
+- Edit default model settings for Backyard
 - AppSettings with JSON persistence
 - Recipe copy/paste with context menu
+- Recipe category display toggle and sorting
 - Lorebook import/export and copy/paste
 - Token counter in status bar
 - Extended text editing (WriteDialog) with pronoun swap and spell check context menu
 - Duplicate character command (Ctrl+D)
 - Import from URL and clipboard
-- Full keyboard shortcuts (Alt+Left/Right for actors, Ctrl+U/Shift+U for push/pull, Alt+1-4 for tabs, Ctrl+Tab for tab cycling)
+- Full keyboard shortcuts (Alt+Left/Right for actors, Ctrl+U/Shift+U for push/pull, Alt+1-4 for tabs, Ctrl+Tab for tab cycling, F3/Shift+F3 for find)
 - Chat log export to GingerChatV2 and BackyardChatBackupV2 formats
 - Update checker (Help > Check for Updates)
+- Find Next/Previous with F3 shortcut
 
 ### Recently Implemented Features (2025-12-12)
 
@@ -55,13 +59,13 @@
 - [x] Write User Persona option
 - [x] Write Author Note option
 - [x] Purge Unused Images (stub)
-- [ ] Save Linked command
-- [ ] Save New Linked command
+- [x] Save New Linked command
+- [x] Revert Linked command
+- [x] Chat History dialog wiring
+- [x] Edit Current Model Settings wiring
+- [ ] Save Linked command (direct database save)
 - [ ] Save as New Party command
-- [ ] Revert Linked command
 - [ ] Reestablish Link command
-- [ ] Chat History dialog wiring
-- [ ] Edit Current Model Settings wiring
 - [ ] Bulk Edit Model Settings
 - [ ] Bulk Export Parties
 - [ ] Delete Characters
@@ -74,10 +78,10 @@
 - [x] View Help command
 - [x] Visit GitHub Page command
 
-#### UI Polish (Remaining):
-- [ ] Show Recipe Category toggle
-- [ ] Sort Recipes option
-- [ ] Find Next / Find Previous commands
+#### UI Polish:
+- [x] Show Recipe Category toggle
+- [x] Sort Recipes option (by name/category)
+- [x] Find Next / Find Previous commands (F3/Shift+F3)
 
 ---
 

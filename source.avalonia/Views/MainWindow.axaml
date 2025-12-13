@@ -81,6 +81,8 @@
                           IsEnabled="{Binding CanRedo}"/>
                 <Separator/>
                 <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
+                <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGesture="F3"/>
+                <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGesture="Shift+F3"/>
                 <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
                 <Separator/>
                 <MenuItem Header="Copy All _Recipes" Command="{Binding CopyAllRecipesCommand}" InputGesture="Ctrl+Shift+C"/>
@@ -103,6 +105,16 @@
                     <MenuItem.Icon>
                         <CheckBox IsChecked="{Binding IsDarkMode}" BorderThickness="0"/>
                     </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Show Recipe _Category" Command="{Binding ToggleShowRecipeCategoryCommand}">
+                    <MenuItem.Icon>
+                        <CheckBox IsChecked="{Binding ShowRecipeCategory}" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Sort Recipes">
+                    <MenuItem Header="By _Name" Command="{Binding SortRecipesByNameCommand}"/>
+                    <MenuItem Header="By _Category" Command="{Binding SortRecipesByCategoryCommand}"/>
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Actors">
@@ -199,8 +211,13 @@
                 <MenuItem Header="_Link Character" Command="{Binding LinkCharacterCommand}"/>
                 <MenuItem Header="_Unlink Character" Command="{Binding UnlinkCharacterCommand}"/>
                 <Separator/>
-                <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}"/>
-                <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}"/>
+                <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}" InputGesture="Ctrl+U"/>
+                <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}" InputGesture="Ctrl+Shift+U"/>
+                <MenuItem Header="_Save as New..." Command="{Binding SaveNewLinkedCommand}"/>
+                <MenuItem Header="_Revert to Backyard" Command="{Binding RevertLinkedCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Chat History..." Command="{Binding ShowChatHistoryCommand}"/>
+                <MenuItem Header="Edit _Model Settings..." Command="{Binding EditModelSettingsCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Utilities">
                     <MenuItem Header="Create _Backup..." Command="{Binding CreateBackyardBackupCommand}"/>
@@ -658,10 +675,16 @@
                                                 </Border.ContextMenu>
                                                 <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
                                                     <Expander.Header>
-                                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,8,0">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,8,0">
                                                             <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                             <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2">
+                                                            <Border Grid.Column="2" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                                                                    CornerRadius="3" Padding="6,2" Margin="8,0,0,0"
+                                                                    IsVisible="{Binding $parent[Window].((vm:MainViewModel)DataContext).ShowRecipeCategory}"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Category}" FontSize="10" Opacity="0.8"/>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
                                                                 <Button Command="{Binding MoveUpCommand}" Padding="4,2" FontSize="10" Background="Transparent">
                                                                     <PathIcon Data="M7,15L12,10L17,15H7Z" Width="12" Height="12"/>
                                                                 </Button>

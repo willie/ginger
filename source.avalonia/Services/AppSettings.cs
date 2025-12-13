@@ -45,6 +45,14 @@ public static class AppSettings
         public static bool EnableRearrangeLoreMode { get; set; } = false;
         public static string? FontFamily { get; set; }
         public static double FontSize { get; set; } = 14;
+
+        // Default model settings for Backyard AI
+        public static decimal DefaultTemperature { get; set; } = 0.8m;
+        public static decimal DefaultMinP { get; set; } = 0.05m;
+        public static decimal DefaultTopP { get; set; } = 0.95m;
+        public static int DefaultTopK { get; set; } = 40;
+        public static decimal DefaultRepeatPenalty { get; set; } = 1.1m;
+        public static int DefaultRepeatLastN { get; set; } = 64;
     }
 
     public enum CharacterSortOrder
@@ -176,6 +184,14 @@ public static class AppSettings
             Settings.FontFamily = data.FontFamily ?? Settings.FontFamily;
             Settings.FontSize = data.FontSize ?? Settings.FontSize;
 
+            // Default model settings
+            Settings.DefaultTemperature = data.DefaultTemperature ?? Settings.DefaultTemperature;
+            Settings.DefaultMinP = data.DefaultMinP ?? Settings.DefaultMinP;
+            Settings.DefaultTopP = data.DefaultTopP ?? Settings.DefaultTopP;
+            Settings.DefaultTopK = data.DefaultTopK ?? Settings.DefaultTopK;
+            Settings.DefaultRepeatPenalty = data.DefaultRepeatPenalty ?? Settings.DefaultRepeatPenalty;
+            Settings.DefaultRepeatLastN = data.DefaultRepeatLastN ?? Settings.DefaultRepeatLastN;
+
             // User
             User.LastImportCharacterFilter = data.LastImportCharacterFilter ?? User.LastImportCharacterFilter;
             User.LastImportLorebookFilter = data.LastImportLorebookFilter ?? User.LastImportLorebookFilter;
@@ -275,6 +291,14 @@ public static class AppSettings
                 EnableRearrangeLoreMode = Settings.EnableRearrangeLoreMode,
                 FontFamily = Settings.FontFamily,
                 FontSize = Settings.FontSize,
+
+                // Default model settings
+                DefaultTemperature = Settings.DefaultTemperature,
+                DefaultMinP = Settings.DefaultMinP,
+                DefaultTopP = Settings.DefaultTopP,
+                DefaultTopK = Settings.DefaultTopK,
+                DefaultRepeatPenalty = Settings.DefaultRepeatPenalty,
+                DefaultRepeatLastN = Settings.DefaultRepeatLastN,
 
                 // User
                 LastImportCharacterFilter = User.LastImportCharacterFilter,
@@ -393,6 +417,14 @@ public static class AppSettings
         public bool? EnableRearrangeLoreMode { get; set; }
         public string? FontFamily { get; set; }
         public double? FontSize { get; set; }
+
+        // Default model settings
+        public decimal? DefaultTemperature { get; set; }
+        public decimal? DefaultMinP { get; set; }
+        public decimal? DefaultTopP { get; set; }
+        public int? DefaultTopK { get; set; }
+        public decimal? DefaultRepeatPenalty { get; set; }
+        public int? DefaultRepeatLastN { get; set; }
 
         // User
         public int? LastImportCharacterFilter { get; set; }
