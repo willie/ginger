@@ -187,6 +187,15 @@
                         <CheckBox IsChecked="{Binding AllowNsfw}" BorderThickness="0"/>
                     </MenuItem.Icon>
                 </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Language">
+                    <MenuItem Header="English" Command="{Binding ChangeLanguageCommand}" CommandParameter="en"/>
+                    <MenuItem Header="Español" Command="{Binding ChangeLanguageCommand}" CommandParameter="es"/>
+                    <MenuItem Header="Français" Command="{Binding ChangeLanguageCommand}" CommandParameter="fr"/>
+                    <MenuItem Header="Deutsch" Command="{Binding ChangeLanguageCommand}" CommandParameter="de"/>
+                    <MenuItem Header="日本語" Command="{Binding ChangeLanguageCommand}" CommandParameter="ja"/>
+                    <MenuItem Header="中文" Command="{Binding ChangeLanguageCommand}" CommandParameter="zh"/>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
@@ -221,17 +230,28 @@
                 <Separator/>
                 <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}" InputGesture="Ctrl+U"/>
                 <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}" InputGesture="Ctrl+Shift+U"/>
-                <MenuItem Header="_Save as New..." Command="{Binding SaveNewLinkedCommand}"/>
+                <MenuItem Header="_Save Linked" Command="{Binding SaveLinkedCommand}" InputGesture="Ctrl+Shift+S"/>
+                <MenuItem Header="Save as _New..." Command="{Binding SaveNewLinkedCommand}"/>
+                <MenuItem Header="Save as New _Party..." Command="{Binding SaveAsNewPartyCommand}"/>
                 <MenuItem Header="_Revert to Backyard" Command="{Binding RevertLinkedCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Chat History..." Command="{Binding ShowChatHistoryCommand}"/>
                 <MenuItem Header="Edit _Model Settings..." Command="{Binding EditModelSettingsCommand}"/>
+                <MenuItem Header="_Bulk Edit Model Settings..." Command="{Binding BulkEditModelSettingsCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Utilities">
                     <MenuItem Header="Create _Backup..." Command="{Binding CreateBackyardBackupCommand}"/>
                     <MenuItem Header="_Restore Backup..." Command="{Binding RestoreBackyardBackupCommand}"/>
                     <Separator/>
+                    <MenuItem Header="_Bulk Export Parties..." Command="{Binding BulkExportPartiesCommand}"/>
+                    <MenuItem Header="_Delete Characters..." Command="{Binding DeleteCharactersCommand}"/>
+                    <Separator/>
                     <MenuItem Header="_Purge Unused Images" Command="{Binding PurgeUnusedImagesCommand}"/>
+                    <MenuItem Header="Repair _Broken Images" Command="{Binding RepairBrokenImagesCommand}"/>
+                    <MenuItem Header="Repair _Legacy Chats" Command="{Binding RepairLegacyChatsCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Reset _Models Location" Command="{Binding ResetModelsLocationCommand}"/>
+                    <MenuItem Header="Reset Model _Settings" Command="{Binding ResetModelSettingsCommand}"/>
                 </MenuItem>
                 <MenuItem Header="_Options">
                     <MenuItem Header="_Autosave" Command="{Binding ToggleBackyardAutosaveCommand}">

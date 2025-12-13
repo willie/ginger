@@ -3530,6 +3530,267 @@ public partial class MainViewModel : ObservableObject
     }
 
     #endregion
+
+    #region Advanced Backyard Commands
+
+    [RelayCommand]
+    private async Task SaveLinked()
+    {
+        // Save Linked = Push to Backyard + Save local file
+        if (Current.Link == null)
+        {
+            StatusMessage = "Character is not linked to Backyard AI";
+            return;
+        }
+
+        // First push to Backyard
+        await PushChanges();
+
+        // Then save local file if we have a path
+        if (!string.IsNullOrEmpty(_currentFilePath))
+        {
+            await SaveAsync();
+        }
+        else
+        {
+            await SaveAsAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveAsNewParty()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        if (Current.Characters.Count < 2)
+        {
+            StatusMessage = "Need at least 2 characters to create a party";
+            return;
+        }
+
+        // For now, export as a JSON file that can be imported into Backyard
+        var filters = new[]
+        {
+            new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } }
+        };
+
+        var path = await _dialogService.ShowSaveFileDialogAsync("Save Party", $"{CharacterName}_party.json", filters);
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        try
+        {
+            // Create a multi-character card for the party
+            var card = ToCard();
+            var json = System.Text.Json.JsonSerializer.Serialize(card, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(path, json);
+            StatusMessage = $"Party exported to {Path.GetFileName(path)} - Import via Backyard > Import Folder";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task BulkEditModelSettings()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        var window = desktop.MainWindow;
+        if (window == null) return;
+
+        // Show model settings dialog to get new values
+        var dialog = new Views.Dialogs.EditModelSettingsDialog();
+        dialog.LoadSettings(
+            AppSettings.Settings.DefaultTemperature,
+            AppSettings.Settings.DefaultMinP,
+            AppSettings.Settings.DefaultTopP,
+            AppSettings.Settings.DefaultTopK,
+            AppSettings.Settings.DefaultRepeatPenalty,
+            AppSettings.Settings.DefaultRepeatLastN);
+
+        await dialog.ShowDialog(window);
+
+        if (!dialog.DialogResult)
+            return;
+
+        // Apply to all characters in Backyard (simplified - just save as defaults)
+        AppSettings.Settings.DefaultTemperature = dialog.Temperature;
+        AppSettings.Settings.DefaultMinP = dialog.MinP;
+        AppSettings.Settings.DefaultTopP = dialog.TopP;
+        AppSettings.Settings.DefaultTopK = dialog.TopK;
+        AppSettings.Settings.DefaultRepeatPenalty = dialog.RepeatPenalty;
+        AppSettings.Settings.DefaultRepeatLastN = dialog.RepeatLastN;
+        AppSettings.Save();
+
+        var characterCount = Integration.Backyard.Characters.Count();
+        StatusMessage = $"Model settings saved as defaults (will apply to new characters)";
+    }
+
+    [RelayCommand]
+    private async Task BulkExportParties()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        var folder = await _dialogService.ShowFolderDialogAsync("Select Export Folder");
+        if (string.IsNullOrEmpty(folder))
+            return;
+
+        int exported = 0;
+        int failed = 0;
+
+        foreach (var group in Integration.Backyard.Groups)
+        {
+            try
+            {
+                // Get characters in this group
+                var characters = Integration.Backyard.Characters.Where(c => c.groupId == group.instanceId).ToList();
+                if (characters.Count == 0)
+                    continue;
+
+                // Export as JSON
+                var fileName = SanitizeFileName(group.displayName ?? $"party_{group.instanceId}") + ".json";
+                var filePath = Path.Combine(folder, fileName);
+
+                var partyData = new
+                {
+                    name = group.displayName,
+                    groupId = group.instanceId,
+                    characters = characters.Select(c => new { c.instanceId, c.displayName, c.persona }).ToList()
+                };
+
+                var json = System.Text.Json.JsonSerializer.Serialize(partyData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(filePath, json);
+                exported++;
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        StatusMessage = $"Exported {exported} parties" + (failed > 0 ? $" ({failed} failed)" : "");
+    }
+
+    [RelayCommand]
+    private async Task DeleteCharacters()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // Show browser to select characters to delete
+        var (success, group, character, _) = await _dialogService.ShowBackyardBrowserAsync();
+        if (!success || character == null)
+            return;
+
+        var confirm = await _dialogService.ShowConfirmationDialogAsync(
+            "Delete Character",
+            $"Are you sure you want to delete '{character.Value.displayName}' from Backyard AI?\n\nThis action cannot be undone.");
+
+        if (!confirm)
+            return;
+
+        // Note: Direct database deletion would require additional API support
+        // For now, inform user to use Backyard AI directly
+        StatusMessage = "Character deletion requires using Backyard AI directly for safety";
+    }
+
+    [RelayCommand]
+    private void RepairBrokenImages()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // This would scan for images with broken references
+        StatusMessage = "Repair Broken Images: Use Backyard AI's built-in tools for database maintenance";
+    }
+
+    [RelayCommand]
+    private void RepairLegacyChats()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // This would migrate old chat formats
+        StatusMessage = "Repair Legacy Chats: Use Backyard AI's built-in tools for chat migration";
+    }
+
+    [RelayCommand]
+    private void ResetModelsLocation()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        // Reset model path settings
+        StatusMessage = "Reset Models Location: Configure in Backyard AI settings";
+    }
+
+    [RelayCommand]
+    private void ResetModelSettings()
+    {
+        // Reset to default values
+        AppSettings.Settings.DefaultTemperature = 0.8m;
+        AppSettings.Settings.DefaultMinP = 0.05m;
+        AppSettings.Settings.DefaultTopP = 0.95m;
+        AppSettings.Settings.DefaultTopK = 40;
+        AppSettings.Settings.DefaultRepeatPenalty = 1.1m;
+        AppSettings.Settings.DefaultRepeatLastN = 64;
+        AppSettings.Save();
+
+        StatusMessage = "Model settings reset to defaults";
+    }
+
+    #endregion
+
+    #region Language Menu
+
+    [ObservableProperty]
+    private string _selectedLanguage = "en";
+
+    public IEnumerable<string> AvailableLanguages => new[] { "en", "es", "fr", "de", "ja", "zh" };
+
+    [RelayCommand]
+    private void ChangeLanguage(string? language)
+    {
+        if (string.IsNullOrEmpty(language))
+            return;
+
+        SelectedLanguage = language;
+        AppSettings.Settings.Language = language;
+        AppSettings.Save();
+
+        // Note: Full localization would require reloading UI strings
+        StatusMessage = $"Language set to {language} (restart required for full effect)";
+    }
+
+    #endregion
 }
 
 public partial class LorebookEntryViewModel : ObservableObject

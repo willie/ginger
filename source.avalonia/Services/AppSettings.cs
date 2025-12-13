@@ -45,6 +45,7 @@ public static class AppSettings
         public static bool EnableRearrangeLoreMode { get; set; } = false;
         public static string? FontFamily { get; set; }
         public static double FontSize { get; set; } = 14;
+        public static string Language { get; set; } = "en";
 
         // Default model settings for Backyard AI
         public static decimal DefaultTemperature { get; set; } = 0.8m;
@@ -183,6 +184,7 @@ public static class AppSettings
             Settings.EnableRearrangeLoreMode = data.EnableRearrangeLoreMode ?? Settings.EnableRearrangeLoreMode;
             Settings.FontFamily = data.FontFamily ?? Settings.FontFamily;
             Settings.FontSize = data.FontSize ?? Settings.FontSize;
+            Settings.Language = data.Language ?? Settings.Language;
 
             // Default model settings
             Settings.DefaultTemperature = data.DefaultTemperature ?? Settings.DefaultTemperature;
@@ -291,6 +293,7 @@ public static class AppSettings
                 EnableRearrangeLoreMode = Settings.EnableRearrangeLoreMode,
                 FontFamily = Settings.FontFamily,
                 FontSize = Settings.FontSize,
+                Language = Settings.Language,
 
                 // Default model settings
                 DefaultTemperature = Settings.DefaultTemperature,
@@ -417,6 +420,7 @@ public static class AppSettings
         public bool? EnableRearrangeLoreMode { get; set; }
         public string? FontFamily { get; set; }
         public double? FontSize { get; set; }
+        public string? Language { get; set; }
 
         // Default model settings
         public decimal? DefaultTemperature { get; set; }
