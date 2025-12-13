@@ -4,3 +4,5 @@ source/Build/
 source/Ginger.csproj.user
 source/Content/en/Lorebooks/
 source/Libraries/
+source.avalonia/bin/
+source.avalonia/obj/
