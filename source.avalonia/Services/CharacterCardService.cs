@@ -450,6 +450,7 @@ public class CharacterCardService
                 ".png" => await SaveToPngAsync(filePath, card),
                 ".json" => await SaveToJsonAsync(filePath, card),
                 ".yaml" => await SaveToYamlAsync(filePath, card),
+                ".xml" => await SaveToGingerXmlAsync(filePath, card),
                 ".charx" => await SaveToCharxAsync(filePath, card),
                 ".byaf" => await SaveToByafAsync(filePath, card),
                 _ => false
@@ -506,7 +507,7 @@ public class CharacterCardService
         var textGenCard = new TextGenWebUICard
         {
             name = card.Name,
-            context = CombinePersonaAndScenario(card),
+            context = BuildTextGenContext(card),
             greeting = card.Greeting,
             example = card.Example,
         };
@@ -518,14 +519,69 @@ public class CharacterCardService
         return true;
     }
 
-    private static string CombinePersonaAndScenario(CharacterCard card)
+    /// <summary>
+    /// Build the context field for TextGenWebUI format.
+    /// This combines persona, personality, scenario, and system prompt.
+    /// </summary>
+    private static string BuildTextGenContext(CharacterCard card)
     {
         var sb = new StringBuilder();
+
+        // System prompt first (if present)
+        if (!string.IsNullOrWhiteSpace(card.System))
+        {
+            sb.AppendLine(card.System);
+            sb.AppendLine();
+        }
+
+        // Persona / Description
         if (!string.IsNullOrWhiteSpace(card.Persona))
+        {
             sb.AppendLine(card.Persona);
+        }
+
+        // Personality (merged with persona)
+        if (!string.IsNullOrWhiteSpace(card.Personality))
+        {
+            if (sb.Length > 0)
+                sb.AppendLine();
+            sb.AppendLine(card.Personality);
+        }
+
+        // Scenario
         if (!string.IsNullOrWhiteSpace(card.Scenario))
+        {
+            if (sb.Length > 0)
+                sb.AppendLine();
             sb.AppendLine(card.Scenario);
+        }
+
         return sb.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Save a character card to a Ginger XML file (native format with full recipe data).
+    /// </summary>
+    private async Task<bool> SaveToGingerXmlAsync(string filePath, CharacterCard card)
+    {
+        // Create GingerCardV1 from Current model (which has the full recipe structure)
+        var gingerCard = GingerCardV1.Create();
+
+        // Update basic metadata from the card
+        gingerCard.name = card.Name;
+        gingerCard.creator = card.Creator;
+        gingerCard.comment = card.CreatorNotes;
+        gingerCard.versionString = card.Version;
+        gingerCard.userGender = card.UserGender;
+        gingerCard.tags = card.Tags.ToArray();
+
+        // Generate XML
+        string xml = gingerCard.ToXml();
+        if (xml == null)
+            return false;
+
+        await File.WriteAllTextAsync(filePath, xml, System.Text.Encoding.UTF8);
+        return true;
     }
 
     /// <summary>

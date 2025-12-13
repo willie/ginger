@@ -89,10 +89,16 @@ public partial class MainViewModel : ObservableObject
     private string _greeting = "";
 
     [ObservableProperty]
+    private ObservableCollection<string> _alternateGreetings = new();
+
+    [ObservableProperty]
     private string _exampleMessages = "";
 
     [ObservableProperty]
     private string _systemPrompt = "";
+
+    [ObservableProperty]
+    private string _postHistoryInstructions = "";
 
     #endregion
 
@@ -575,6 +581,17 @@ public partial class MainViewModel : ObservableObject
         Greeting = card.Greeting;
         ExampleMessages = card.Example;
         SystemPrompt = card.System;
+        PostHistoryInstructions = card.PostHistoryInstructions ?? "";
+
+        // Alternate greetings
+        AlternateGreetings.Clear();
+        if (card.AlternateGreetings != null)
+        {
+            foreach (var altGreeting in card.AlternateGreetings)
+            {
+                AlternateGreetings.Add(altGreeting);
+            }
+        }
 
         // Portrait
         _portraitData = card.PortraitData;
@@ -611,38 +628,88 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        // Clear recipes (will be populated from actual recipe system later)
+        // Clear recipes
         Recipes.Clear();
 
-        // Add persona as a recipe for now
-        if (!string.IsNullOrEmpty(Persona))
+        // Load recipes based on source format
+        if (card.GingerData != null && card.GingerData.characters.Count > 0)
         {
-            Recipes.Add(new RecipeViewModel(this)
-            {
-                Name = "Persona",
-                Content = Persona,
-                IsExpanded = true
-            });
-        }
+            // Ginger format: Load actual Recipe objects from GingerCardV1
+            var mainChar = card.GingerData.characters[0];
 
-        if (!string.IsNullOrEmpty(Personality))
-        {
-            Recipes.Add(new RecipeViewModel(this)
-            {
-                Name = "Personality",
-                Content = Personality,
-                IsExpanded = false
-            });
-        }
+            // Initialize Current with Ginger data
+            Current.NewCharacter();
+            Current.Card.name = card.Name;
+            Current.Card.creator = card.Creator;
+            Current.Card.comment = card.CreatorNotes;
+            Current.Card.versionString = card.Version;
+            Current.Card.userGender = card.UserGender;
+            Current.Card.tags.Clear();
+            foreach (var tag in card.Tags)
+                Current.Card.tags.Add(tag);
+            Current.MainCharacter.spokenName = mainChar.spokenName;
+            Current.MainCharacter.gender = mainChar.gender ?? "";
 
-        if (!string.IsNullOrEmpty(Scenario))
-        {
-            Recipes.Add(new RecipeViewModel(this)
+            // Load recipes from Ginger data
+            foreach (var recipe in mainChar.recipes)
             {
-                Name = "Scenario",
-                Content = Scenario,
-                IsExpanded = false
-            });
+                // Add to Current
+                Current.MainCharacter.recipes.Add(recipe);
+
+                // Create ViewModel
+                var recipeVm = new RecipeViewModel(this, recipe);
+                Recipes.Add(recipeVm);
+            }
+
+            // Extract text content from recipes for the plain text fields
+            // This ensures compatibility with non-Ginger exports
+            var output = Generator.Generate(Generator.Option.Preview);
+            if (!output.persona.IsNullOrEmpty())
+                Persona = output.persona.ToString();
+            if (!output.scenario.IsNullOrEmpty())
+                Scenario = output.scenario.ToString();
+            if (!output.greeting.IsNullOrEmpty())
+                Greeting = output.greeting.ToString();
+            if (!output.example.IsNullOrEmpty())
+                ExampleMessages = output.example.ToString();
+            if (!output.system.IsNullOrEmpty())
+                SystemPrompt = output.system.ToString();
+        }
+        else
+        {
+            // Non-Ginger format: Create pseudo-recipes from plain text fields
+            if (!string.IsNullOrEmpty(Persona))
+            {
+                Recipes.Add(new RecipeViewModel(this)
+                {
+                    Name = "Persona",
+                    Content = Persona,
+                    IsExpanded = true
+                });
+            }
+
+            if (!string.IsNullOrEmpty(Personality))
+            {
+                Recipes.Add(new RecipeViewModel(this)
+                {
+                    Name = "Personality",
+                    Content = Personality,
+                    IsExpanded = false
+                });
+            }
+
+            if (!string.IsNullOrEmpty(Scenario))
+            {
+                Recipes.Add(new RecipeViewModel(this)
+                {
+                    Name = "Scenario",
+                    Content = Scenario,
+                    IsExpanded = false
+                });
+            }
+
+            // Sync ViewModel state to Current model so Generator and Backyard work correctly
+            SyncToCurrent();
         }
 
         RegenerateOutput();
@@ -669,6 +736,10 @@ public partial class MainViewModel : ObservableObject
         card.Greeting = Greeting;
         card.Example = ExampleMessages;
         card.System = SystemPrompt;
+        card.PostHistoryInstructions = PostHistoryInstructions;
+
+        // Alternate greetings
+        card.AlternateGreetings = AlternateGreetings.ToList();
 
         // Portrait
         card.PortraitData = _portraitData;
@@ -691,6 +762,64 @@ public partial class MainViewModel : ObservableObject
         }
 
         return card;
+    }
+
+    /// <summary>
+    /// Sync the current UI state to the static Current model.
+    /// This must be called before any operations that read from Current
+    /// (e.g., Generator.Generate(), Backyard push/pull, export).
+    /// </summary>
+    private void SyncToCurrent()
+    {
+        // Card-level data
+        Current.Card.name = CharacterName;
+        Current.Card.creator = Creator;
+        Current.Card.comment = Comment;
+        Current.Card.versionString = Version;
+        Current.Card.userPlaceholder = UserPlaceholder;
+        Current.Card.userGender = UserGender;
+
+        // Parse tags
+        Current.Card.tags.Clear();
+        if (!string.IsNullOrWhiteSpace(Tags))
+        {
+            foreach (var tag in Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                Current.Card.tags.Add(tag);
+            }
+        }
+
+        // Portrait
+        if (_portraitData != null)
+            Current.Card.portraitImage = ImageRef.FromBytes(_portraitData);
+        else
+            Current.Card.portraitImage = null;
+
+        // Main character data
+        var character = Current.MainCharacter;
+        character.spokenName = SpokenName;
+        character.gender = SelectedGender ?? "";
+        character.persona = Persona;
+        character.personality = Personality;
+        character.scenario = Scenario;
+        character.greeting = Greeting;
+        character.example = ExampleMessages;
+        character.system = SystemPrompt;
+
+        // Sync recipes from ViewModels to Current.Character.recipes
+        character.recipes.Clear();
+        foreach (var recipeVm in Recipes)
+        {
+            var sourceRecipe = recipeVm.GetSourceRecipe();
+            if (sourceRecipe != null)
+            {
+                // Use the recipe with updated parameters
+                character.recipes.Add(sourceRecipe);
+            }
+        }
+
+        // Sync lorebook entries
+        // Note: Lorebook is handled separately via Generator output
     }
 
     #endregion
@@ -1038,6 +1167,8 @@ public partial class MainViewModel : ObservableObject
         Greeting = "";
         ExampleMessages = "";
         SystemPrompt = "";
+        PostHistoryInstructions = "";
+        AlternateGreetings.Clear();
 
         Recipes.Clear();
         LorebookEntries.Clear();
@@ -2485,6 +2616,9 @@ public partial class MainViewModel : ObservableObject
         try
         {
             StatusMessage = "Pushing changes to Backyard AI...";
+
+            // Sync UI state to Current model before generating
+            SyncToCurrent();
 
             // Generate output for Faraday format
             var output = Generator.Generate(Generator.Option.Export | Generator.Option.Faraday | Generator.Option.Linked);

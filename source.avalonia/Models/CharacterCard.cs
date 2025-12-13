@@ -39,6 +39,9 @@ public class CharacterCard
     // Notes
     public string Notes { get; set; } = "";
 
+    // Ginger-specific data (preserved for round-trip when loading/saving Ginger format)
+    public GingerCardV1? GingerData { get; set; }
+
     // Source format
     public CardFormat SourceFormat { get; set; } = CardFormat.Unknown;
 
@@ -218,7 +221,7 @@ public class CharacterCard
 
     /// <summary>
     /// Create a CharacterCard from a GingerCardV1 (native XML format).
-    /// Note: This extracts basic character data; recipes are loaded separately into Current.
+    /// Stores the full GingerCardV1 data to enable round-trip loading/saving.
     /// </summary>
     public static CharacterCard FromGingerV1(GingerCardV1 ginger, byte[]? portraitData = null)
     {
@@ -234,11 +237,9 @@ public class CharacterCard
             Tags = new HashSet<string>(ginger.tags ?? Array.Empty<string>()),
             UserGender = ginger.userGender,
             PortraitData = portraitData,
+            // Store the full Ginger data for round-trip and recipe access
+            GingerData = ginger,
         };
-
-        // Ginger format stores content in recipes, not as plain text fields
-        // The actual content will be loaded into Current via the recipe system
-        // For now, we just capture the metadata
 
         return card;
     }

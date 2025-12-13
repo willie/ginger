@@ -14,6 +14,7 @@ public partial class RecipeViewModel : ObservableObject
 {
     private readonly MainViewModel _parent;
     private Recipe? _sourceRecipe;
+    private bool _isRegenerating;
 
     [ObservableProperty]
     private string _id = "";
@@ -57,7 +58,7 @@ public partial class RecipeViewModel : ObservableObject
         _isEnabled = recipe.isEnabled;
         _isExpanded = !recipe.isCollapsed;
 
-        // Build content from templates
+        // Build initial content from templates (as fallback)
         foreach (var template in recipe.templates)
         {
             if (!string.IsNullOrEmpty(template.text))
@@ -72,11 +73,17 @@ public partial class RecipeViewModel : ObservableObject
         {
             Parameters.Add(new RecipeParameterViewModel(this, param));
         }
+
+        // Generate content using the recipe engine to properly evaluate templates
+        // This replaces the raw template text with actual generated output
+        RegenerateContent();
     }
 
     partial void OnContentChanged(string value)
     {
-        _parent.OnRecipeChanged();
+        // Skip notification when we're regenerating content programmatically
+        if (!_isRegenerating)
+            _parent.OnRecipeChanged();
     }
 
     partial void OnIsEnabledChanged(bool value)
@@ -131,7 +138,79 @@ public partial class RecipeViewModel : ObservableObject
 
     public void NotifyParameterChanged()
     {
+        // Regenerate content when parameters change
+        RegenerateContent();
         _parent.OnRecipeChanged();
+    }
+
+    /// <summary>
+    /// Regenerate the recipe content from the source recipe and its current parameters.
+    /// This uses the Generator to properly evaluate templates with parameter values.
+    /// </summary>
+    public void RegenerateContent()
+    {
+        if (_sourceRecipe == null || _isRegenerating)
+            return;
+
+        _isRegenerating = true;
+        try
+        {
+            // Use Generator to produce output with current parameters
+            var output = Generator.Generate(_sourceRecipe, Generator.Option.Preview);
+
+            // Combine all output components into content
+            var sb = new System.Text.StringBuilder();
+
+            if (!output.system.IsNullOrEmpty())
+            {
+                sb.AppendLine("=== SYSTEM ===");
+                sb.AppendLine(output.system.ToString());
+                sb.AppendLine();
+            }
+
+            if (!output.persona.IsNullOrEmpty())
+            {
+                sb.AppendLine("=== PERSONA ===");
+                sb.AppendLine(output.persona.ToString());
+                sb.AppendLine();
+            }
+
+            if (!output.scenario.IsNullOrEmpty())
+            {
+                sb.AppendLine("=== SCENARIO ===");
+                sb.AppendLine(output.scenario.ToString());
+                sb.AppendLine();
+            }
+
+            if (!output.greeting.IsNullOrEmpty())
+            {
+                sb.AppendLine("=== GREETING ===");
+                sb.AppendLine(output.greeting.ToString());
+                sb.AppendLine();
+            }
+
+            if (!output.example.IsNullOrEmpty())
+            {
+                sb.AppendLine("=== EXAMPLE ===");
+                sb.AppendLine(output.example.ToString());
+                sb.AppendLine();
+            }
+
+            // Only update if we got meaningful output
+            var newContent = sb.ToString().Trim();
+            if (!string.IsNullOrEmpty(newContent))
+            {
+                Content = newContent;
+            }
+        }
+        catch
+        {
+            // If generation fails, keep existing content
+        }
+        finally
+        {
+            _isRegenerating = false;
+        }
     }
 
     /// <summary>
