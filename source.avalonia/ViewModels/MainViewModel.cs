@@ -612,7 +612,7 @@ public partial class MainViewModel : ObservableObject
             PortraitImage = null;
         }
 
-        // Lorebook
+        // Lorebook - load all metadata for round-trip
         LorebookEntries.Clear();
         if (card.Lorebook != null)
         {
@@ -621,9 +621,17 @@ public partial class MainViewModel : ObservableObject
                 LorebookEntries.Add(new LorebookEntryViewModel(this)
                 {
                     Keys = string.Join(", ", entry.Keys),
+                    SecondaryKeys = entry.SecondaryKeys != null ? string.Join(", ", entry.SecondaryKeys) : "",
                     Content = entry.Content,
                     IsEnabled = entry.Enabled,
-                    Name = entry.Name,
+                    Name = entry.Name ?? "",
+                    Comment = entry.Comment ?? "",
+                    Constant = entry.Constant,
+                    Selective = entry.Selective,
+                    CaseSensitive = entry.CaseSensitive,
+                    InsertionOrder = entry.InsertionOrder,
+                    Priority = entry.Priority,
+                    Position = entry.Position ?? "before_char",
                 });
             }
         }
@@ -744,7 +752,7 @@ public partial class MainViewModel : ObservableObject
         // Portrait
         card.PortraitData = _portraitData;
 
-        // Lorebook
+        // Lorebook - preserve all metadata
         if (LorebookEntries.Count > 0)
         {
             card.Lorebook = new Ginger.Models.Lorebook();
@@ -755,10 +763,42 @@ public partial class MainViewModel : ObservableObject
                 {
                     Id = id++,
                     Keys = entry.Keys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    SecondaryKeys = entry.SecondaryKeys?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>(),
+                    Name = entry.Name ?? "",
+                    Comment = entry.Comment ?? "",
                     Content = entry.Content,
                     Enabled = entry.IsEnabled,
+                    Constant = entry.Constant,
+                    Selective = entry.Selective,
+                    CaseSensitive = entry.CaseSensitive,
+                    InsertionOrder = entry.InsertionOrder,
+                    Priority = entry.Priority,
+                    Position = entry.Position ?? "before_char",
                 });
             }
+        }
+
+        // Sync changes back to GingerData for the main character (preserves all other actors)
+        if (card.GingerData != null)
+        {
+            // Update card-level properties
+            card.GingerData.name = CharacterName;
+            card.GingerData.creator = Creator;
+            card.GingerData.comment = Comment;
+            card.GingerData.versionString = Version;
+            card.GingerData.userGender = UserGender;
+            card.GingerData.tags = Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            // Update main character (characters[0])
+            if (card.GingerData.characters.Count > 0)
+            {
+                var mainChar = card.GingerData.characters[0];
+                mainChar.spokenName = SpokenName;
+                mainChar.gender = SelectedGender ?? "";
+                // Note: recipes are managed separately through Current.MainCharacter
+                // They're already synced by the recipe editing logic
+            }
+            // Note: All other characters (characters[1+]) remain unchanged for round-trip
         }
 
         return card;
@@ -4433,6 +4473,9 @@ public partial class LorebookEntryViewModel : ObservableObject
     private string _keys = "";
 
     [ObservableProperty]
+    private string _secondaryKeys = "";
+
+    [ObservableProperty]
     private string _content = "";
 
     [ObservableProperty]
@@ -4443,6 +4486,27 @@ public partial class LorebookEntryViewModel : ObservableObject
 
     [ObservableProperty]
     private string _name = "";
+
+    [ObservableProperty]
+    private string _comment = "";
+
+    [ObservableProperty]
+    private bool _constant = false;
+
+    [ObservableProperty]
+    private bool _selective = false;
+
+    [ObservableProperty]
+    private bool _caseSensitive = false;
+
+    [ObservableProperty]
+    private int _insertionOrder = 100;
+
+    [ObservableProperty]
+    private int _priority = 10;
+
+    [ObservableProperty]
+    private string _position = "before_char";
 
     public LorebookEntryViewModel()
     {
@@ -4457,6 +4521,13 @@ public partial class LorebookEntryViewModel : ObservableObject
     partial void OnKeysChanged(string value) => _parent?.OnLorebookChanged();
     partial void OnContentChanged(string value) => _parent?.OnLorebookChanged();
     partial void OnIsEnabledChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnSecondaryKeysChanged(string value) => _parent?.OnLorebookChanged();
+    partial void OnConstantChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnSelectiveChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnCaseSensitiveChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnInsertionOrderChanged(int value) => _parent?.OnLorebookChanged();
+    partial void OnPriorityChanged(int value) => _parent?.OnLorebookChanged();
+    partial void OnPositionChanged(string value) => _parent?.OnLorebookChanged();
 
     [RelayCommand]
     private void Remove()

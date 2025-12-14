@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -53,37 +54,85 @@ public class CharacterCardService
 
     /// <summary>
     /// Load a character card from a PNG file with embedded metadata.
+    /// Supports Ginger XML, Tavern V2/V3, and Faraday (EXIF) formats.
     /// </summary>
     private async Task<(LoadResult result, CharacterCard? card)> LoadFromPngAsync(string filePath)
     {
-        // Read PNG metadata
-        var metadata = await Task.Run(() => PngMetadata.ReadTextChunks(filePath));
-
-        if (metadata.Count == 0)
-            return (LoadResult.NoDataFound, null);
-
         // Read PNG image data
         byte[] imageData = await File.ReadAllBytesAsync(filePath);
 
-        // Try to find character data in various formats
-        string? charaBase64 = null;
-        string? ccv3Base64 = null;
+        // Extract all embedded data (EXIF, PNG chunks)
+        var embedded = await Task.Run(() => PngMetadata.ExtractAllData(filePath));
 
-        if (metadata.TryGetValue("ccv3", out ccv3Base64))
+        if (embedded.IsEmpty)
+            return (LoadResult.NoDataFound, null);
+
+        // Priority order: Ginger > Faraday > TavernV3 > TavernV2
+
+        // 1. Try Ginger native format (XML) - preserves recipes
+        if (!string.IsNullOrEmpty(embedded.GingerXml))
         {
-            // TavernCardV3 format
             try
             {
-                byte[] jsonBytes = Convert.FromBase64String(ccv3Base64);
-                string json = Encoding.UTF8.GetString(jsonBytes);
-                var tavernV3 = TavernCardV3.FromJson(json, out _);
+                var gingerCard = GingerCardV1.FromXml(embedded.GingerXml);
+                if (gingerCard != null)
+                {
+                    var card = CharacterCard.FromGingerV1(gingerCard, imageData);
+
+                    // Also load V3 assets if available
+                    if (!string.IsNullOrEmpty(embedded.TavernJsonV3))
+                    {
+                        var tavernV3 = TavernCardV3.FromJson(embedded.TavernJsonV3, out _);
+                        if (tavernV3?.data?.assets != null && embedded.EmbeddedAssets != null)
+                        {
+                            card.EmbeddedAssets = embedded.EmbeddedAssets;
+                        }
+                    }
+
+                    return (LoadResult.Success, card);
+                }
+            }
+            catch { }
+        }
+
+        // 2. Try Faraday format (from EXIF) - Backyard AI PNGs
+        if (!string.IsNullOrEmpty(embedded.FaradayJson))
+        {
+            try
+            {
+                // Try FaradayCardV4 first
+                var faradayV4 = FaradayCardV4.FromJson(embedded.FaradayJson);
+                if (faradayV4 != null)
+                {
+                    var card = CharacterCard.FromFaradayV4(faradayV4, imageData);
+                    return (LoadResult.Success, card);
+                }
+
+                // Try older Faraday formats
+                var faraday = FaradayCard.FromJson(embedded.FaradayJson);
+                if (faraday != null)
+                {
+                    var card = faraday.ToCharacterCard(imageData);
+                    return (LoadResult.Success, card);
+                }
+            }
+            catch { }
+        }
+
+        // 3. Try TavernCardV3 format
+        if (!string.IsNullOrEmpty(embedded.TavernJsonV3))
+        {
+            try
+            {
+                var tavernV3 = TavernCardV3.FromJson(embedded.TavernJsonV3, out _);
                 if (tavernV3 != null)
                 {
                     var card = CharacterCard.FromTavernV3(tavernV3, imageData);
+                    card.EmbeddedAssets = embedded.EmbeddedAssets;
                     return (LoadResult.Success, card);
                 }
-                // Fall back to V2 parser if V3 fails
-                var tavernV2 = TavernCardV2.FromJson(json, out _);
+                // Fall back to V2 parser if V3 parsing fails
+                var tavernV2 = TavernCardV2.FromJson(embedded.TavernJsonV3, out _);
                 if (tavernV2 != null)
                 {
                     var card = CharacterCard.FromTavernV2(tavernV2, imageData);
@@ -94,34 +143,23 @@ public class CharacterCardService
             catch { }
         }
 
-        if (metadata.TryGetValue("chara", out charaBase64))
+        // 4. Try TavernCardV2 format (most common)
+        if (!string.IsNullOrEmpty(embedded.TavernJsonV2))
         {
-            // TavernCardV2 format (most common)
             try
             {
-                byte[] jsonBytes = Convert.FromBase64String(charaBase64);
-                string json = Encoding.UTF8.GetString(jsonBytes);
-                var tavernV2 = TavernCardV2.FromJson(json, out _);
+                var tavernV2 = TavernCardV2.FromJson(embedded.TavernJsonV2, out _);
                 if (tavernV2 != null)
                 {
                     var card = CharacterCard.FromTavernV2(tavernV2, imageData);
                     return (LoadResult.Success, card);
                 }
-            }
-            catch { }
-        }
 
-        // Try Ginger native format (XML)
-        if (metadata.TryGetValue("ginger", out string? gingerBase64))
-        {
-            try
-            {
-                byte[] xmlBytes = Convert.FromBase64String(gingerBase64);
-                string xml = Encoding.UTF8.GetString(xmlBytes);
-                var gingerCard = GingerCardV1.FromXml(xml);
-                if (gingerCard != null)
+                // Try TavernV1 (simpler format)
+                var tavernV1 = TavernCardV1.FromJson(embedded.TavernJsonV2);
+                if (tavernV1 != null)
                 {
-                    var card = CharacterCard.FromGingerV1(gingerCard, imageData);
+                    var card = tavernV1.ToCharacterCard(imageData);
                     return (LoadResult.Success, card);
                 }
             }
@@ -464,6 +502,7 @@ public class CharacterCardService
 
     /// <summary>
     /// Save a character card to a PNG file with embedded metadata.
+    /// Writes all formats: TavernV2 (chara), TavernV3 (ccv3), Ginger XML, and Faraday EXIF.
     /// </summary>
     private async Task<bool> SaveToPngAsync(string filePath, CharacterCard card)
     {
@@ -471,21 +510,83 @@ public class CharacterCardService
         if (card.PortraitData == null || card.PortraitData.Length == 0)
             return false;
 
-        // Convert to TavernCardV2 JSON
-        var tavernCard = card.ToTavernV2();
-        string json = tavernCard.ToJson();
-        string base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+        var metadata = new Dictionary<string, string>();
 
-        // Write PNG with metadata
-        var metadata = new System.Collections.Generic.Dictionary<string, string>
+        // 1. TavernV2 format (chara) - most widely supported
+        var tavernV2 = card.ToTavernV2();
+        string tavernV2Json = tavernV2.ToJson();
+        string tavernV2Base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(tavernV2Json));
+        metadata["chara"] = tavernV2Base64;
+
+        // 2. TavernV3 format (ccv3) - includes assets
+        var tavernV3 = card.ToTavernV3();
+        string tavernV3Json = tavernV3.ToJson();
+        string tavernV3Base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(tavernV3Json));
+        metadata["ccv3"] = tavernV3Base64;
+
+        // 3. Ginger XML format (compressed) - preserves recipes
+        if (card.GingerData != null)
         {
-            { "chara", base64 }
-        };
+            string gingerXml = card.GingerData.ToXml();
+            if (!string.IsNullOrEmpty(gingerXml))
+            {
+                string gingerBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(gingerXml));
+                metadata["ginger"] = gingerBase64;
+            }
+        }
 
-        byte[] outputData = PngMetadata.WriteTextChunks(card.PortraitData, metadata);
+        // 4. Embedded assets (for V3 compatibility)
+        if (card.EmbeddedAssets != null)
+        {
+            const string assetPrefix = "chara-ext-asset_";
+            foreach (var asset in card.EmbeddedAssets)
+            {
+                string assetBase64 = Convert.ToBase64String(asset.Value);
+                metadata[assetPrefix + asset.Key] = assetBase64;
+            }
+        }
+
+        // Write PNG chunks (ginger chunk is compressed)
+        byte[] outputData = WritePngWithAllChunks(card.PortraitData, metadata);
         await File.WriteAllBytesAsync(filePath, outputData);
 
+        // 5. Write Faraday EXIF data
+        var faradayCard = card.ToFaradayV4();
+        string faradayJson = faradayCard.ToJson();
+        if (!string.IsNullOrEmpty(faradayJson))
+        {
+            string faradayBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(faradayJson));
+            PngMetadata.WriteExifUserComment(filePath, faradayBase64);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Write PNG with mixed compression (ginger compressed, others uncompressed).
+    /// </summary>
+    private static byte[] WritePngWithAllChunks(byte[] pngData, Dictionary<string, string> chunks)
+    {
+        // Separate chunks by compression needs
+        var uncompressedChunks = new Dictionary<string, string>();
+        var compressedChunks = new Dictionary<string, string>();
+
+        foreach (var kvp in chunks)
+        {
+            if (kvp.Key == "ginger")
+                compressedChunks[kvp.Key] = kvp.Value;
+            else
+                uncompressedChunks[kvp.Key] = kvp.Value;
+        }
+
+        // Write uncompressed chunks first
+        byte[] result = PngMetadata.WriteTextChunks(pngData, uncompressedChunks, compress: false);
+
+        // Then write compressed chunks
+        if (compressedChunks.Count > 0)
+            result = PngMetadata.WriteTextChunks(result, compressedChunks, compress: true);
+
+        return result;
     }
 
     /// <summary>

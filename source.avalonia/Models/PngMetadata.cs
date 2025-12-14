@@ -3,16 +3,239 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Ginger.Models;
 
 /// <summary>
 /// Cross-platform PNG metadata reader for character card data.
-/// Reads tEXt and zTXt chunks from PNG files.
+/// Reads tEXt, zTXt chunks and EXIF data from PNG files.
 /// </summary>
 public static class PngMetadata
 {
     private static readonly byte[] PngSignature = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+    /// <summary>
+    /// Result of extracting embedded data from a PNG file.
+    /// Contains all supported format payloads.
+    /// </summary>
+    public struct EmbeddedData
+    {
+        public string? FaradayJson;    // From EXIF UserComment
+        public string? TavernJsonV2;   // From 'chara' chunk
+        public string? TavernJsonV3;   // From 'ccv3' chunk
+        public string? GingerXml;      // From 'ginger' chunk
+        public Dictionary<string, byte[]>? EmbeddedAssets; // From 'chara-ext-asset_' chunks
+
+        public bool IsEmpty =>
+            string.IsNullOrEmpty(FaradayJson) &&
+            string.IsNullOrEmpty(TavernJsonV2) &&
+            string.IsNullOrEmpty(TavernJsonV3) &&
+            string.IsNullOrEmpty(GingerXml);
+    }
+
+    /// <summary>
+    /// Extract all embedded character data from a PNG file.
+    /// Reads EXIF (Faraday), tEXt/zTXt chunks (Tavern, Ginger), and embedded assets.
+    /// </summary>
+    public static EmbeddedData ExtractAllData(string filePath)
+    {
+        var result = new EmbeddedData();
+        result.EmbeddedAssets = new Dictionary<string, byte[]>();
+
+        // Read EXIF data (Faraday format)
+        try
+        {
+            var exifData = new ExifData(filePath);
+            if (exifData.GetTagValue(ExifTag.UserComment, out string? faradayJson, StrCoding.IdCode_UsAscii))
+            {
+                // Decode base64 if needed
+                if (!string.IsNullOrEmpty(faradayJson) && !faradayJson.StartsWith('{'))
+                {
+                    if (faradayJson.Length > 0 && faradayJson.Length % 4 == 0 &&
+                        Regex.IsMatch(faradayJson, @"^[a-zA-Z0-9\+/]*={0,2}$"))
+                    {
+                        byte[] byteArray = Convert.FromBase64String(faradayJson);
+                        faradayJson = Encoding.UTF8.GetString(byteArray);
+                    }
+                }
+                result.FaradayJson = faradayJson;
+            }
+        }
+        catch
+        {
+            // EXIF reading failed, continue with other formats
+        }
+
+        // Read PNG chunks
+        var metadata = ReadTextChunks(filePath);
+
+        // Ginger XML
+        if (metadata.TryGetValue("ginger", out string? gingerBase64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(gingerBase64);
+                result.GingerXml = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Tavern V2 (chara)
+        if (metadata.TryGetValue("chara", out string? charaBase64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(charaBase64);
+                result.TavernJsonV2 = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Tavern V3 (ccv3)
+        if (metadata.TryGetValue("ccv3", out string? ccv3Base64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(ccv3Base64);
+                result.TavernJsonV3 = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Embedded assets (chara-ext-asset_ prefix)
+        const string assetPrefix = "chara-ext-asset_";
+        foreach (var kvp in metadata)
+        {
+            if (kvp.Key.StartsWith(assetPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string assetUri = kvp.Key.Substring(assetPrefix.Length);
+                    // Handle RisuAI bug with extra colon
+                    if (assetUri.StartsWith(":"))
+                        assetUri = assetUri.Substring(1);
+
+                    byte[] assetData = Convert.FromBase64String(kvp.Value);
+                    result.EmbeddedAssets[assetUri] = assetData;
+                }
+                catch { }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Extract all embedded character data from PNG bytes.
+    /// </summary>
+    public static EmbeddedData ExtractAllData(byte[] pngData)
+    {
+        var result = new EmbeddedData();
+        result.EmbeddedAssets = new Dictionary<string, byte[]>();
+
+        // Read EXIF data (Faraday format)
+        try
+        {
+            using var stream = new MemoryStream(pngData);
+            var exifData = new ExifData(stream);
+            if (exifData.GetTagValue(ExifTag.UserComment, out string? faradayJson, StrCoding.IdCode_UsAscii))
+            {
+                // Decode base64 if needed
+                if (!string.IsNullOrEmpty(faradayJson) && !faradayJson.StartsWith('{'))
+                {
+                    if (faradayJson.Length > 0 && faradayJson.Length % 4 == 0 &&
+                        Regex.IsMatch(faradayJson, @"^[a-zA-Z0-9\+/]*={0,2}$"))
+                    {
+                        byte[] byteArray = Convert.FromBase64String(faradayJson);
+                        faradayJson = Encoding.UTF8.GetString(byteArray);
+                    }
+                }
+                result.FaradayJson = faradayJson;
+            }
+        }
+        catch
+        {
+            // EXIF reading failed, continue with other formats
+        }
+
+        // Read PNG chunks
+        var metadata = ReadTextChunks(pngData);
+
+        // Ginger XML
+        if (metadata.TryGetValue("ginger", out string? gingerBase64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(gingerBase64);
+                result.GingerXml = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Tavern V2 (chara)
+        if (metadata.TryGetValue("chara", out string? charaBase64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(charaBase64);
+                result.TavernJsonV2 = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Tavern V3 (ccv3)
+        if (metadata.TryGetValue("ccv3", out string? ccv3Base64))
+        {
+            try
+            {
+                byte[] byteArray = Convert.FromBase64String(ccv3Base64);
+                result.TavernJsonV3 = Encoding.UTF8.GetString(byteArray);
+            }
+            catch { }
+        }
+
+        // Embedded assets (chara-ext-asset_ prefix)
+        const string assetPrefix = "chara-ext-asset_";
+        foreach (var kvp in metadata)
+        {
+            if (kvp.Key.StartsWith(assetPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string assetUri = kvp.Key.Substring(assetPrefix.Length);
+                    if (assetUri.StartsWith(":"))
+                        assetUri = assetUri.Substring(1);
+
+                    byte[] assetData = Convert.FromBase64String(kvp.Value);
+                    result.EmbeddedAssets[assetUri] = assetData;
+                }
+                catch { }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Write EXIF UserComment to a PNG file (for Faraday format).
+    /// </summary>
+    public static bool WriteExifUserComment(string filePath, string payload)
+    {
+        try
+        {
+            var exifData = new ExifData(filePath);
+            if (exifData.SetTagValue(ExifTag.UserComment, payload, StrCoding.IdCode_UsAscii))
+            {
+                exifData.Save(filePath);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+        return false;
+    }
 
     public static Dictionary<string, string> ReadTextChunks(string filePath)
     {

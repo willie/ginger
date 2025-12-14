@@ -274,4 +274,40 @@ public class TavernCardV1
 
     [JsonProperty("mes_example")]
     public string? mes_example;
+
+    public static TavernCardV1? FromJson(string json)
+    {
+        try
+        {
+            var card = JsonConvert.DeserializeObject<TavernCardV1>(json);
+            // V1 cards don't have a "spec" field and require name + first_mes
+            if (card != null && !string.IsNullOrEmpty(card.name) && !string.IsNullOrEmpty(card.first_mes))
+            {
+                // Make sure this isn't a V2 card
+                if (!json.Contains("\"spec\"") && !json.Contains("\"data\""))
+                    return card;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>
+    /// Convert to the common CharacterCard format.
+    /// </summary>
+    public CharacterCard ToCharacterCard(byte[]? portraitData = null)
+    {
+        return new CharacterCard
+        {
+            SourceFormat = CharacterCard.CardFormat.TavernV1,
+            Name = name ?? "",
+            SpokenName = name ?? "",
+            Persona = description ?? "",
+            Personality = personality ?? "",
+            Scenario = scenario ?? "",
+            Greeting = first_mes ?? "",
+            Example = mes_example ?? "",
+            PortraitData = portraitData,
+        };
+    }
 }

@@ -88,8 +88,11 @@ namespace Ginger
 		public static void LoadMacros()
 		{
 			Strings.Clear();
-			// Load internal macros - would need to load from embedded resources
-			// For now, just initialize empty
+
+			// Load external macros from Content/en/Internal/global_macros.xml
+			var xmlDoc = Utility.LoadXmlDocument(Utility.ContentPath("Internal", Constants.InternalFiles.GlobalMacros));
+			if (xmlDoc != null)
+				Strings.LoadFromXml(xmlDoc.DocumentElement);
 		}
 
 		public static void NewCharacter()
