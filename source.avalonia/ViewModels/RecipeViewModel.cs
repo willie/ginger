@@ -161,6 +161,18 @@ public partial class RecipeViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void MoveToTop()
+    {
+        _parent.MoveRecipeToTop(this);
+    }
+
+    [RelayCommand]
+    private void MoveToBottom()
+    {
+        _parent.MoveRecipeToBottom(this);
+    }
+
+    [RelayCommand]
     private void Remove()
     {
         _parent.RemoveRecipe(this);

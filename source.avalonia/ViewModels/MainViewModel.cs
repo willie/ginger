@@ -60,6 +60,14 @@ public partial class MainViewModel : ObservableObject
 
     private byte[]? _portraitData;
 
+    [ObservableProperty]
+    private Bitmap? _backgroundImage;
+
+    private byte[]? _backgroundData;
+
+    [ObservableProperty]
+    private bool _hasBackgroundImage;
+
     #endregion
 
     #region Card Information
@@ -176,6 +184,27 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _recipeCount;
+
+    [ObservableProperty]
+    private int _actorCount;
+
+    [ObservableProperty]
+    private bool _hasMultipleActors;
+
+    [ObservableProperty]
+    private int _embeddedAssetCount;
+
+    [ObservableProperty]
+    private bool _hasEmbeddedAssets;
+
+    [ObservableProperty]
+    private bool _isBackyardConnected;
+
+    [ObservableProperty]
+    private string _backyardStatusText = "";
+
+    [ObservableProperty]
+    private Avalonia.Media.IBrush _backyardStatusColor = Avalonia.Media.Brushes.Gray;
 
     #endregion
 
@@ -435,6 +464,204 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    #region Background Image Commands
+
+    [RelayCommand]
+    private async Task LoadBackgroundAsync()
+    {
+        var file = await _fileService.OpenFileAsync(
+            "Open Background Image",
+            new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp" });
+
+        if (file != null)
+        {
+            try
+            {
+                _backgroundData = await File.ReadAllBytesAsync(file);
+                using var stream = new MemoryStream(_backgroundData);
+                BackgroundImage = new Bitmap(stream);
+                HasBackgroundImage = true;
+                MarkDirty();
+                StatusMessage = "Background loaded";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error loading background: {ex.Message}";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void ClearBackground()
+    {
+        _backgroundData = null;
+        BackgroundImage = null;
+        HasBackgroundImage = false;
+        MarkDirty();
+        StatusMessage = "Background cleared";
+    }
+
+    [RelayCommand]
+    private async Task PasteBackgroundAsync()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        try
+        {
+            var formats = await topLevel.Clipboard.GetFormatsAsync();
+            if (formats.Contains("image/png") || formats.Contains("PNG"))
+            {
+                var data = await topLevel.Clipboard.GetDataAsync("image/png");
+                if (data is byte[] imageBytes)
+                {
+                    _backgroundData = imageBytes;
+                    using var stream = new MemoryStream(imageBytes);
+                    BackgroundImage = new Bitmap(stream);
+                    HasBackgroundImage = true;
+                    MarkDirty();
+                    StatusMessage = "Background pasted from clipboard";
+                    return;
+                }
+            }
+
+            // Try getting as file paths
+            var text = await topLevel.Clipboard.GetTextAsync();
+            if (!string.IsNullOrEmpty(text) && File.Exists(text))
+            {
+                _backgroundData = await File.ReadAllBytesAsync(text);
+                using var stream = new MemoryStream(_backgroundData);
+                BackgroundImage = new Bitmap(stream);
+                HasBackgroundImage = true;
+                MarkDirty();
+                StatusMessage = "Background loaded from clipboard path";
+                return;
+            }
+
+            StatusMessage = "No image found in clipboard";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error pasting background: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void UsePortraitAsBackground()
+    {
+        if (_portraitData == null || _portraitData.Length == 0)
+        {
+            StatusMessage = "No portrait to use as background";
+            return;
+        }
+
+        try
+        {
+            _backgroundData = (byte[])_portraitData.Clone();
+            using var stream = new MemoryStream(_backgroundData);
+            BackgroundImage = new Bitmap(stream);
+            HasBackgroundImage = true;
+            MarkDirty();
+            StatusMessage = "Portrait copied to background";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error copying portrait to background: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void BlurBackground()
+    {
+        if (_backgroundData == null || _backgroundData.Length == 0)
+        {
+            StatusMessage = "No background to blur";
+            return;
+        }
+
+        try
+        {
+            _backgroundData = ImageService.BlurImage(_backgroundData, 15);
+            using var stream = new MemoryStream(_backgroundData);
+            BackgroundImage = new Bitmap(stream);
+            MarkDirty();
+            StatusMessage = "Background blurred";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error blurring background: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void DarkenBackground()
+    {
+        if (_backgroundData == null || _backgroundData.Length == 0)
+        {
+            StatusMessage = "No background to darken";
+            return;
+        }
+
+        try
+        {
+            _backgroundData = ImageService.DarkenImage(_backgroundData, 0.5f);
+            using var stream = new MemoryStream(_backgroundData);
+            BackgroundImage = new Bitmap(stream);
+            MarkDirty();
+            StatusMessage = "Background darkened";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error darkening background: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void DesaturateBackground()
+    {
+        if (_backgroundData == null || _backgroundData.Length == 0)
+        {
+            StatusMessage = "No background to desaturate";
+            return;
+        }
+
+        try
+        {
+            _backgroundData = ImageService.DesaturateImage(_backgroundData);
+            using var stream = new MemoryStream(_backgroundData);
+            BackgroundImage = new Bitmap(stream);
+            MarkDirty();
+            StatusMessage = "Background desaturated";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error desaturating background: {ex.Message}";
+        }
+    }
+
+    public void LoadBackgroundFromData(byte[] data)
+    {
+        try
+        {
+            _backgroundData = data;
+            using var stream = new MemoryStream(data);
+            BackgroundImage = new Bitmap(stream);
+            HasBackgroundImage = true;
+        }
+        catch
+        {
+            _backgroundData = null;
+            BackgroundImage = null;
+            HasBackgroundImage = false;
+        }
+    }
+
+    #endregion
+
     #region Property Change Handlers
 
     partial void OnCharacterNameChanged(string value)
@@ -543,9 +770,51 @@ public partial class MainViewModel : ObservableObject
         RecipeCount = Recipes.Count(r => r.IsEnabled);
         LoreCount = LorebookEntries.Count(e => e.IsEnabled);
 
+        // Update actor count
+        ActorCount = Current.Characters.Count;
+        HasMultipleActors = ActorCount > 1;
+
+        // Update embedded assets count (from card's asset collection)
+        EmbeddedAssetCount = Current.Card.assets?.assets?.Count ?? 0;
+        HasEmbeddedAssets = EmbeddedAssetCount > 0;
+
+        // Update Backyard connection status
+        UpdateBackyardStatus();
+
         // Schedule async token counting
         _outputHash = output.GetHashCode() ^ (int)AppSettings.Settings.PreviewFormat;
         _tokenizerService.Schedule(output, _outputHash);
+    }
+
+    private void UpdateBackyardStatus()
+    {
+        IsBackyardConnected = Integration.Backyard.ConnectionEstablished;
+
+        if (!IsBackyardConnected)
+        {
+            BackyardStatusText = "";
+            BackyardStatusColor = Avalonia.Media.Brushes.Gray;
+            return;
+        }
+
+        bool isLinked = Current.Link != null;
+        bool isDirty = _isDirty;
+
+        if (isLinked && isDirty)
+        {
+            BackyardStatusText = "Linked*";
+            BackyardStatusColor = Avalonia.Media.Brushes.Orange;
+        }
+        else if (isLinked)
+        {
+            BackyardStatusText = "Linked";
+            BackyardStatusColor = Avalonia.Media.Brushes.LimeGreen;
+        }
+        else
+        {
+            BackyardStatusText = "Connected";
+            BackyardStatusColor = Avalonia.Media.Brushes.DodgerBlue;
+        }
     }
 
     private static string FormatOutputForDisplay(Generator.Output output)
@@ -1145,6 +1414,61 @@ public partial class MainViewModel : ObservableObject
     {
         MarkDirty();
         RegenerateOutput();
+    }
+
+    [RelayCommand]
+    private void SortLorebookByName()
+    {
+        var sorted = LorebookEntries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        LorebookEntries.Clear();
+        foreach (var entry in sorted)
+            LorebookEntries.Add(entry);
+        MarkDirty();
+        StatusMessage = "Lorebook sorted by name";
+    }
+
+    [RelayCommand]
+    private void SortLorebookByKeys()
+    {
+        var sorted = LorebookEntries.OrderBy(e => e.Keys, StringComparer.OrdinalIgnoreCase).ToList();
+        LorebookEntries.Clear();
+        foreach (var entry in sorted)
+            LorebookEntries.Add(entry);
+        MarkDirty();
+        StatusMessage = "Lorebook sorted by keys";
+    }
+
+    [RelayCommand]
+    private void SortLorebookByInsertionOrder()
+    {
+        var sorted = LorebookEntries.OrderBy(e => e.InsertionOrder).ToList();
+        LorebookEntries.Clear();
+        foreach (var entry in sorted)
+            LorebookEntries.Add(entry);
+        MarkDirty();
+        StatusMessage = "Lorebook sorted by insertion order";
+    }
+
+    [RelayCommand]
+    private void SortLorebookByPriority()
+    {
+        var sorted = LorebookEntries.OrderByDescending(e => e.Priority).ToList();
+        LorebookEntries.Clear();
+        foreach (var entry in sorted)
+            LorebookEntries.Add(entry);
+        MarkDirty();
+        StatusMessage = "Lorebook sorted by priority (highest first)";
+    }
+
+    [RelayCommand]
+    private void SortLorebookByTokenCount()
+    {
+        var sorted = LorebookEntries.OrderByDescending(e => e.TokenCount).ToList();
+        LorebookEntries.Clear();
+        foreach (var entry in sorted)
+            LorebookEntries.Add(entry);
+        MarkDirty();
+        StatusMessage = "Lorebook sorted by token count (largest first)";
     }
 
     [RelayCommand]
@@ -2260,6 +2584,20 @@ public partial class MainViewModel : ObservableObject
         var index = Recipes.IndexOf(recipe);
         if (index < Recipes.Count - 1)
             ReorderRecipe(index, index + 1);
+    }
+
+    public void MoveRecipeToTop(RecipeViewModel recipe)
+    {
+        var index = Recipes.IndexOf(recipe);
+        if (index > 0)
+            ReorderRecipe(index, 0);
+    }
+
+    public void MoveRecipeToBottom(RecipeViewModel recipe)
+    {
+        var index = Recipes.IndexOf(recipe);
+        if (index < Recipes.Count - 1)
+            ReorderRecipe(index, Recipes.Count - 1);
     }
 
     public void OnRecipeChanged()
@@ -4816,6 +5154,24 @@ public partial class LorebookEntryViewModel : ObservableObject
     [ObservableProperty]
     private string _position = "before_char";
 
+    [ObservableProperty]
+    private int _probability = 100;
+
+    [ObservableProperty]
+    private bool _useProbability = false;
+
+    [ObservableProperty]
+    private int _depth = 4;
+
+    [ObservableProperty]
+    private string _group = "";
+
+    [ObservableProperty]
+    private bool _excludeRecursion = false;
+
+    [ObservableProperty]
+    private bool _useRegex = false;
+
     public LorebookEntryViewModel()
     {
         _parent = null!;
@@ -4836,6 +5192,12 @@ public partial class LorebookEntryViewModel : ObservableObject
     partial void OnInsertionOrderChanged(int value) => _parent?.OnLorebookChanged();
     partial void OnPriorityChanged(int value) => _parent?.OnLorebookChanged();
     partial void OnPositionChanged(string value) => _parent?.OnLorebookChanged();
+    partial void OnProbabilityChanged(int value) => _parent?.OnLorebookChanged();
+    partial void OnUseProbabilityChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnDepthChanged(int value) => _parent?.OnLorebookChanged();
+    partial void OnGroupChanged(string value) => _parent?.OnLorebookChanged();
+    partial void OnExcludeRecursionChanged(bool value) => _parent?.OnLorebookChanged();
+    partial void OnUseRegexChanged(bool value) => _parent?.OnLorebookChanged();
 
     [RelayCommand]
     private void Remove()
