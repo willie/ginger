@@ -701,6 +701,10 @@
                                                     <ContextMenu>
                                                         <MenuItem Header="Bake" Command="{Binding BakeRecipeCommand}"/>
                                                         <MenuItem Header="Copy Recipe" Command="{Binding CopyCommand}"/>
+                                                        <MenuItem Header="Paste Recipes" Command="{Binding PasteCommand}"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Save as Snippet..." Command="{Binding SaveAsSnippetCommand}"/>
+                                                        <MenuItem Header="Save as Recipe..." Command="{Binding SaveAsRecipeCommand}"/>
                                                         <MenuItem Header="Make Primary Greeting"
                                                                   Command="{Binding MakePrimaryGreetingCommand}"
                                                                   IsVisible="{Binding IsGreeting}"/>
@@ -737,7 +741,7 @@
                                                     </Expander.Header>
                                                     <StackPanel Margin="12,0,12,12" Spacing="8">
                                                         <!-- Recipe-level controls -->
-                                                        <WrapPanel Spacing="12" Margin="0,8,0,0">
+                                                        <WrapPanel Margin="0,8,0,0">
                                                             <CheckBox Content="NSFW"
                                                                       IsChecked="{Binding IsNsfw}"
                                                                       VerticalAlignment="Center"/>

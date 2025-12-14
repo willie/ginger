@@ -2319,6 +2319,69 @@ public partial class MainViewModel : ObservableObject
         MarkDirty();
     }
 
+    public void InsertRecipes(IEnumerable<Recipe> recipes, RecipeViewModel? insertAfter = null)
+    {
+        if (recipes == null)
+            return;
+
+        int insertIndex = insertAfter != null ? Recipes.IndexOf(insertAfter) + 1 : Recipes.Count;
+
+        foreach (var recipe in recipes)
+        {
+            Current.Character.recipes.Insert(Math.Min(insertIndex, Current.Character.recipes.Count), recipe);
+            var vm = new RecipeViewModel(this, recipe);
+            Recipes.Insert(Math.Min(insertIndex, Recipes.Count), vm);
+            insertIndex++;
+        }
+
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    public async Task SaveSnippetToFileAsync(Recipe recipe, string bakedText)
+    {
+        var defaultName = $"{SanitizeFilename(recipe.title ?? recipe.name ?? "snippet")}.txt";
+        var filename = await _dialogService.ShowSaveFileDialogAsync("Save Snippet", defaultName,
+            new FilePickerFileType("Text") { Patterns = new List<string> { "*.txt" } });
+
+        if (string.IsNullOrEmpty(filename))
+            return;
+
+        await System.IO.File.WriteAllTextAsync(filename, bakedText);
+        StatusMessage = $"Saved snippet: {System.IO.Path.GetFileName(filename)}";
+    }
+
+    public async Task SaveRecipeToFileAsync(Recipe recipe)
+    {
+        var defaultName = $"{SanitizeFilename(recipe.title ?? recipe.name ?? "recipe")}.recipe.xml";
+        var filename = await _dialogService.ShowSaveFileDialogAsync("Save Recipe", defaultName,
+            new FilePickerFileType("Recipe XML") { Patterns = new List<string> { "*.recipe.xml" } });
+
+        if (string.IsNullOrEmpty(filename))
+            return;
+
+        var xmlDoc = new System.Xml.XmlDocument();
+        var root = xmlDoc.CreateElement("Recipe");
+        xmlDoc.AppendChild(root);
+        recipe.SaveToXml(root);
+
+        using (var writer = new System.Xml.XmlTextWriter(filename, System.Text.Encoding.UTF8))
+        {
+            writer.Formatting = System.Xml.Formatting.Indented;
+            xmlDoc.Save(writer);
+        }
+
+        StatusMessage = $"Saved recipe: {System.IO.Path.GetFileName(filename)}";
+    }
+
+    private static string SanitizeFilename(string name)
+    {
+        var invalid = System.IO.Path.GetInvalidFileNameChars();
+        var parts = name.Split(invalid, StringSplitOptions.RemoveEmptyEntries);
+        var safe = string.Join("_", parts).Trim('_');
+        return string.IsNullOrWhiteSpace(safe) ? "file" : safe;
+    }
+
     [RelayCommand]
     private async Task CopyAllRecipes()
     {

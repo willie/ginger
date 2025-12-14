@@ -143,7 +143,7 @@ public partial class RecipeViewModel : ObservableObject
         if (_sourceRecipe == null)
             return;
 
-        var level = EnumHelper.Parse<Recipe.DetailLevel>(value, Recipe.DetailLevel.Default);
+        var level = EnumHelper.FromString(value, Recipe.DetailLevel.Default);
         _sourceRecipe.levelOfDetail = level;
         _parent.OnRecipeChanged();
     }
@@ -210,6 +210,67 @@ public partial class RecipeViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task PasteAsync()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        var text = await topLevel.Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _parent.SetStatusMessage("Clipboard is empty");
+            return;
+        }
+
+        try
+        {
+            var clipboard = System.Text.Json.JsonSerializer.Deserialize<RecipeClipboard>(text);
+            var recipes = clipboard?.ToRecipes();
+            if (recipes == null || recipes.Count == 0)
+            {
+                _parent.SetStatusMessage("No recipes found in clipboard");
+                return;
+            }
+
+            _parent.InsertRecipes(recipes, this);
+            _parent.SetStatusMessage($"Pasted {recipes.Count} recipe(s)");
+        }
+        catch
+        {
+            _parent.SetStatusMessage("Failed to paste recipes from clipboard");
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveAsSnippetAsync()
+    {
+        if (_sourceRecipe == null)
+            return;
+
+        var bakedText = RenderBakedText();
+        if (string.IsNullOrWhiteSpace(bakedText))
+        {
+            _parent.SetStatusMessage("Nothing to save as snippet");
+            return;
+        }
+
+        await _parent.SaveSnippetToFileAsync(_sourceRecipe, bakedText);
+    }
+
+    [RelayCommand]
+    private async Task SaveAsRecipeAsync()
+    {
+        if (_sourceRecipe == null)
+            return;
+
+        await _parent.SaveRecipeToFileAsync(_sourceRecipe);
+    }
+
+    [RelayCommand]
     private void BakeRecipe()
     {
         Bake();
@@ -223,6 +284,36 @@ public partial class RecipeViewModel : ObservableObject
             return;
 
         _parent.MakePrimaryGreeting(this);
+    }
+
+    private string RenderBakedText()
+    {
+        if (_sourceRecipe == null)
+            return string.Empty;
+
+        var output = Generator.Generate(_sourceRecipe, Generator.Option.Bake);
+
+        var sb = new System.Text.StringBuilder();
+        if (!output.system.IsNullOrEmpty())
+            sb.AppendLine(output.system.ToString());
+        if (!output.system_post_history.IsNullOrEmpty())
+            sb.AppendLine(output.system_post_history.ToString());
+        if (!output.persona.IsNullOrEmpty())
+            sb.AppendLine(output.persona.ToString());
+        if (!output.personality.IsNullOrEmpty())
+            sb.AppendLine(output.personality.ToString());
+        if (!output.scenario.IsNullOrEmpty())
+            sb.AppendLine(output.scenario.ToString());
+        if (!output.greeting.IsNullOrEmpty())
+            sb.AppendLine(output.greeting.ToString());
+        if (!output.example.IsNullOrEmpty())
+            sb.AppendLine(output.example.ToString());
+        if (!output.grammar.IsNullOrEmpty())
+            sb.AppendLine(output.grammar.ToString());
+        if (!output.userPersona.IsNullOrEmpty())
+            sb.AppendLine(output.userPersona.ToString());
+
+        return sb.ToString().Trim();
     }
 
     public Recipe? GetSourceRecipe() => _sourceRecipe;
