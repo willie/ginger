@@ -149,6 +149,35 @@ public partial class MainViewModel : ObservableObject
     private bool _pruneScenario;
 
     [ObservableProperty]
+    private bool _useStyleGrammar;
+
+    // Include/Omit toggles (true = include, false = omit)
+    [ObservableProperty]
+    private bool _includeSystemPrompt = true;
+
+    [ObservableProperty]
+    private bool _includePersonality = true;
+
+    [ObservableProperty]
+    private bool _includeUserPersona = true;
+
+    [ObservableProperty]
+    private bool _includeScenario = true;
+
+    [ObservableProperty]
+    private bool _includeExample = true;
+
+    [ObservableProperty]
+    private bool _includeGreeting = true;
+
+    [ObservableProperty]
+    private bool _includeGrammar = true;
+
+    [ObservableProperty]
+    private bool _includeLore = true;
+
+    // Legacy filter properties for compatibility
+    [ObservableProperty]
     private bool _filterModelInstructions = true;
 
     [ObservableProperty]
@@ -178,6 +207,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _permanentTokens;
+
+    [ObservableProperty]
+    private int _permanentTokensFaraday;
+
+    [ObservableProperty]
+    private int _permanentTokensSillyTavern;
 
     [ObservableProperty]
     private int _loreCount;
@@ -261,6 +296,15 @@ public partial class MainViewModel : ObservableObject
         "More detail"
     };
 
+    // Dictionary selection
+    public ObservableCollection<DictionaryItem> AvailableDictionaries { get; } = new();
+
+    [ObservableProperty]
+    private DictionaryItem? _selectedDictionary;
+
+    [ObservableProperty]
+    private bool _spellCheckEnabled = true;
+
     public ObservableCollection<string> RecentFiles { get; } = new();
 
     public ObservableCollection<RecipeViewModel> Recipes { get; } = new();
@@ -273,6 +317,10 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<RecipeLibraryItem> PersonalityRecipes { get; } = new();
     public ObservableCollection<RecipeLibraryItem> TraitRecipes { get; } = new();
     public ObservableCollection<RecipeLibraryItem> StoryRecipes { get; } = new();
+    public ObservableCollection<RecipeLibraryItem> OtherRecipes { get; } = new();
+    public ObservableCollection<RecipeLibraryItem> ComponentRecipes { get; } = new();
+    public ObservableCollection<RecipeLibraryItem> SnippetRecipes { get; } = new();
+    public ObservableCollection<RecipeLibraryItem> LoreRecipes { get; } = new();
 
     #endregion
 
@@ -304,7 +352,31 @@ public partial class MainViewModel : ObservableObject
         FindContentPath();
         LoadRecipeLibrary();
 
+        // Load available dictionaries
+        LoadAvailableDictionaries();
+
         NewCommand.Execute(null);
+    }
+
+    private void LoadAvailableDictionaries()
+    {
+        DictionaryService.Load();
+
+        foreach (var dict in DictionaryService.Available)
+        {
+            AvailableDictionaries.Add(new DictionaryItem
+            {
+                Locale = dict.Key,
+                DisplayName = dict.Value
+            });
+        }
+
+        // Set selected dictionary from settings
+        var currentLocale = AppSettings.Settings.Dictionary;
+        SelectedDictionary = AvailableDictionaries.FirstOrDefault(d => d.Locale == currentLocale)
+            ?? AvailableDictionaries.FirstOrDefault();
+
+        SpellCheckEnabled = AppSettings.Settings.SpellChecking;
     }
 
     private void OnTokenCountCompleted(TokenizerService.Result result)
@@ -376,6 +448,10 @@ public partial class MainViewModel : ObservableObject
         PopulateRecipeLibrary("Personality", PersonalityRecipes);
         PopulateRecipeLibrary("Trait", TraitRecipes);
         PopulateRecipeLibrary("Story", StoryRecipes);
+        PopulateRecipeLibrary("Other", OtherRecipes);
+        PopulateRecipeLibrary("Component", ComponentRecipes);
+        PopulateRecipeLibrary("Snippet", SnippetRecipes);
+        PopulateRecipeLibrary("Lore", LoreRecipes);
     }
 
     private void PopulateRecipeLibrary(string category, ObservableCollection<RecipeLibraryItem> collection)
@@ -710,6 +786,130 @@ public partial class MainViewModel : ObservableObject
                 ? Avalonia.Styling.ThemeVariant.Dark
                 : Avalonia.Styling.ThemeVariant.Light;
         }
+    }
+
+    partial void OnSelectedDictionaryChanged(DictionaryItem? value)
+    {
+        if (value != null)
+        {
+            AppSettings.Settings.Dictionary = value.Locale;
+            AppSettings.Save();
+            StatusMessage = $"Spell check language: {value.DisplayName}";
+        }
+    }
+
+    partial void OnSpellCheckEnabledChanged(bool value)
+    {
+        AppSettings.Settings.SpellChecking = value;
+        AppSettings.Save();
+    }
+
+    // Output Settings change handlers
+    partial void OnUserPersonaInScenarioChanged(bool value)
+    {
+        if (value)
+            Current.Card.extraFlags.Add(CardData.Flag.UserPersonaInScenario);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.UserPersonaInScenario);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnPruneScenarioChanged(bool value)
+    {
+        if (value)
+            Current.Card.extraFlags.Add(CardData.Flag.PruneScenario);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.PruneScenario);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnUseStyleGrammarChanged(bool value)
+    {
+        Current.Card.useStyleGrammar = value;
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeSystemPromptChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitSystemPrompt);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitSystemPrompt);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludePersonalityChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitPersonality);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitPersonality);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeUserPersonaChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitUserPersona);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitUserPersona);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeScenarioChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitScenario);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitScenario);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeExampleChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitExample);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitExample);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeGreetingChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitGreeting);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitGreeting);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeGrammarChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitGrammar);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitGrammar);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnIncludeLoreChanged(bool value)
+    {
+        if (!value)
+            Current.Card.extraFlags.Add(CardData.Flag.OmitLore);
+        else
+            Current.Card.extraFlags.Remove(CardData.Flag.OmitLore);
+        MarkDirty();
+        RegenerateOutput();
     }
 
     #endregion
@@ -1469,6 +1669,106 @@ public partial class MainViewModel : ObservableObject
             LorebookEntries.Add(entry);
         MarkDirty();
         StatusMessage = "Lorebook sorted by token count (largest first)";
+    }
+
+    public void DuplicateLorebookEntry(LorebookEntryViewModel entry)
+    {
+        var index = LorebookEntries.IndexOf(entry);
+        var newEntry = new LorebookEntryViewModel(this)
+        {
+            Keys = entry.Keys,
+            SecondaryKeys = entry.SecondaryKeys,
+            Content = entry.Content,
+            Name = entry.Name + " (copy)",
+            Comment = entry.Comment,
+            IsEnabled = entry.IsEnabled,
+            Constant = entry.Constant,
+            Selective = entry.Selective,
+            CaseSensitive = entry.CaseSensitive,
+            InsertionOrder = entry.InsertionOrder,
+            Priority = entry.Priority,
+            Position = entry.Position,
+            Probability = entry.Probability,
+            UseProbability = entry.UseProbability,
+            Depth = entry.Depth,
+            Group = entry.Group,
+            ExcludeRecursion = entry.ExcludeRecursion,
+            UseRegex = entry.UseRegex,
+            IsExpanded = true
+        };
+
+        if (index >= 0 && index < LorebookEntries.Count - 1)
+            LorebookEntries.Insert(index + 1, newEntry);
+        else
+            LorebookEntries.Add(newEntry);
+
+        MarkDirty();
+        StatusMessage = "Lorebook entry duplicated";
+    }
+
+    public async void PasteLorebookEntryAfter(LorebookEntryViewModel afterEntry)
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        var text = await topLevel.Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            StatusMessage = "Clipboard is empty";
+            return;
+        }
+
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(text);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "ginger_lore_entry")
+            {
+                StatusMessage = "Clipboard does not contain a lorebook entry";
+                return;
+            }
+
+            var newEntry = new LorebookEntryViewModel(this)
+            {
+                Keys = root.TryGetProperty("keys", out var k) ? k.GetString() ?? "" : "",
+                SecondaryKeys = root.TryGetProperty("secondaryKeys", out var sk) ? sk.GetString() ?? "" : "",
+                Content = root.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "",
+                Name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                Comment = root.TryGetProperty("comment", out var cm) ? cm.GetString() ?? "" : "",
+                IsEnabled = root.TryGetProperty("isEnabled", out var ie) && ie.GetBoolean(),
+                Constant = root.TryGetProperty("constant", out var co) && co.GetBoolean(),
+                Selective = root.TryGetProperty("selective", out var se) && se.GetBoolean(),
+                CaseSensitive = root.TryGetProperty("caseSensitive", out var cs) && cs.GetBoolean(),
+                InsertionOrder = root.TryGetProperty("insertionOrder", out var io) ? io.GetInt32() : 100,
+                Priority = root.TryGetProperty("priority", out var pr) ? pr.GetInt32() : 10,
+                Position = root.TryGetProperty("position", out var po) ? po.GetString() ?? "before_char" : "before_char",
+                Probability = root.TryGetProperty("probability", out var pb) ? pb.GetInt32() : 100,
+                UseProbability = root.TryGetProperty("useProbability", out var up) && up.GetBoolean(),
+                Depth = root.TryGetProperty("depth", out var de) ? de.GetInt32() : 4,
+                Group = root.TryGetProperty("group", out var gr) ? gr.GetString() ?? "" : "",
+                ExcludeRecursion = root.TryGetProperty("excludeRecursion", out var er) && er.GetBoolean(),
+                UseRegex = root.TryGetProperty("useRegex", out var ur) && ur.GetBoolean(),
+                IsExpanded = true
+            };
+
+            var index = LorebookEntries.IndexOf(afterEntry);
+            if (index >= 0 && index < LorebookEntries.Count - 1)
+                LorebookEntries.Insert(index + 1, newEntry);
+            else
+                LorebookEntries.Add(newEntry);
+
+            MarkDirty();
+            StatusMessage = "Lorebook entry pasted";
+        }
+        catch
+        {
+            StatusMessage = "Failed to paste lorebook entry from clipboard";
+        }
     }
 
     [RelayCommand]
@@ -4131,10 +4431,6 @@ public partial class MainViewModel : ObservableObject
         SelectedOutputPreview = preview;
     }
 
-    // Spell Checking toggle
-    [ObservableProperty]
-    private bool _spellCheckEnabled = true;
-
     [RelayCommand]
     private void ToggleSpellCheck()
     {
@@ -4142,6 +4438,38 @@ public partial class MainViewModel : ObservableObject
         AppSettings.Settings.SpellChecking = SpellCheckEnabled;
         AppSettings.Save();
         StatusMessage = SpellCheckEnabled ? "Spell checking enabled" : "Spell checking disabled";
+    }
+
+    [RelayCommand]
+    private void SelectDictionary(DictionaryItem? item)
+    {
+        if (item == null)
+            return;
+
+        SelectedDictionary = item;
+        AppSettings.Settings.Dictionary = item.Locale;
+        AppSettings.Save();
+        StatusMessage = $"Spell check language set to {item.DisplayName}";
+    }
+
+    [RelayCommand]
+    private void SelectDictionaryByLocale(string locale)
+    {
+        if (string.IsNullOrEmpty(locale))
+            return;
+
+        var item = AvailableDictionaries.FirstOrDefault(d => d.Locale == locale);
+        if (item != null)
+        {
+            SelectDictionary(item);
+        }
+        else
+        {
+            // If not found in available list, just set the locale directly
+            AppSettings.Settings.Dictionary = locale;
+            AppSettings.Save();
+            StatusMessage = $"Spell check language set to {locale}";
+        }
     }
 
     // Auto Convert Name toggle
@@ -5216,6 +5544,56 @@ public partial class LorebookEntryViewModel : ObservableObject
     {
         _parent?.MoveLorebookEntryDown(this);
     }
+
+    [RelayCommand]
+    private async Task CopyEntryAsync()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+
+        var topLevel = desktop.MainWindow;
+        if (topLevel?.Clipboard == null)
+            return;
+
+        var entry = new
+        {
+            type = "ginger_lore_entry",
+            keys = Keys,
+            secondaryKeys = SecondaryKeys,
+            content = Content,
+            name = Name,
+            comment = Comment,
+            isEnabled = IsEnabled,
+            constant = Constant,
+            selective = Selective,
+            caseSensitive = CaseSensitive,
+            insertionOrder = InsertionOrder,
+            priority = Priority,
+            position = Position,
+            probability = Probability,
+            useProbability = UseProbability,
+            depth = Depth,
+            group = Group,
+            excludeRecursion = ExcludeRecursion,
+            useRegex = UseRegex
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(entry);
+        await topLevel.Clipboard.SetTextAsync(json);
+        _parent?.SetStatusMessage("Lorebook entry copied to clipboard");
+    }
+
+    [RelayCommand]
+    private async Task PasteEntryAsync()
+    {
+        _parent?.PasteLorebookEntryAfter(this);
+    }
+
+    [RelayCommand]
+    private void Duplicate()
+    {
+        _parent?.DuplicateLorebookEntry(this);
+    }
 }
 
 public class RecipeLibraryItem
@@ -5224,4 +5602,12 @@ public class RecipeLibraryItem
     public string Name { get; set; } = "";
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
+}
+
+public class DictionaryItem
+{
+    public string Locale { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+
+    public override string ToString() => DisplayName;
 }

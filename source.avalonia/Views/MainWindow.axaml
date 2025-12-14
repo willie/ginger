@@ -188,6 +188,10 @@
                         <CheckBox IsChecked="{Binding SpellCheckEnabled}" BorderThickness="0"/>
                     </MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="Spell Check _Language">
+                    <MenuItem Header="English (US)" Command="{Binding SelectDictionaryByLocaleCommand}" CommandParameter="en_US"/>
+                    <MenuItem Header="English (UK)" Command="{Binding SelectDictionaryByLocaleCommand}" CommandParameter="en_GB"/>
+                </MenuItem>
                 <MenuItem Header="Auto Convert _Name" Command="{Binding ToggleAutoConvertNameCommand}">
                     <MenuItem.Icon>
                         <CheckBox IsChecked="{Binding AutoConvertName}" BorderThickness="0"/>
@@ -545,29 +549,40 @@
                         </Expander>
 
                         <!-- Output Settings -->
-                        <Expander Header="Output settings" IsExpanded="True">
+                        <Expander Header="Output settings" IsExpanded="False">
                             <StackPanel Spacing="8" Margin="0,8,0,0">
-                                <Grid ColumnDefinitions="*,*">
-                                    <StackPanel Grid.Column="0" Spacing="2">
-                                        <Label Content="User persona location"/>
+                                <!-- Persona placement -->
+                                <StackPanel Spacing="2">
+                                    <Label Content="User persona location" FontSize="11"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
                                         <RadioButton Content="In Persona" IsChecked="{Binding UserPersonaInPersona}" GroupName="PersonaLocation"/>
                                         <RadioButton Content="In Scenario" IsChecked="{Binding UserPersonaInScenario}" GroupName="PersonaLocation"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Spacing="2">
-                                        <Label Content="Options"/>
-                                        <CheckBox Content="Prune scenario" IsChecked="{Binding PruneScenario}"/>
-                                    </StackPanel>
-                                </Grid>
+                                </StackPanel>
+
+                                <!-- Options -->
                                 <StackPanel Spacing="2">
-                                    <Label Content="Filter"/>
+                                    <Label Content="Options" FontSize="11"/>
                                     <WrapPanel>
-                                        <CheckBox Content="Model instructions" IsChecked="{Binding FilterModelInstructions}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Attributes" IsChecked="{Binding FilterAttributes}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Personality" IsChecked="{Binding FilterPersonality}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Scenario" IsChecked="{Binding FilterScenario}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Greeting" IsChecked="{Binding FilterGreeting}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Example" IsChecked="{Binding FilterExample}" Margin="0,0,12,4"/>
-                                        <CheckBox Content="Lore" IsChecked="{Binding FilterLore}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Prune scenario" IsChecked="{Binding PruneScenario}" Margin="0,0,12,4"
+                                                  ToolTip.Tip="Remove scenario text from output"/>
+                                        <CheckBox Content="Use style grammar" IsChecked="{Binding UseStyleGrammar}" Margin="0,0,12,4"
+                                                  ToolTip.Tip="Apply style-based grammar rules"/>
+                                    </WrapPanel>
+                                </StackPanel>
+
+                                <!-- Include/Omit sections -->
+                                <StackPanel Spacing="2">
+                                    <Label Content="Include in output" FontSize="11"/>
+                                    <WrapPanel>
+                                        <CheckBox Content="System prompt" IsChecked="{Binding IncludeSystemPrompt}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Personality" IsChecked="{Binding IncludePersonality}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="User persona" IsChecked="{Binding IncludeUserPersona}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Scenario" IsChecked="{Binding IncludeScenario}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Example" IsChecked="{Binding IncludeExample}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Greeting" IsChecked="{Binding IncludeGreeting}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Grammar" IsChecked="{Binding IncludeGrammar}" Margin="0,0,12,4"/>
+                                        <CheckBox Content="Lorebook" IsChecked="{Binding IncludeLore}" Margin="0,0,12,4"/>
                                     </WrapPanel>
                                 </StackPanel>
                             </StackPanel>
@@ -575,15 +590,19 @@
 
                         <!-- Statistics -->
                         <Expander Header="Statistics" IsExpanded="False">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,8,0,0">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Tokens" FontSize="11"/>
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TokenCount}" FontSize="11" FontWeight="SemiBold"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Permanent Tokens" FontSize="11"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PermanentTokens}" FontSize="11"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Lore Entries" FontSize="11"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LoreCount}" FontSize="11"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Recipes" FontSize="11"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RecipeCount}" FontSize="11"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Permanent (Faraday)" FontSize="11"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PermanentTokensFaraday}" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Permanent (SillyTavern)" FontSize="11"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PermanentTokensSillyTavern}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Lore Entries" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LoreCount}" FontSize="11"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Recipes" FontSize="11"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RecipeCount}" FontSize="11"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Actors" FontSize="11"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding ActorCount}" FontSize="11"/>
                             </Grid>
                         </Expander>
                     </StackPanel>
@@ -754,13 +773,125 @@
                             </StackPanel>
                         </Button>
                         <Rectangle Width="1" Fill="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="6,8"/>
+                        <!-- Other Recipes -->
                         <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding OtherRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" Width="32" Height="32"/>
+                                <TextBlock Text="Other" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Snippets -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding SnippetRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" Width="32" Height="32"/>
+                                <TextBlock Text="Snippets" FontSize="9" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Components -->
+                        <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding ComponentRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
                             <StackPanel Spacing="2" HorizontalAlignment="Center">
                                 <PathIcon Data="M3,3H11V11H3V3M3,13H11V21H3V13M13,3H21V11H13V3M13,13H21V21H13V13M5,5V9H9V5H5M5,15V19H9V15H5M15,5V9H19V5H15M15,15V19H19V15H15Z" Width="32" Height="32"/>
                                 <TextBlock Text="Components" FontSize="9" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+                        <!-- Lore -->
                         <Button Padding="8,4" Background="Transparent" BorderThickness="0">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <ScrollViewer MaxHeight="400" MaxWidth="300">
+                                        <ItemsControl ItemsSource="{Binding LoreRecipes}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).AddRecipeFromLibraryCommand}"
+                                                            CommandParameter="{Binding Id}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            Padding="8,6">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10" Opacity="0.7"
+                                                                       TextWrapping="Wrap" MaxWidth="260"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Flyout>
+                            </Button.Flyout>
                             <StackPanel Spacing="2" HorizontalAlignment="Center">
                                 <PathIcon Data="M6,4H8V6H6V4M10,4H12V6H10V4M14,4H16V6H14V4M18,4H20V6H18V4M6,8H8V10H6V8M10,8H12V10H10V8M14,8H16V10H14V8M18,8H20V10H18V8M6,12H8V14H6V12M10,12H12V14H10V12M14,12H16V14H14V12M18,12H20V14H18V12M6,16H8V18H6V16M10,16H12V18H10V16M14,16H16V18H14V16M18,16H20V18H18V16" Width="32" Height="32"/>
                                 <TextBlock Text="Lore" FontSize="9" HorizontalAlignment="Center"/>
@@ -979,6 +1110,18 @@
                                                         CornerRadius="4"
                                                         Margin="0,0,0,8"
                                                         Padding="0">
+                                                    <Border.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="Copy Entry" Command="{Binding CopyEntryCommand}"/>
+                                                            <MenuItem Header="Paste Entry" Command="{Binding PasteEntryCommand}"/>
+                                                            <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}"/>
+                                                            <Separator/>
+                                                            <MenuItem Header="Move Up" Command="{Binding MoveUpCommand}"/>
+                                                            <MenuItem Header="Move Down" Command="{Binding MoveDownCommand}"/>
+                                                            <Separator/>
+                                                            <MenuItem Header="Remove" Command="{Binding RemoveCommand}"/>
+                                                        </ContextMenu>
+                                                    </Border.ContextMenu>
                                                     <Expander IsExpanded="{Binding IsExpanded}" Padding="0">
                                                         <Expander.Header>
                                                             <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,8,0">
