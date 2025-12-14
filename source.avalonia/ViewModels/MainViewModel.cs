@@ -372,6 +372,7 @@ public partial class MainViewModel : ObservableObject
             return;
 
         var cloned = _recipeService.CloneRecipe(recipe);
+        Current.Character.recipes.Add(cloned);
         var vm = new RecipeViewModel(this, cloned);
         Recipes.Add(vm);
         MarkDirty();
@@ -2234,29 +2235,31 @@ public partial class MainViewModel : ObservableObject
 
     public void RemoveRecipe(RecipeViewModel recipe)
     {
-        Recipes.Remove(recipe);
-        MarkDirty();
-        RegenerateOutput();
+        var idx = Recipes.IndexOf(recipe);
+        if (idx >= 0)
+        {
+            var source = recipe.GetSourceRecipe();
+            if (source != null && Current.Character.recipes.Contains(source))
+                Current.Character.recipes.Remove(source);
+
+            Recipes.RemoveAt(idx);
+            MarkDirty();
+            RegenerateOutput();
+        }
     }
 
     public void MoveRecipeUp(RecipeViewModel recipe)
     {
         var index = Recipes.IndexOf(recipe);
         if (index > 0)
-        {
-            Recipes.Move(index, index - 1);
-            MarkDirty();
-        }
+            ReorderRecipe(index, index - 1);
     }
 
     public void MoveRecipeDown(RecipeViewModel recipe)
     {
         var index = Recipes.IndexOf(recipe);
         if (index < Recipes.Count - 1)
-        {
-            Recipes.Move(index, index + 1);
-            MarkDirty();
-        }
+            ReorderRecipe(index, index + 1);
     }
 
     public void OnRecipeChanged()
@@ -2268,6 +2271,52 @@ public partial class MainViewModel : ObservableObject
     public void SetStatusMessage(string message)
     {
         StatusMessage = message;
+    }
+
+    public void MakePrimaryGreeting(RecipeViewModel recipe)
+    {
+        if (recipe.GetSourceRecipe()?.isGreeting != true)
+            return;
+
+        int currentIndex = Recipes.IndexOf(recipe);
+        if (currentIndex < 0)
+            return;
+
+        int firstGreeting = Recipes
+            .Select((r, idx) => (r, idx))
+            .Where(t => t.r.GetSourceRecipe()?.isGreeting == true)
+            .Select(t => t.idx)
+            .DefaultIfEmpty(currentIndex)
+            .Min();
+
+        if (currentIndex != firstGreeting)
+            ReorderRecipe(currentIndex, firstGreeting);
+    }
+
+    private void ReorderRecipe(int fromIndex, int toIndex)
+    {
+        if (fromIndex == toIndex
+            || fromIndex < 0 || toIndex < 0
+            || fromIndex >= Recipes.Count || toIndex >= Recipes.Count)
+            return;
+
+        var vm = Recipes[fromIndex];
+        Recipes.Move(fromIndex, toIndex);
+
+        var source = vm.GetSourceRecipe();
+        if (source != null)
+        {
+            var list = Current.Character.recipes;
+            int srcIdx = list.IndexOf(source);
+            if (srcIdx >= 0)
+            {
+                list.RemoveAt(srcIdx);
+                toIndex = Math.Min(toIndex, list.Count);
+                list.Insert(toIndex, source);
+            }
+        }
+
+        MarkDirty();
     }
 
     [RelayCommand]

@@ -16,6 +16,14 @@ public partial class RecipeViewModel : ObservableObject
     private Recipe? _sourceRecipe;
     private bool _isRegenerating;
 
+    private static readonly string[] _detailLevelOptions = new[]
+    {
+        EnumHelper.ToString(Recipe.DetailLevel.Default),
+        EnumHelper.ToString(Recipe.DetailLevel.Less),
+        EnumHelper.ToString(Recipe.DetailLevel.Normal),
+        EnumHelper.ToString(Recipe.DetailLevel.More),
+    };
+
     [ObservableProperty]
     private string _id = "";
 
@@ -40,6 +48,19 @@ public partial class RecipeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEnabled = true;
 
+    [ObservableProperty]
+    private bool _isNsfw;
+
+    [ObservableProperty]
+    private bool _isTextFormattingEnabled = true;
+
+    [ObservableProperty]
+    private string _selectedDetailLevel = EnumHelper.ToString(Recipe.DetailLevel.Default);
+
+    public IReadOnlyList<string> DetailLevelOptions => _detailLevelOptions;
+    public bool IsGreeting => _sourceRecipe?.isGreeting == true;
+    public bool CanToggleFormatting => _sourceRecipe?.canToggleTextFormatting == true;
+
     public ObservableCollection<RecipeParameterViewModel> Parameters { get; } = new();
 
     public RecipeViewModel(MainViewModel parent)
@@ -57,6 +78,9 @@ public partial class RecipeViewModel : ObservableObject
         _category = recipe.categoryTag ?? EnumHelper.ToString(recipe.category);
         _isEnabled = recipe.isEnabled;
         _isExpanded = !recipe.isCollapsed;
+        _isNsfw = recipe.isNSFW;
+        _isTextFormattingEnabled = recipe.enableTextFormatting;
+        _selectedDetailLevel = EnumHelper.ToString(recipe.levelOfDetail);
 
         // Build initial content from templates (as fallback)
         foreach (var template in recipe.templates)
@@ -91,6 +115,39 @@ public partial class RecipeViewModel : ObservableObject
         _parent.OnRecipeChanged();
     }
 
+    partial void OnIsNsfwChanged(bool value)
+    {
+        if (_sourceRecipe == null)
+            return;
+
+        if (value)
+            _sourceRecipe.flags.Add(Constants.Flag.NSFW);
+        else
+            _sourceRecipe.flags.Remove(Constants.Flag.NSFW);
+
+        _sourceRecipe.enableNSFWContent = value;
+        _parent.OnRecipeChanged();
+    }
+
+    partial void OnIsTextFormattingEnabledChanged(bool value)
+    {
+        if (_sourceRecipe == null || !_sourceRecipe.canToggleTextFormatting)
+            return;
+
+        _sourceRecipe.EnableTextFormatting(value);
+        _parent.OnRecipeChanged();
+    }
+
+    partial void OnSelectedDetailLevelChanged(string value)
+    {
+        if (_sourceRecipe == null)
+            return;
+
+        var level = EnumHelper.Parse<Recipe.DetailLevel>(value, Recipe.DetailLevel.Default);
+        _sourceRecipe.levelOfDetail = level;
+        _parent.OnRecipeChanged();
+    }
+
     [RelayCommand]
     private void MoveUp()
     {
@@ -107,6 +164,24 @@ public partial class RecipeViewModel : ObservableObject
     private void Remove()
     {
         _parent.RemoveRecipe(this);
+    }
+
+    [RelayCommand]
+    private void ToggleNsfw()
+    {
+        IsNsfw = !IsNsfw;
+    }
+
+    [RelayCommand]
+    private void ToggleFormatting()
+    {
+        IsTextFormattingEnabled = !IsTextFormattingEnabled;
+    }
+
+    [RelayCommand]
+    private void SetDetailLevel(string level)
+    {
+        SelectedDetailLevel = level;
     }
 
     [RelayCommand]
@@ -132,6 +207,22 @@ public partial class RecipeViewModel : ObservableObject
                 _parent.SetStatusMessage("Recipe copied to clipboard");
             }
         }
+    }
+
+    [RelayCommand]
+    private void BakeRecipe()
+    {
+        Bake();
+        _parent.OnRecipeChanged();
+    }
+
+    [RelayCommand]
+    private void MakePrimaryGreeting()
+    {
+        if (_sourceRecipe == null || !IsGreeting)
+            return;
+
+        _parent.MakePrimaryGreeting(this);
     }
 
     public Recipe? GetSourceRecipe() => _sourceRecipe;
