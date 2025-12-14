@@ -305,7 +305,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _spellCheckEnabled = true;
 
-    public ObservableCollection<string> RecentFiles { get; } = new();
+    public ObservableCollection<RecentFileItem> RecentFiles { get; } = new();
+
+    public ObservableCollection<ActorItem> Actors { get; } = new();
 
     public ObservableCollection<RecipeViewModel> Recipes { get; } = new();
 
@@ -355,7 +357,49 @@ public partial class MainViewModel : ObservableObject
         // Load available dictionaries
         LoadAvailableDictionaries();
 
+        // Load recent files
+        LoadRecentFiles();
+
         NewCommand.Execute(null);
+    }
+
+    private void LoadRecentFiles()
+    {
+        RecentFiles.Clear();
+        foreach (var entry in AppSettings.MRUList)
+        {
+            if (!string.IsNullOrEmpty(entry.Filename))
+            {
+                RecentFiles.Add(new RecentFileItem
+                {
+                    Filename = entry.Filename,
+                    CharacterName = entry.CharacterName ?? ""
+                });
+            }
+        }
+    }
+
+    private void RefreshActors()
+    {
+        Actors.Clear();
+        for (int i = 0; i < Current.Characters.Count; i++)
+        {
+            var character = Current.Characters[i];
+            Actors.Add(new ActorItem
+            {
+                Index = i,
+                Name = character.spokenName ?? character.name ?? $"Actor {i + 1}"
+            });
+        }
+
+        // Update actor count
+        ActorCount = Current.Characters.Count;
+        HasMultipleActors = ActorCount > 1;
+        OnPropertyChanged(nameof(CanRemoveActor));
+        OnPropertyChanged(nameof(IsMultiCharacter));
+
+        // Update selected actor
+        SelectedActor = Actors.FirstOrDefault(a => a.Index == Current.SelectedCharacter);
     }
 
     private void LoadAvailableDictionaries()
@@ -970,9 +1014,8 @@ public partial class MainViewModel : ObservableObject
         RecipeCount = Recipes.Count(r => r.IsEnabled);
         LoreCount = LorebookEntries.Count(e => e.IsEnabled);
 
-        // Update actor count
-        ActorCount = Current.Characters.Count;
-        HasMultipleActors = ActorCount > 1;
+        // Update actor list
+        RefreshActors();
 
         // Update embedded assets count (from card's asset collection)
         EmbeddedAssetCount = Current.Card.assets?.assets?.Count ?? 0;
@@ -1030,6 +1073,55 @@ public partial class MainViewModel : ObservableObject
         string outputExample = output.example.ToOutputPreview(Recipe.Component.Example);
         string outputGrammar = output.grammar.ToGrammarPreview();
         string outputUserPersona = output.userPersona.ToOutputPreview();
+
+        // Plain Text mode - no headers, just concatenated content
+        if (AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.PlainText)
+        {
+            var parts = new List<string>();
+
+            if (!string.IsNullOrEmpty(outputSystem))
+                parts.Add(outputSystem);
+            if (!string.IsNullOrEmpty(outputSystemPostHistory))
+                parts.Add(outputSystemPostHistory);
+            if (!string.IsNullOrEmpty(outputPersona))
+                parts.Add(outputPersona);
+            if (!string.IsNullOrEmpty(outputPersonality))
+                parts.Add(outputPersonality);
+            if (!string.IsNullOrEmpty(outputUserPersona))
+                parts.Add(outputUserPersona);
+            if (!string.IsNullOrEmpty(outputScenario))
+                parts.Add(outputScenario);
+            if (!string.IsNullOrEmpty(outputExample))
+                parts.Add(outputExample);
+            if (!string.IsNullOrEmpty(outputGreeting))
+                parts.Add(outputGreeting);
+
+            // Alternate greetings
+            if (output.greetings != null && output.greetings.Length > 1)
+            {
+                for (int i = 1; i < output.greetings.Length; ++i)
+                    parts.Add(output.greetings[i].ToOutputPreview(Recipe.Component.Greeting));
+            }
+
+            // Group greetings
+            if (output.group_greetings != null)
+            {
+                foreach (var greeting in output.group_greetings)
+                    parts.Add(greeting.ToOutputPreview(Recipe.Component.Greeting));
+            }
+
+            // Lorebook
+            if (output.hasLore)
+            {
+                foreach (var entry in output.lorebook.entries)
+                    parts.Add(GingerString.FromString(entry.value).ToOutputPreview(Recipe.Component.Invalid));
+            }
+
+            if (!string.IsNullOrEmpty(outputGrammar))
+                parts.Add(outputGrammar);
+
+            return parts.Count > 0 ? string.Join("\n\n", parts) : "( NO OUTPUT )";
+        }
 
         bool bSillyTavern = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.SillyTavern;
         bool bFaraday = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.Faraday
@@ -1774,19 +1866,17 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ExportLorebook()
     {
+        await ExportLorebookAsGinger();
+    }
+
+    [RelayCommand]
+    private async Task ExportLorebookAsGinger()
+    {
         if (LorebookEntries.Count == 0)
         {
             StatusMessage = "No lorebook entries to export";
             return;
         }
-
-        // Convert ViewModels to Lorebook.Entry
-        var entries = LorebookEntries.Select(e => new Lorebook.Entry
-        {
-            key = e.Keys,
-            value = e.Content,
-            isEnabled = e.IsEnabled,
-        }).ToList();
 
         var filters = new[]
         {
@@ -1794,31 +1884,127 @@ public partial class MainViewModel : ObservableObject
             new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
         };
 
-        var path = await _dialogService.ShowSaveFileDialogAsync("Export Lorebook", "lorebook.json", filters);
+        var path = await _dialogService.ShowSaveFileDialogAsync("Export Lorebook (Ginger)", "lorebook.json", filters);
         if (string.IsNullOrEmpty(path))
             return;
 
         try
         {
-            var lorebook = new Lorebook { entries = entries };
             var json = System.Text.Json.JsonSerializer.Serialize(new
             {
-                entries = entries.Select(e => new
+                entries = LorebookEntries.Select(e => new
                 {
-                    keys = e.keys,
-                    content = e.value,
-                    enabled = e.isEnabled,
-                    name = e.key,
+                    keys = e.Keys,
+                    content = e.Content,
+                    enabled = e.IsEnabled,
+                    name = e.Name,
+                    secondaryKeys = e.SecondaryKeys,
+                    constant = e.Constant,
+                    selective = e.Selective,
+                    caseSensitive = e.CaseSensitive,
+                    priority = e.Priority,
+                    insertionOrder = e.InsertionOrder,
+                    position = e.Position,
+                    depth = e.Depth,
+                    probability = e.Probability,
+                    useProbability = e.UseProbability,
+                    group = e.Group,
+                    excludeRecursion = e.ExcludeRecursion,
+                    useRegex = e.UseRegex
                 }).ToArray()
             }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
 
             await File.WriteAllTextAsync(path, json);
-            StatusMessage = $"Exported {entries.Count} lorebook entries";
+            StatusMessage = $"Exported {LorebookEntries.Count} lorebook entries (Ginger format)";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Export failed: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private async Task ExportLorebookAsTavern()
+    {
+        if (LorebookEntries.Count == 0)
+        {
+            StatusMessage = "No lorebook entries to export";
+            return;
+        }
+
+        var filters = new[]
+        {
+            new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } },
+            new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
+        };
+
+        var path = await _dialogService.ShowSaveFileDialogAsync("Export Lorebook (SillyTavern)", "lorebook.json", filters);
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        try
+        {
+            // Build TavernWorldBook format with entries as Dictionary<string, Entry>
+            var entriesDict = new Dictionary<string, object>();
+            int uid = 0;
+            foreach (var e in LorebookEntries)
+            {
+                var keys = e.Keys.Split(',').Select(k => k.Trim()).Where(k => !string.IsNullOrEmpty(k)).ToArray();
+                var secondaryKeys = e.SecondaryKeys?.Split(',').Select(k => k.Trim()).Where(k => !string.IsNullOrEmpty(k)).ToArray() ?? Array.Empty<string>();
+
+                entriesDict[uid.ToString()] = new
+                {
+                    uid = uid,
+                    key = keys,
+                    keysecondary = secondaryKeys,
+                    comment = e.Name ?? "",
+                    content = e.Content,
+                    constant = e.Constant,
+                    selective = e.Selective,
+                    order = e.InsertionOrder,
+                    position = GetTavernPosition(e.Position),
+                    disable = !e.IsEnabled,
+                    excludeRecursion = e.ExcludeRecursion,
+                    probability = e.Probability,
+                    useProbability = e.UseProbability,
+                    depth = e.Depth,
+                    group = e.Group ?? "",
+                    displayIndex = uid
+                };
+                uid++;
+            }
+
+            var worldBook = new
+            {
+                name = CharacterName ?? "Lorebook",
+                description = "",
+                scan_depth = 50,
+                token_budget = 500,
+                recursive_scanning = false,
+                entries = entriesDict
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(worldBook, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(path, json);
+            StatusMessage = $"Exported {LorebookEntries.Count} lorebook entries (SillyTavern format)";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private static int GetTavernPosition(string position)
+    {
+        return position?.ToLower() switch
+        {
+            "before_char" => 0,
+            "after_char" => 1,
+            "before_an" or "before_author_note" => 2,
+            "after_an" or "after_author_note" => 3,
+            "at_depth" => 4,
+            _ => 0
+        };
     }
 
     [RelayCommand]
@@ -1842,16 +2028,46 @@ public partial class MainViewModel : ObservableObject
 
             int importCount = 0;
 
-            // Try to find entries array in common lorebook formats
+            // Try to find entries in common lorebook formats
             System.Text.Json.JsonElement entriesElement = default;
             if (root.TryGetProperty("entries", out entriesElement) ||
                 root.TryGetProperty("character_book", out var cb) && cb.TryGetProperty("entries", out entriesElement))
             {
-                foreach (var entry in entriesElement.EnumerateArray())
+                // Handle both Array format (Ginger/Agnai) and Object format (SillyTavern WorldBook)
+                IEnumerable<System.Text.Json.JsonElement> entries;
+                if (entriesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    entries = entriesElement.EnumerateArray();
+                }
+                else if (entriesElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    // Tavern WorldBook format: entries is Dictionary<string, Entry>
+                    entries = entriesElement.EnumerateObject().Select(p => p.Value);
+                }
+                else
+                {
+                    entries = Enumerable.Empty<System.Text.Json.JsonElement>();
+                }
+
+                foreach (var entry in entries)
                 {
                     string keys = "";
+                    string secondaryKeys = "";
                     string content = "";
+                    string name = "";
                     bool enabled = true;
+                    bool constant = false;
+                    bool selective = false;
+                    bool caseSensitive = false;
+                    int insertionOrder = 100;
+                    int priority = 10;
+                    string position = "before_char";
+                    int depth = 4;
+                    int probability = 100;
+                    bool useProbability = true;
+                    string group = "";
+                    bool excludeRecursion = false;
+                    bool useRegex = false;
 
                     // Try various key formats
                     if (entry.TryGetProperty("keys", out var keysEl))
@@ -1862,30 +2078,94 @@ public partial class MainViewModel : ObservableObject
                             keys = keysEl.GetString() ?? "";
                     }
                     else if (entry.TryGetProperty("key", out var keyEl))
-                        keys = keyEl.GetString() ?? "";
-                    else if (entry.TryGetProperty("name", out var nameEl))
-                        keys = nameEl.GetString() ?? "";
+                    {
+                        if (keyEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            keys = string.Join(", ", keyEl.EnumerateArray().Select(k => k.GetString()));
+                        else
+                            keys = keyEl.GetString() ?? "";
+                    }
 
-                    // Try various content formats
+                    // Secondary keys
+                    if (entry.TryGetProperty("secondaryKeys", out var secKeysEl) || entry.TryGetProperty("keysecondary", out secKeysEl))
+                    {
+                        if (secKeysEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            secondaryKeys = string.Join(", ", secKeysEl.EnumerateArray().Select(k => k.GetString()));
+                        else if (secKeysEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                            secondaryKeys = secKeysEl.GetString() ?? "";
+                    }
+
+                    // Name/comment
+                    if (entry.TryGetProperty("name", out var nameEl))
+                        name = nameEl.GetString() ?? "";
+                    else if (entry.TryGetProperty("comment", out var commentEl))
+                        name = commentEl.GetString() ?? "";
+
+                    // Content
                     if (entry.TryGetProperty("content", out var contentEl))
                         content = contentEl.GetString() ?? "";
                     else if (entry.TryGetProperty("value", out var valueEl))
                         content = valueEl.GetString() ?? "";
 
-                    // Enabled status
+                    // Enabled/disabled status
                     if (entry.TryGetProperty("enabled", out var enabledEl))
                         enabled = enabledEl.GetBoolean();
                     else if (entry.TryGetProperty("isEnabled", out var isEnabledEl))
                         enabled = isEnabledEl.GetBoolean();
+                    else if (entry.TryGetProperty("disable", out var disableEl))
+                        enabled = !disableEl.GetBoolean();
+
+                    // Additional properties
+                    if (entry.TryGetProperty("constant", out var constEl))
+                        constant = constEl.GetBoolean();
+                    if (entry.TryGetProperty("selective", out var selEl))
+                        selective = selEl.GetBoolean();
+                    if (entry.TryGetProperty("caseSensitive", out var caseEl))
+                        caseSensitive = caseEl.GetBoolean();
+                    if (entry.TryGetProperty("insertionOrder", out var orderEl) || entry.TryGetProperty("order", out orderEl))
+                        insertionOrder = orderEl.TryGetInt32(out var o) ? o : 100;
+                    if (entry.TryGetProperty("priority", out var prioEl))
+                        priority = prioEl.TryGetInt32(out var p) ? p : 10;
+                    if (entry.TryGetProperty("position", out var posEl))
+                    {
+                        if (posEl.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            position = GetPositionFromTavern(posEl.GetInt32());
+                        else
+                            position = posEl.GetString() ?? "before_char";
+                    }
+                    if (entry.TryGetProperty("depth", out var depthEl))
+                        depth = depthEl.TryGetInt32(out var d) ? d : 4;
+                    if (entry.TryGetProperty("probability", out var probEl))
+                        probability = probEl.TryGetInt32(out var pr) ? pr : 100;
+                    if (entry.TryGetProperty("useProbability", out var useProbEl))
+                        useProbability = useProbEl.GetBoolean();
+                    if (entry.TryGetProperty("group", out var groupEl))
+                        group = groupEl.GetString() ?? "";
+                    if (entry.TryGetProperty("excludeRecursion", out var exclEl))
+                        excludeRecursion = exclEl.GetBoolean();
+                    if (entry.TryGetProperty("useRegex", out var regexEl))
+                        useRegex = regexEl.GetBoolean();
 
                     if (!string.IsNullOrEmpty(keys) || !string.IsNullOrEmpty(content))
                     {
                         LorebookEntries.Add(new LorebookEntryViewModel(this)
                         {
                             Keys = keys,
+                            SecondaryKeys = secondaryKeys,
                             Content = content,
                             IsEnabled = enabled,
-                            Name = keys.Split(',').FirstOrDefault()?.Trim() ?? $"Entry {LorebookEntries.Count + 1}",
+                            Name = !string.IsNullOrEmpty(name) ? name : keys.Split(',').FirstOrDefault()?.Trim() ?? $"Entry {LorebookEntries.Count + 1}",
+                            Constant = constant,
+                            Selective = selective,
+                            CaseSensitive = caseSensitive,
+                            InsertionOrder = insertionOrder,
+                            Priority = priority,
+                            Position = position,
+                            Depth = depth,
+                            Probability = probability,
+                            UseProbability = useProbability,
+                            Group = group,
+                            ExcludeRecursion = excludeRecursion,
+                            UseRegex = useRegex
                         });
                         importCount++;
                     }
@@ -1907,6 +2187,19 @@ public partial class MainViewModel : ObservableObject
         {
             StatusMessage = $"Import failed: {ex.Message}";
         }
+    }
+
+    private static string GetPositionFromTavern(int position)
+    {
+        return position switch
+        {
+            0 => "before_char",
+            1 => "after_char",
+            2 => "before_an",
+            3 => "after_an",
+            4 => "at_depth",
+            _ => "before_char"
+        };
     }
 
     [RelayCommand]
@@ -2133,6 +2426,34 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task OpenRecentFile(RecentFileItem? item)
+    {
+        if (item == null || string.IsNullOrEmpty(item.Filename))
+            return;
+
+        if (!File.Exists(item.Filename))
+        {
+            StatusMessage = $"File not found: {item.Filename}";
+            // Remove from MRU since file doesn't exist
+            AppSettings.MRUList.RemoveAll(e => e.Filename == item.Filename);
+            AppSettings.Save();
+            LoadRecentFiles();
+            return;
+        }
+
+        await LoadFileAsync(item.Filename);
+    }
+
+    [RelayCommand]
+    private void ClearRecentFiles()
+    {
+        AppSettings.MRUList.Clear();
+        AppSettings.Save();
+        LoadRecentFiles();
+        StatusMessage = "Recent files list cleared";
+    }
+
     public async Task LoadFileAsync(string filePath)
     {
         try
@@ -2149,6 +2470,10 @@ public partial class MainViewModel : ObservableObject
                     _isDirty = false;
                     UpdateWindowTitle();
                     StatusMessage = $"Loaded {card.Name} ({card.SourceFormat})";
+                    // Add to MRU
+                    AppSettings.AddToMRU(filePath, card.Name);
+                    AppSettings.Save();
+                    LoadRecentFiles();
                     break;
                 case CharacterCardService.LoadResult.FileNotFound:
                     StatusMessage = "File not found";
@@ -2603,16 +2928,27 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedActorIndex;
 
+    [ObservableProperty]
+    private ActorItem? _selectedActor;
+
     public bool CanRemoveActor => Current.Characters.Count > 1;
     public bool IsMultiCharacter => Current.Characters.Count > 1;
+
+    partial void OnSelectedActorChanged(ActorItem? value)
+    {
+        if (value != null && value.Index != SelectedActorIndex)
+        {
+            SelectedActorIndex = value.Index;
+        }
+    }
 
     [RelayCommand]
     private void AddActor()
     {
         Current.AddCharacter();
+        RefreshActors();
         SelectedActorIndex = Current.SelectedCharacter;
-        OnPropertyChanged(nameof(CanRemoveActor));
-        OnPropertyChanged(nameof(IsMultiCharacter));
+        SelectedActor = Actors.FirstOrDefault(a => a.Index == SelectedActorIndex);
         MarkDirty();
         StatusMessage = $"Added new actor (total: {Current.Characters.Count})";
     }
@@ -2630,9 +2966,9 @@ public partial class MainViewModel : ObservableObject
         Current.Characters.RemoveAt(removeIndex);
         if (Current.SelectedCharacter >= Current.Characters.Count)
             Current.SelectedCharacter = Current.Characters.Count - 1;
+        RefreshActors();
         SelectedActorIndex = Current.SelectedCharacter;
-        OnPropertyChanged(nameof(CanRemoveActor));
-        OnPropertyChanged(nameof(IsMultiCharacter));
+        SelectedActor = Actors.FirstOrDefault(a => a.Index == SelectedActorIndex);
         MarkDirty();
         RegenerateOutput();
         StatusMessage = $"Removed actor (remaining: {Current.Characters.Count})";
@@ -5608,6 +5944,26 @@ public class DictionaryItem
 {
     public string Locale { get; set; } = "";
     public string DisplayName { get; set; } = "";
+
+    public override string ToString() => DisplayName;
+}
+
+public class RecentFileItem
+{
+    public string Filename { get; set; } = "";
+    public string CharacterName { get; set; } = "";
+    public string DisplayName => string.IsNullOrEmpty(CharacterName)
+        ? System.IO.Path.GetFileName(Filename)
+        : $"{CharacterName} ({System.IO.Path.GetFileName(Filename)})";
+
+    public override string ToString() => DisplayName;
+}
+
+public class ActorItem
+{
+    public int Index { get; set; }
+    public string Name { get; set; } = "";
+    public string DisplayName => Index == 0 ? Name : $"{Name} (Actor {Index + 1})";
 
     public override string ToString() => DisplayName;
 }

@@ -60,7 +60,15 @@
                 <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="Ctrl+D"/>
                 <Separator/>
                 <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="Ctrl+O"/>
-                <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}"/>
+                <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}" x:CompileBindings="False">
+                    <MenuItem.Styles>
+                        <Style Selector="MenuItem > MenuItem">
+                            <Setter Property="Header" Value="{Binding DisplayName}"/>
+                            <Setter Property="Command" Value="{Binding $parent[MenuItem].DataContext.OpenRecentFileCommand}"/>
+                            <Setter Property="CommandParameter" Value="{Binding}"/>
+                        </Style>
+                    </MenuItem.Styles>
+                </MenuItem>
                 <Separator/>
                 <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S"/>
                 <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S"/>
@@ -148,7 +156,10 @@
             </MenuItem>
             <MenuItem Header="_Lorebook">
                 <MenuItem Header="_Import Lorebook..." Command="{Binding ImportLorebookCommand}"/>
-                <MenuItem Header="_Export Lorebook..." Command="{Binding ExportLorebookCommand}"/>
+                <MenuItem Header="_Export Lorebook">
+                    <MenuItem Header="As _Ginger Format..." Command="{Binding ExportLorebookAsGingerCommand}"/>
+                    <MenuItem Header="As _SillyTavern Format..." Command="{Binding ExportLorebookAsTavernCommand}"/>
+                </MenuItem>
                 <Separator/>
                 <MenuItem Header="_Copy All Entries" Command="{Binding CopyLorebookCommand}"/>
                 <MenuItem Header="_Paste Entries" Command="{Binding PasteLorebookCommand}"/>
@@ -340,10 +351,16 @@
                     <Ellipse Width="8" Height="8" Fill="{Binding BackyardStatusColor}" Margin="0,0,4,0"/>
                     <TextBlock Text="{Binding BackyardStatusText}" FontSize="11"/>
                 </StackPanel>
-                <!-- Actor count -->
-                <TextBlock Grid.Column="2" Text="{Binding ActorCount, StringFormat='Actors: {0}'}" Margin="16,0"
-                           VerticalAlignment="Center" FontSize="11"
-                           IsVisible="{Binding HasMultipleActors}"/>
+                <!-- Actor selector (shown when multiple actors) -->
+                <ComboBox Grid.Column="2" ItemsSource="{Binding Actors}" SelectedItem="{Binding SelectedActor}"
+                          Margin="16,0" Padding="8,2" MinWidth="120" FontSize="11"
+                          IsVisible="{Binding HasMultipleActors}" x:CompileBindings="False">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayName}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 <!-- Embedded assets -->
                 <TextBlock Grid.Column="3" Text="{Binding EmbeddedAssetCount, StringFormat='Assets: {0}'}" Margin="16,0"
                            VerticalAlignment="Center" FontSize="11"
