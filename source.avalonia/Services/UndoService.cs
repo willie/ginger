@@ -10,7 +10,7 @@ public class UndoService
 {
     private readonly Stack<UndoAction> _undoStack = new();
     private readonly Stack<UndoAction> _redoStack = new();
-    private const int MaxUndoLevels = 100;
+    private static int MaxUndoLevels => Math.Max(AppSettings.Settings.UndoSteps, 10);
     private bool _isPerformingUndoRedo;
 
     public event EventHandler? StateChanged;

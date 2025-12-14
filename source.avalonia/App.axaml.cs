@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Ginger.Integration;
+using Ginger.Services;
 using Ginger.ViewModels;
 using Ginger.Views;
 
@@ -15,8 +17,15 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Initialize locales and dictionaries
+        LocaleService.Init();
+        DictionaryService.Load();
+
         // Load settings on startup
         AppSettings.Load();
+
+        // Auto-connect to Backyard if enabled
+        InitializeBackyardConnection();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -70,5 +79,42 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void InitializeBackyardConnection()
+    {
+        if (!AppSettings.BackyardLink.Enabled)
+            return;
+
+        try
+        {
+            // Check if we have a stored version and it matches the current Backyard version
+            if (Backyard.GetAppVersion(out var appVersion)
+                && AppSettings.BackyardLink.LastVersion.Major == appVersion.Major
+                && AppSettings.BackyardLink.LastVersion.Minor == appVersion.Minor)
+            {
+                // Try to establish connection
+                if (Backyard.EstablishConnection() == Backyard.Error.NoError)
+                {
+                    Backyard.RefreshCharacters();
+                }
+                else
+                {
+                    // Connection failed - disable
+                    AppSettings.BackyardLink.Enabled = false;
+                }
+            }
+            else
+            {
+                // Version mismatch or no previous version - require re-linking
+                AppSettings.BackyardLink.Enabled = false;
+                AppSettings.BackyardLink.Strict = true;
+            }
+        }
+        catch
+        {
+            // Any error - disable connection
+            AppSettings.BackyardLink.Enabled = false;
+        }
     }
 }

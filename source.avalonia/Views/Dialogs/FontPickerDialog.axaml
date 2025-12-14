@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ginger.Views.Dialogs.FontPickerDialog"
+        Title="Select Font"
+        Width="350" Height="350"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" Margin="16">
+        <!-- Font Family -->
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Text="Font Family" FontWeight="SemiBold"/>
+            <ComboBox x:Name="FontFamilyCombo" HorizontalAlignment="Stretch"/>
+        </StackPanel>
+
+        <!-- Font Preview -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="1" Margin="0,16,0,16" CornerRadius="4">
+            <TextBox x:Name="PreviewText" Text="The quick brown fox jumps over the lazy dog"
+                     IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                     Margin="8" VerticalAlignment="Center"/>
+        </Border>
+
+        <!-- Font Size -->
+        <StackPanel Grid.Row="2" Spacing="4">
+            <TextBlock Text="Font Size" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="*,80">
+                <Slider x:Name="FontSizeSlider" Minimum="8" Maximum="24" Value="13"
+                        TickFrequency="1"/>
+                <TextBox Grid.Column="1" x:Name="FontSizeText" Text="13" Margin="8,0,0,0"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Reset Link -->
+        <Button Grid.Row="3" Content="Reset to defaults" Click="ResetToDefaults_Click"
+                Classes="link" Margin="0,8,0,0" Padding="0"
+                Background="Transparent" BorderThickness="0"
+                Foreground="{DynamicResource SystemAccentColor}"
+                Cursor="Hand" HorizontalAlignment="Left"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,16,0,0" Spacing="8">
+            <Button Content="OK" Width="80" Click="Ok_Click" IsDefault="True"/>
+            <Button Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -23,6 +23,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.1" />
     <PackageReference Include="WeCantSpell.Hunspell" Version="7.0.1" />
     <PackageReference Include="YamlDotNet" Version="16.2.0" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.3.0" />
   </ItemGroup>
 
   <!-- Dictionary files for spell checking -->

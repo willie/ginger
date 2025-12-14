@@ -17,6 +17,9 @@ public partial class WriteDialog : Window
     private string _originalText = "";
     private SpellCheckService? _spellCheckService;
     private string? _lastCheckedWord;
+    private TokenizerService? _tokenizerService;
+    private System.Timers.Timer? _tokenCountTimer;
+    private int _tokenInputHash;
 
     public bool DialogResult { get; private set; }
 
@@ -28,6 +31,10 @@ public partial class WriteDialog : Window
             _originalText = value ?? "";
             TextEditor.Text = _originalText;
             _hasChanges = false;
+
+            // Schedule initial token count
+            _tokenCountTimer?.Stop();
+            _tokenCountTimer?.Start();
         }
     }
 
@@ -39,14 +46,110 @@ public partial class WriteDialog : Window
         TextEditor.PropertyChanged += TextEditor_PropertyChanged;
 
         // Initialize word wrap checkbox state
-        WordWrapCheck.IsChecked = true;
+        WordWrapCheck.IsChecked = AppSettings.WriteDialog.WordWrap;
+        TextEditor.TextWrapping = AppSettings.WriteDialog.WordWrap
+            ? Avalonia.Media.TextWrapping.Wrap
+            : Avalonia.Media.TextWrapping.NoWrap;
+
+        // Apply font settings
+        if (!string.IsNullOrEmpty(AppSettings.WriteDialog.FontFamily))
+        {
+            TextEditor.FontFamily = new Avalonia.Media.FontFamily(AppSettings.WriteDialog.FontFamily);
+        }
+        if (AppSettings.WriteDialog.FontSize > 0)
+        {
+            TextEditor.FontSize = AppSettings.WriteDialog.FontSize;
+        }
+
         UpdateCharCount();
 
         // Initialize spell check
         InitializeSpellCheck();
 
+        // Initialize token counting
+        InitializeTokenCounting();
+
         // Set up context menu for spell check
         SetupSpellCheckContextMenu();
+
+        // Populate spell check language menu
+        PopulateSpellCheckLanguageMenu();
+
+        // Restore window size/position
+        RestoreWindowState();
+
+        // Save window state on close
+        Closing += WriteDialog_Closing;
+    }
+
+    private void RestoreWindowState()
+    {
+        if (AppSettings.WriteDialog.WindowWidth > 0 && AppSettings.WriteDialog.WindowHeight > 0)
+        {
+            Width = AppSettings.WriteDialog.WindowWidth;
+            Height = AppSettings.WriteDialog.WindowHeight;
+        }
+
+        if (AppSettings.WriteDialog.WindowX != 0 || AppSettings.WriteDialog.WindowY != 0)
+        {
+            Position = new PixelPoint(
+                (int)AppSettings.WriteDialog.WindowX,
+                (int)AppSettings.WriteDialog.WindowY);
+        }
+    }
+
+    private void WriteDialog_Closing(object? sender, WindowClosingEventArgs e)
+    {
+        // Save window state
+        AppSettings.WriteDialog.WindowWidth = Width;
+        AppSettings.WriteDialog.WindowHeight = Height;
+        AppSettings.WriteDialog.WindowX = Position.X;
+        AppSettings.WriteDialog.WindowY = Position.Y;
+        AppSettings.WriteDialog.WordWrap = WordWrapCheck.IsChecked ?? true;
+        AppSettings.Save();
+
+        _tokenCountTimer?.Dispose();
+        _tokenizerService?.Dispose();
+    }
+
+    private void InitializeTokenCounting()
+    {
+        _tokenizerService = new TokenizerService();
+        _tokenizerService.TokenCountCompleted += OnTokenCountCompleted;
+
+        _tokenCountTimer = new System.Timers.Timer(300);
+        _tokenCountTimer.Elapsed += (s, e) => ScheduleTokenCount();
+        _tokenCountTimer.AutoReset = false;
+    }
+
+    private void ScheduleTokenCount()
+    {
+        if (_tokenizerService == null)
+            return;
+
+        var text = TextEditor.Text ?? "";
+        var hash = text.GetHashCode();
+
+        if (hash == _tokenInputHash)
+            return;
+
+        _tokenInputHash = hash;
+
+        // Create a minimal Generator.Output for token counting
+        var output = new Generator.Output
+        {
+            persona = GingerString.FromString(text)
+        };
+
+        _tokenizerService.Schedule(output, hash);
+    }
+
+    private void OnTokenCountCompleted(TokenizerService.Result result)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            TokenCount.Text = $"Token count: {result.tokens_total:N0}";
+        });
     }
 
     private async void InitializeSpellCheck()
@@ -219,6 +322,10 @@ public partial class WriteDialog : Window
     {
         _hasChanges = TextEditor.Text != _originalText;
         UpdateCharCount();
+
+        // Restart token count timer
+        _tokenCountTimer?.Stop();
+        _tokenCountTimer?.Start();
     }
 
     private void TextEditor_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -274,6 +381,79 @@ public partial class WriteDialog : Window
         var isWrapped = WordWrapCheck.IsChecked ?? false;
         WordWrapCheck.IsChecked = !isWrapped;
         TextEditor.TextWrapping = !isWrapped ? Avalonia.Media.TextWrapping.Wrap : Avalonia.Media.TextWrapping.NoWrap;
+    }
+
+    private void PopulateSpellCheckLanguageMenu()
+    {
+        SpellCheckLanguageMenu.Items.Clear();
+
+        foreach (var dict in DictionaryService.Available)
+        {
+            var menuItem = new MenuItem
+            {
+                Header = dict.Value, // Display name (e.g., "English (US)")
+                Tag = dict.Key // Locale code (e.g., "en_US")
+            };
+            menuItem.Click += async (s, e) =>
+            {
+                if (s is MenuItem item && item.Tag is string locale)
+                {
+                    await ChangeSpellCheckLanguage(locale);
+                }
+            };
+
+            // Mark current language
+            if (_spellCheckService?.CurrentLanguage == dict.Key)
+            {
+                menuItem.Icon = new CheckBox { IsChecked = true, BorderThickness = new Thickness(0) };
+            }
+
+            SpellCheckLanguageMenu.Items.Add(menuItem);
+        }
+
+        if (SpellCheckLanguageMenu.Items.Count == 0)
+        {
+            var noDict = new MenuItem { Header = "(No dictionaries available)", IsEnabled = false };
+            SpellCheckLanguageMenu.Items.Add(noDict);
+        }
+    }
+
+    private async Task ChangeSpellCheckLanguage(string locale)
+    {
+        if (_spellCheckService == null)
+            return;
+
+        var path = DictionaryService.GetDictionaryPath(locale);
+        if (path != null)
+        {
+            var loaded = await _spellCheckService.LoadDictionaryFromDirectoryAsync(path, locale);
+            if (loaded)
+            {
+                StatusText.Text = $"Spell check: {locale}";
+                AppSettings.Settings.Dictionary = locale;
+                PopulateSpellCheckLanguageMenu(); // Refresh checkmarks
+            }
+        }
+    }
+
+    private async void ChangeFont_Click(object? sender, RoutedEventArgs e)
+    {
+        // Use a simple dialog to pick font family and size
+        var fontDialog = new FontPickerDialog();
+        fontDialog.SelectedFontFamily = TextEditor.FontFamily.Name;
+        fontDialog.SelectedFontSize = TextEditor.FontSize;
+
+        await fontDialog.ShowDialog(this);
+
+        if (fontDialog.DialogResult)
+        {
+            TextEditor.FontFamily = new Avalonia.Media.FontFamily(fontDialog.SelectedFontFamily);
+            TextEditor.FontSize = fontDialog.SelectedFontSize;
+
+            // Save to settings
+            AppSettings.WriteDialog.FontFamily = fontDialog.SelectedFontFamily;
+            AppSettings.WriteDialog.FontSize = fontDialog.SelectedFontSize;
+        }
     }
 
     private void Find_Click(object? sender, RoutedEventArgs e)

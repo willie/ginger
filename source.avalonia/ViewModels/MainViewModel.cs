@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Ginger.Integration;
 using Ginger.Models;
 using Ginger.Services;
 
@@ -22,10 +23,13 @@ public partial class MainViewModel : ObservableObject
     private readonly RecipeService _recipeService;
     private readonly DialogService _dialogService;
     private readonly UndoService _undoService;
+    private readonly TokenizerService _tokenizerService;
     private CharacterCard? _currentCard;
     private string? _currentFilePath;
     private bool _isDirty;
     private string? _contentPath;
+    private Generator.Output? _currentOutput;
+    private int _outputHash;
 
     #region Window Properties
 
@@ -254,6 +258,7 @@ public partial class MainViewModel : ObservableObject
         _recipeService = recipeService;
         _dialogService = dialogService;
         _undoService = new UndoService();
+        _tokenizerService = new TokenizerService();
         _selectedDetailLevel = "Normal detail";
 
         // Subscribe to undo state changes
@@ -263,11 +268,43 @@ public partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(CanRedo));
         };
 
+        // Subscribe to token count updates
+        _tokenizerService.TokenCountCompleted += OnTokenCountCompleted;
+
         // Try to find content path
         FindContentPath();
         LoadRecipeLibrary();
 
         NewCommand.Execute(null);
+    }
+
+    private void OnTokenCountCompleted(TokenizerService.Result result)
+    {
+        if (result.hash != _outputHash)
+            return;
+
+        // Update token counts on UI thread
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            TokenCount = result.tokens_total;
+
+            // Use format-specific permanent token count
+            PermanentTokens = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.SillyTavern
+                ? result.tokens_permanent_silly
+                : result.tokens_permanent_faraday;
+
+            // Update lorebook entry token counts if available
+            if (result.loreTokens != null)
+            {
+                foreach (var entry in LorebookEntries)
+                {
+                    if (result.loreTokens.TryGetValue(entry.Id, out var tokenCount))
+                    {
+                        entry.TokenCount = tokenCount;
+                    }
+                }
+            }
+        });
     }
 
     public bool CanUndo => _undoService.CanUndo;
@@ -474,91 +511,245 @@ public partial class MainViewModel : ObservableObject
 
     private void RegenerateOutput()
     {
-        var output = new System.Text.StringBuilder();
-        string charName = !string.IsNullOrEmpty(SpokenName) ? SpokenName : CharacterName;
-        string userName = !string.IsNullOrEmpty(UserPlaceholder) ? UserPlaceholder : "User";
+        // Build Generator options based on preview format
+        Generator.Option options = Generator.Option.Preview;
 
-        // Helper to format text with placeholders
-        string FormatText(string? text)
+        switch (AppSettings.Settings.PreviewFormat)
         {
-            if (string.IsNullOrEmpty(text))
-                return "";
-            // Clean and process the text
-            text = TextProcessing.CleanText(text);
-            text = TextProcessing.RemoveComments(text);
-            return text;
+            case AppSettings.Settings.OutputPreviewFormat.Faraday:
+                options |= Generator.Option.Faraday;
+                if (Backyard.ConnectionEstablished)
+                    options |= Generator.Option.Linked;
+                break;
+            case AppSettings.Settings.OutputPreviewFormat.FaradayParty:
+                options |= Generator.Option.Faraday;
+                if (Backyard.ConnectionEstablished)
+                    options |= Generator.Option.Linked;
+                break;
+            case AppSettings.Settings.OutputPreviewFormat.SillyTavern:
+                options |= Generator.Option.SillyTavernV2;
+                break;
         }
 
-        // System prompt
-        if (!string.IsNullOrEmpty(SystemPrompt) && FilterModelInstructions)
+        // Generate output using the full Generator pipeline
+        var output = Generator.Generate(options);
+        _currentOutput = output;
+
+        // Format output for display
+        OutputPreview = FormatOutputForDisplay(output);
+
+        // Update counts
+        RecipeCount = Recipes.Count(r => r.IsEnabled);
+        LoreCount = LorebookEntries.Count(e => e.IsEnabled);
+
+        // Schedule async token counting
+        _outputHash = output.GetHashCode() ^ (int)AppSettings.Settings.PreviewFormat;
+        _tokenizerService.Schedule(output, _outputHash);
+    }
+
+    private static string FormatOutputForDisplay(Generator.Output output)
+    {
+        var sbOutput = new System.Text.StringBuilder();
+
+        string outputSystem = output.system.ToOutputPreview();
+        string outputSystemPostHistory = output.system_post_history.ToOutputPreview();
+        string outputPersona = output.persona.ToOutputPreview();
+        string outputPersonality = output.personality.ToOutputPreview();
+        string outputScenario = output.scenario.ToOutputPreview();
+        string outputGreeting = output.greeting.ToOutputPreview(Recipe.Component.Greeting);
+        string outputExample = output.example.ToOutputPreview(Recipe.Component.Example);
+        string outputGrammar = output.grammar.ToGrammarPreview();
+        string outputUserPersona = output.userPersona.ToOutputPreview();
+
+        bool bSillyTavern = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.SillyTavern;
+        bool bFaraday = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.Faraday
+            || AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.FaradayParty;
+        bool bUserPersona = Backyard.ConnectionEstablished && AppSettings.BackyardLink.WriteUserPersona;
+        bool bShowGrammar = AppSettings.Settings.PreviewFormat != AppSettings.Settings.OutputPreviewFormat.SillyTavern;
+
+        if (bFaraday && !(Backyard.ConnectionEstablished && AppSettings.BackyardLink.WriteAuthorNote))
         {
-            output.AppendLine("=== SYSTEM PROMPT ===");
-            output.AppendLine(FormatText(SystemPrompt));
-            output.AppendLine();
+            // Combine system prompts
+            if (!string.IsNullOrEmpty(outputSystemPostHistory))
+                outputSystem = string.Join("\r\n", outputSystem, outputSystemPostHistory).TrimStart();
+            outputSystemPostHistory = null;
         }
 
-        // Persona / Description
-        if (!string.IsNullOrEmpty(Persona))
+        if (bFaraday)
         {
-            output.AppendLine("=== PERSONA ===");
-            output.AppendLine(FormatText(Persona));
-            output.AppendLine();
-        }
-
-        // Personality
-        if (!string.IsNullOrEmpty(Personality) && FilterPersonality)
-        {
-            output.AppendLine("=== PERSONALITY ===");
-            output.AppendLine(FormatText(Personality));
-            output.AppendLine();
-        }
-
-        // Scenario
-        if (!string.IsNullOrEmpty(Scenario) && FilterScenario)
-        {
-            output.AppendLine("=== SCENARIO ===");
-            output.AppendLine(FormatText(Scenario));
-            output.AppendLine();
-        }
-
-        // Example messages
-        if (!string.IsNullOrEmpty(ExampleMessages) && FilterExample)
-        {
-            output.AppendLine("=== EXAMPLE MESSAGES ===");
-            output.AppendLine(FormatText(ExampleMessages));
-            output.AppendLine();
-        }
-
-        // Greeting
-        if (!string.IsNullOrEmpty(Greeting) && FilterGreeting)
-        {
-            output.AppendLine("=== GREETING ===");
-            output.AppendLine(FormatText(Greeting));
-            output.AppendLine();
-        }
-
-        // Recipes
-        if (Recipes.Count > 0)
-        {
-            output.AppendLine("=== RECIPES ===");
-            foreach (var recipe in Recipes.Where(r => r.IsEnabled))
+            // Replace {original}
+            string original = FaradayCardV4.OriginalModelInstructionsByFormat[EnumHelper.ToInt(Current.Card.textStyle)];
+            if (!string.IsNullOrWhiteSpace(outputSystem))
             {
-                if (!string.IsNullOrEmpty(recipe.Content))
+                int pos_original = outputSystem.IndexOf(GingerString.OriginalMarker, 0);
+                if (pos_original != -1)
                 {
-                    output.AppendLine($"[{recipe.Name}]");
-                    output.AppendLine(FormatText(recipe.Content));
-                    output.AppendLine();
+                    var sbSystem = new System.Text.StringBuilder(outputSystem);
+                    sbSystem.Remove(pos_original, 10);
+                    sbSystem.Insert(pos_original, original);
+                    sbSystem.Replace(GingerString.OriginalMarker, ""); // Only once
+                    outputSystem = sbSystem.ToString();
                 }
             }
         }
 
-        OutputPreview = output.ToString();
-        RecipeCount = Recipes.Count(r => r.IsEnabled);
-        LoreCount = LorebookEntries.Count(e => e.IsEnabled);
+        if ((bFaraday && !bUserPersona) || bSillyTavern)
+        {
+            // Combine user persona
+            if (!string.IsNullOrEmpty(outputUserPersona))
+            {
+                if (Current.Card.extraFlags.Contains(CardData.Flag.UserPersonaInScenario)
+                    && !Current.Card.extraFlags.Contains(CardData.Flag.OmitScenario)) // -> Scenario
+                    outputScenario = string.Concat(outputScenario, "\r\n\r\n", outputUserPersona).Trim();
+                else // -> Persona
+                    outputPersona = string.Concat(outputPersona, "\r\n\r\n", outputUserPersona).Trim();
+                outputUserPersona = null;
+            }
+        }
 
-        // Use the improved token estimation
-        TokenCount = TextProcessing.EstimateTokenCount(OutputPreview);
-        PermanentTokens = TokenCount; // For now, same as total
+        // Build output display
+        if (!string.IsNullOrEmpty(outputSystem))
+        {
+            if (bSillyTavern)
+                sbOutput.AppendLine(FormatHeader("SYSTEM INSTRUCTIONS"));
+            else
+                sbOutput.AppendLine(FormatHeader("MODEL INSTRUCTIONS"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputSystem);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputSystemPostHistory))
+        {
+            if (bSillyTavern)
+                sbOutput.AppendLine(FormatHeader("POST HISTORY INSTRUCTIONS"));
+            else
+                sbOutput.AppendLine(FormatHeader("MODEL INSTRUCTIONS (IMPORTANT)"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputSystemPostHistory);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputPersona))
+        {
+            sbOutput.AppendLine(FormatHeader("CHARACTER PERSONA"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputPersona);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputPersonality))
+        {
+            sbOutput.AppendLine(FormatHeader("PERSONALITY SUMMARY"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputPersonality);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputUserPersona))
+        {
+            sbOutput.AppendLine(FormatHeader("USER PERSONA"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputUserPersona);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputScenario))
+        {
+            sbOutput.AppendLine(FormatHeader("SCENARIO"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputScenario);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputExample))
+        {
+            sbOutput.AppendLine(FormatHeader("EXAMPLE CHAT"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputExample);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputGreeting))
+        {
+            if (bFaraday)
+                sbOutput.AppendLine(FormatHeader("FIRST MESSAGE"));
+            else
+                sbOutput.AppendLine(FormatHeader("GREETING"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputGreeting);
+            sbOutput.AppendLine();
+        }
+
+        // Alternate greetings
+        if (output.greetings != null && output.greetings.Length > 1)
+        {
+            for (int i = 1; i < output.greetings.Length; ++i)
+            {
+                var greeting = output.greetings[i].ToOutputPreview(Recipe.Component.Greeting);
+                if (output.greetings.Length > 2)
+                    sbOutput.AppendLine(FormatHeader($"ALTERNATE GREETING #{i}"));
+                else
+                    sbOutput.AppendLine(FormatHeader("ALTERNATE GREETING"));
+                sbOutput.AppendLine();
+                sbOutput.AppendLine(greeting);
+                sbOutput.AppendLine();
+            }
+        }
+
+        // Group greetings
+        if (output.group_greetings != null && output.group_greetings.Length > 0)
+        {
+            for (int i = 0; i < output.group_greetings.Length; ++i)
+            {
+                var greeting = output.group_greetings[i].ToOutputPreview(Recipe.Component.Greeting);
+                if (output.group_greetings.Length > 1)
+                    sbOutput.AppendLine(FormatHeader($"GROUP-ONLY GREETING #{i + 1}"));
+                else
+                    sbOutput.AppendLine(FormatHeader("GROUP-ONLY GREETING"));
+                sbOutput.AppendLine();
+                sbOutput.AppendLine(greeting);
+                sbOutput.AppendLine();
+            }
+        }
+
+        // Lorebook
+        if (output.hasLore)
+        {
+            var entryCount = output.lorebook.entries.Count;
+            sbOutput.AppendLine(FormatHeader($"LOREBOOK ({entryCount} {(entryCount == 1 ? "ENTRY" : "ENTRIES")})"));
+
+            for (int i = 0; i < output.lorebook.entries.Count; ++i)
+            {
+                var entry = output.lorebook.entries[i];
+                sbOutput.AppendLine();
+                sbOutput.AppendLine($"#{i + 1} [{GingerString.FromString(entry.key).ToOutputPreview(Recipe.Component.Invalid)}]");
+                sbOutput.AppendLine(GingerString.FromString(entry.value).ToOutputPreview(Recipe.Component.Invalid));
+            }
+            sbOutput.AppendLine();
+        }
+
+        // Grammar
+        if (!string.IsNullOrEmpty(outputGrammar) && bShowGrammar)
+        {
+            sbOutput.AppendLine(FormatHeader("GRAMMAR"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputGrammar);
+            sbOutput.AppendLine();
+        }
+
+        if (sbOutput.Length == 0)
+        {
+            sbOutput.AppendLine("( NO OUTPUT )");
+        }
+
+        return sbOutput.ToString().TrimEnd();
+    }
+
+    private static string FormatHeader(string text)
+    {
+        const string line = "--------------------------------------------------"; // 50 chars
+        return $"---- {text} {line.Substring(0, Math.Max(line.Length - text.Length, 0))}";
     }
 
     private void LoadFromCard(CharacterCard card)
@@ -4468,6 +4659,11 @@ public partial class MainViewModel : ObservableObject
 public partial class LorebookEntryViewModel : ObservableObject
 {
     private readonly MainViewModel _parent;
+
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [ObservableProperty]
+    private int _tokenCount;
 
     [ObservableProperty]
     private string _keys = "";

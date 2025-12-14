@@ -10,7 +10,17 @@
         <!-- Preset Selection -->
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
             <TextBlock Text="Preset" FontWeight="SemiBold"/>
-            <ComboBox x:Name="PresetCombo" HorizontalAlignment="Stretch"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <ComboBox x:Name="PresetCombo" HorizontalAlignment="Stretch"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0">
+                    <Button x:Name="SavePresetButton" Content="Save" Width="50" Click="SavePreset_Click"
+                            ToolTip.Tip="Save current settings to selected preset"/>
+                    <Button x:Name="NewPresetButton" Content="New" Width="50" Click="NewPreset_Click"
+                            ToolTip.Tip="Create new preset from current settings"/>
+                    <Button x:Name="DeletePresetButton" Content="Delete" Width="55" Click="DeletePreset_Click"
+                            ToolTip.Tip="Delete selected preset"/>
+                </StackPanel>
+            </Grid>
         </StackPanel>
 
         <!-- Parameters -->
@@ -91,11 +101,18 @@
         </ScrollViewer>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
-                    Margin="0,16,0,0" Spacing="8">
-            <Button Content="Reset" Click="Reset_Click" Width="80"/>
-            <Button Content="OK" Click="Ok_Click" IsDefault="True" Width="80"/>
-            <Button Content="Cancel" Click="Cancel_Click" IsCancel="True" Width="80"/>
-        </StackPanel>
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
+                <Button Content="Copy" Click="Copy_Click" Width="60"
+                        ToolTip.Tip="Copy current settings to clipboard"/>
+                <Button Content="Paste" Click="Paste_Click" Width="60"
+                        ToolTip.Tip="Paste settings from clipboard"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Reset" Click="Reset_Click" Width="80"/>
+                <Button Content="OK" Click="Ok_Click" IsDefault="True" Width="80"/>
+                <Button Content="Cancel" Click="Cancel_Click" IsCancel="True" Width="80"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

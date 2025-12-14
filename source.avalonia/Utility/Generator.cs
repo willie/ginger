@@ -404,6 +404,10 @@ namespace Ginger
 					if (options.Contains(Option.Linked))
 					{
 						context.SetFlag("__link");
+						if (AppSettings.BackyardLink.WriteUserPersona)
+							context.SetFlag("__write-user");
+						if (AppSettings.BackyardLink.WriteAuthorNote)
+							context.SetFlag("__author-note");
 					}
 				}
 				else if (options.ContainsAny(Option.SillyTavernV2 | Option.SillyTavernV3))

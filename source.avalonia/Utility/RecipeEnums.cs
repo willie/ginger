@@ -126,11 +126,21 @@ namespace Ginger
 
 		public static readonly VersionNumber Zero = new VersionNumber(0, 0, 0);
 
+		public bool isDefined => major > 0 || minor > 0 || build > 0;
+		public int Major => major;
+		public int Minor => minor;
+		public int Build => build;
+
 		public VersionNumber(int major, int minor = 0, int build = 0)
 		{
 			this.major = major;
 			this.minor = minor;
 			this.build = build;
+		}
+
+		public string ToFullString()
+		{
+			return $"{major}.{minor}.{build}";
 		}
 
 		public static VersionNumber Parse(string version)

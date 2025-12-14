@@ -1,7 +1,11 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Ginger.Integration;
+using Ginger.Services;
 
 namespace Ginger.Views.Dialogs;
 
@@ -17,25 +21,26 @@ public partial class EditModelSettingsDialog : Window
     public decimal RepeatPenalty { get; set; } = 1.1m;
     public int RepeatLastN { get; set; } = 64;
 
-    private static readonly (string Name, decimal Temp, decimal MinP, decimal TopP, int TopK, decimal RepPen, int RepLastN)[] Presets =
+    // Special preset indices
+    private const int PresetIndexCurrent = 0;
+    private const int PresetIndexDefault = 1;
+    private const int PresetIndexUserStart = 2;
+
+    private static readonly Backyard.ChatParameters DefaultParameters = new()
     {
-        ("Default", 0.8m, 0.05m, 0.95m, 40, 1.1m, 64),
-        ("Creative", 1.2m, 0.02m, 0.98m, 60, 1.05m, 128),
-        ("Precise", 0.4m, 0.1m, 0.85m, 20, 1.2m, 64),
-        ("Balanced", 0.7m, 0.05m, 0.9m, 40, 1.15m, 80),
-        ("Deterministic", 0.1m, 0.2m, 0.7m, 10, 1.3m, 32),
+        temperature = 0.8m,
+        minP = 0.05m,
+        topP = 0.95m,
+        topK = 40,
+        repeatPenalty = 1.1m,
+        repeatLastN = 64
     };
 
     public EditModelSettingsDialog()
     {
         InitializeComponent();
+        PopulatePresets();
 
-        // Populate presets
-        foreach (var preset in Presets)
-        {
-            PresetCombo.Items.Add(preset.Name);
-        }
-        PresetCombo.SelectedIndex = 0;
         PresetCombo.SelectionChanged += PresetCombo_SelectionChanged;
 
         // Wire up slider/text synchronization
@@ -82,6 +87,29 @@ public partial class EditModelSettingsDialog : Window
         TopKText.LostFocus += (s, e) => SyncTextToSlider(TopKText, TopKSlider, 0, 100);
         RepeatPenaltyText.LostFocus += (s, e) => SyncTextToSlider(RepeatPenaltyText, RepeatPenaltySlider, 1, 2);
         RepeatLastNText.LostFocus += (s, e) => SyncTextToSlider(RepeatLastNText, RepeatLastNSlider, 16, 512);
+
+        UpdatePresetButtonStates();
+    }
+
+    private void PopulatePresets()
+    {
+        PresetCombo.Items.Clear();
+        PresetCombo.Items.Add("Current settings");
+        PresetCombo.Items.Add("Default settings");
+
+        foreach (var preset in AppSettings.BackyardSettings.Presets)
+        {
+            PresetCombo.Items.Add(preset.Name);
+        }
+
+        PresetCombo.SelectedIndex = PresetIndexCurrent;
+    }
+
+    private void UpdatePresetButtonStates()
+    {
+        bool isUserPreset = PresetCombo.SelectedIndex >= PresetIndexUserStart;
+        SavePresetButton.IsEnabled = isUserPreset;
+        DeletePresetButton.IsEnabled = isUserPreset;
     }
 
     private void SyncTextToSlider(TextBox textBox, Slider slider, double min, double max)
@@ -99,16 +127,49 @@ public partial class EditModelSettingsDialog : Window
 
     private void PresetCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (PresetCombo.SelectedIndex >= 0 && PresetCombo.SelectedIndex < Presets.Length)
+        UpdatePresetButtonStates();
+
+        if (PresetCombo.SelectedIndex == PresetIndexCurrent)
         {
-            var preset = Presets[PresetCombo.SelectedIndex];
-            TemperatureSlider.Value = (double)preset.Temp;
-            MinPSlider.Value = (double)preset.MinP;
-            TopPSlider.Value = (double)preset.TopP;
-            TopKSlider.Value = preset.TopK;
-            RepeatPenaltySlider.Value = (double)preset.RepPen;
-            RepeatLastNSlider.Value = preset.RepLastN;
+            // Keep current values - do nothing
+            return;
         }
+        else if (PresetCombo.SelectedIndex == PresetIndexDefault)
+        {
+            ApplyParameters(DefaultParameters);
+        }
+        else if (PresetCombo.SelectedIndex >= PresetIndexUserStart)
+        {
+            int userPresetIndex = PresetCombo.SelectedIndex - PresetIndexUserStart;
+            if (userPresetIndex < AppSettings.BackyardSettings.Presets.Count)
+            {
+                var preset = AppSettings.BackyardSettings.Presets[userPresetIndex];
+                ApplyParameters(preset.Parameters);
+            }
+        }
+    }
+
+    private void ApplyParameters(Backyard.ChatParameters parameters)
+    {
+        TemperatureSlider.Value = (double)parameters.temperature;
+        MinPSlider.Value = (double)parameters.minP;
+        TopPSlider.Value = (double)parameters.topP;
+        TopKSlider.Value = parameters.topK;
+        RepeatPenaltySlider.Value = (double)parameters.repeatPenalty;
+        RepeatLastNSlider.Value = parameters.repeatLastN;
+    }
+
+    private Backyard.ChatParameters GetCurrentParameters()
+    {
+        return new Backyard.ChatParameters
+        {
+            temperature = (decimal)TemperatureSlider.Value,
+            minP = (decimal)MinPSlider.Value,
+            topP = (decimal)TopPSlider.Value,
+            topK = (int)TopKSlider.Value,
+            repeatPenalty = (decimal)RepeatPenaltySlider.Value,
+            repeatLastN = (int)RepeatLastNSlider.Value
+        };
     }
 
     public void LoadSettings(decimal temperature, decimal minP, decimal topP, int topK, decimal repeatPenalty, int repeatLastN)
@@ -121,9 +182,147 @@ public partial class EditModelSettingsDialog : Window
         RepeatLastNSlider.Value = repeatLastN;
     }
 
+    private async void SavePreset_Click(object? sender, RoutedEventArgs e)
+    {
+        if (PresetCombo.SelectedIndex < PresetIndexUserStart)
+            return;
+
+        int userPresetIndex = PresetCombo.SelectedIndex - PresetIndexUserStart;
+        if (userPresetIndex < AppSettings.BackyardSettings.Presets.Count)
+        {
+            var existingPreset = AppSettings.BackyardSettings.Presets[userPresetIndex];
+            AppSettings.BackyardSettings.Presets[userPresetIndex] = new AppSettings.BackyardSettings.Preset(
+                existingPreset.Name,
+                GetCurrentParameters());
+            AppSettings.Save();
+
+            var messageBox = new MessageBoxDialog
+            {
+                Title = "Preset Saved",
+                Message = $"Preset \"{existingPreset.Name}\" has been updated.",
+                Buttons = MessageBoxButtons.Ok
+            };
+            await messageBox.ShowDialog(this);
+        }
+    }
+
+    private async void NewPreset_Click(object? sender, RoutedEventArgs e)
+    {
+        var nameDialog = new EnterNameDialog("New Preset", "Enter a name for the new preset:");
+
+        await nameDialog.ShowDialog(this);
+
+        if (nameDialog.DialogResult && !string.IsNullOrWhiteSpace(nameDialog.EnteredName))
+        {
+            string presetName = nameDialog.EnteredName.Trim();
+
+            // Check for duplicate names
+            if (AppSettings.BackyardSettings.Presets.Any(p => p.Name.Equals(presetName, StringComparison.OrdinalIgnoreCase)))
+            {
+                var messageBox = new MessageBoxDialog
+                {
+                    Title = "Duplicate Name",
+                    Message = $"A preset named \"{presetName}\" already exists.",
+                    Buttons = MessageBoxButtons.Ok
+                };
+                await messageBox.ShowDialog(this);
+                return;
+            }
+
+            var newPreset = new AppSettings.BackyardSettings.Preset(presetName, GetCurrentParameters());
+            AppSettings.BackyardSettings.Presets.Add(newPreset);
+            AppSettings.Save();
+
+            PopulatePresets();
+            PresetCombo.SelectedIndex = PresetCombo.Items.Count - 1;
+        }
+    }
+
+    private async void DeletePreset_Click(object? sender, RoutedEventArgs e)
+    {
+        if (PresetCombo.SelectedIndex < PresetIndexUserStart)
+            return;
+
+        int userPresetIndex = PresetCombo.SelectedIndex - PresetIndexUserStart;
+        if (userPresetIndex < AppSettings.BackyardSettings.Presets.Count)
+        {
+            var preset = AppSettings.BackyardSettings.Presets[userPresetIndex];
+
+            var confirmBox = new MessageBoxDialog
+            {
+                Title = "Delete Preset",
+                Message = $"Are you sure you want to delete the preset \"{preset.Name}\"?",
+                Buttons = MessageBoxButtons.YesNo
+            };
+
+            var result = await confirmBox.ShowDialog<MessageBoxResult?>(this);
+            if (result == MessageBoxResult.Yes)
+            {
+                AppSettings.BackyardSettings.Presets.RemoveAt(userPresetIndex);
+                AppSettings.Save();
+                PopulatePresets();
+            }
+        }
+    }
+
+    private async void Copy_Click(object? sender, RoutedEventArgs e)
+    {
+        var parameters = GetCurrentParameters();
+        string clipboardText = $"Temperature={parameters.temperature:F2};" +
+                              $"MinP={parameters.minP:F2};" +
+                              $"TopP={parameters.topP:F2};" +
+                              $"TopK={parameters.topK};" +
+                              $"RepeatPenalty={parameters.repeatPenalty:F2};" +
+                              $"RepeatLastN={parameters.repeatLastN}";
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard != null)
+        {
+            await clipboard.SetTextAsync(clipboardText);
+        }
+    }
+
+    private async void Paste_Click(object? sender, RoutedEventArgs e)
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard == null)
+            return;
+
+        string? text = await clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        try
+        {
+            var pairs = text.Split(';')
+                .Select(s => s.Split('='))
+                .Where(a => a.Length == 2)
+                .ToDictionary(a => a[0].Trim(), a => a[1].Trim(), StringComparer.OrdinalIgnoreCase);
+
+            if (pairs.TryGetValue("Temperature", out var temp) && decimal.TryParse(temp, out var tempVal))
+                TemperatureSlider.Value = (double)tempVal;
+            if (pairs.TryGetValue("MinP", out var minP) && decimal.TryParse(minP, out var minPVal))
+                MinPSlider.Value = (double)minPVal;
+            if (pairs.TryGetValue("TopP", out var topP) && decimal.TryParse(topP, out var topPVal))
+                TopPSlider.Value = (double)topPVal;
+            if (pairs.TryGetValue("TopK", out var topK) && int.TryParse(topK, out var topKVal))
+                TopKSlider.Value = topKVal;
+            if (pairs.TryGetValue("RepeatPenalty", out var repPen) && decimal.TryParse(repPen, out var repPenVal))
+                RepeatPenaltySlider.Value = (double)repPenVal;
+            if (pairs.TryGetValue("RepeatLastN", out var repLastN) && int.TryParse(repLastN, out var repLastNVal))
+                RepeatLastNSlider.Value = repLastNVal;
+
+            PresetCombo.SelectedIndex = PresetIndexCurrent;
+        }
+        catch
+        {
+            // Invalid clipboard format - ignore
+        }
+    }
+
     private void Reset_Click(object? sender, RoutedEventArgs e)
     {
-        PresetCombo.SelectedIndex = 0;
+        PresetCombo.SelectedIndex = PresetIndexDefault;
     }
 
     private void Ok_Click(object? sender, RoutedEventArgs e)

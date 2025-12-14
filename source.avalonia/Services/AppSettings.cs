@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -123,6 +124,7 @@ public static class AppSettings
         public static bool Autosave { get; set; } = true;
         public static bool AlwaysLinkOnImport { get; set; } = true;
         public static string BulkImportFolderName { get; set; } = "Imported from Ginger";
+        public static VersionNumber LastVersion { get; set; } = default;
 
         public enum ActiveChatSetting { First, Last, All }
         public static ActiveChatSetting ApplyChatSettings { get; set; } = ActiveChatSetting.Last;
@@ -137,10 +139,75 @@ public static class AppSettings
         public static bool BackupUserPersona { get; set; } = true;
     }
 
+    public static class WriteDialog
+    {
+        public static bool WordWrap { get; set; } = true;
+        public static bool Highlight { get; set; } = true;
+        public static bool HighlightNames { get; set; } = true;
+        public static bool HighlightNumbers { get; set; } = true;
+        public static bool HighlightPronouns { get; set; } = false;
+        public static bool AutoBreakLine { get; set; } = true;
+        public static double WindowWidth { get; set; } = 820;
+        public static double WindowHeight { get; set; } = 660;
+        public static double WindowX { get; set; } = 0;
+        public static double WindowY { get; set; } = 0;
+        public static string FontFamily { get; set; } = "Segoe UI";
+        public static double FontSize { get; set; } = 11.25;
+    }
+
     public static class BackyardSettings
     {
+        public struct Preset
+        {
+            public string Name { get; set; }
+            public Integration.Backyard.ChatParameters Parameters { get; set; }
+
+            public Preset(string name, Integration.Backyard.ChatParameters parameters)
+            {
+                Name = name;
+                Parameters = parameters.Copy();
+            }
+        }
+
         public static bool AutoArrangePortraits { get; set; } = true;
         public static Integration.Backyard.ChatParameters UserSettings { get; set; } = new();
+        public static List<Preset> Presets { get; set; } = new();
+        public static List<KeyValuePair<string, int>> ModelPromptTemplates { get; set; } = new();
+        public static HashSet<string> StarredCharacters { get; set; } = new();
+
+        public static int GetPromptTemplateForModel(string model)
+        {
+            if (string.IsNullOrEmpty(model))
+                return -1;
+
+            int idxModel = ModelPromptTemplates.FindIndex(kvp => string.Compare(kvp.Key, model, StringComparison.OrdinalIgnoreCase) == 0);
+            if (idxModel == -1)
+                return -1;
+
+            int promptTemplate = ModelPromptTemplates[idxModel].Value;
+            if (promptTemplate >= 0 && promptTemplate <= Integration.Backyard.ChatParameters.MaxPromptTemplate)
+                return promptTemplate;
+            return -1;
+        }
+
+        public static void SetPromptTemplateForModel(string model, int promptTemplate)
+        {
+            if (string.IsNullOrEmpty(model))
+                return;
+
+            int idxModel = ModelPromptTemplates.FindIndex(kvp => string.Compare(kvp.Key, model, StringComparison.OrdinalIgnoreCase) == 0);
+            if (idxModel != -1)
+            {
+                if (promptTemplate >= 0)
+                    ModelPromptTemplates[idxModel] = new KeyValuePair<string, int>(model, promptTemplate);
+                else
+                    ModelPromptTemplates.RemoveAt(idxModel);
+            }
+            else if (promptTemplate >= 0)
+            {
+                ModelPromptTemplates.Add(new KeyValuePair<string, int>(model, promptTemplate));
+            }
+        }
     }
 
     public static List<MRUEntry> MRUList { get; set; } = new();
@@ -249,6 +316,27 @@ public static class AppSettings
             BackyardLink.WriteUserPersona = data.BackyardWriteUserPersona ?? BackyardLink.WriteUserPersona;
             BackyardLink.BackupModelSettings = data.BackyardBackupModelSettings ?? BackyardLink.BackupModelSettings;
             BackyardLink.BackupUserPersona = data.BackyardBackupUserPersona ?? BackyardLink.BackupUserPersona;
+            if (!string.IsNullOrEmpty(data.BackyardLastVersion))
+                BackyardLink.LastVersion = VersionNumber.Parse(data.BackyardLastVersion);
+
+            // WriteDialog
+            WriteDialog.WordWrap = data.WriteDialogWordWrap ?? WriteDialog.WordWrap;
+            WriteDialog.Highlight = data.WriteDialogHighlight ?? WriteDialog.Highlight;
+            WriteDialog.HighlightNames = data.WriteDialogHighlightNames ?? WriteDialog.HighlightNames;
+            WriteDialog.HighlightNumbers = data.WriteDialogHighlightNumbers ?? WriteDialog.HighlightNumbers;
+            WriteDialog.HighlightPronouns = data.WriteDialogHighlightPronouns ?? WriteDialog.HighlightPronouns;
+            WriteDialog.AutoBreakLine = data.WriteDialogAutoBreakLine ?? WriteDialog.AutoBreakLine;
+            WriteDialog.WindowWidth = data.WriteDialogWindowWidth ?? WriteDialog.WindowWidth;
+            WriteDialog.WindowHeight = data.WriteDialogWindowHeight ?? WriteDialog.WindowHeight;
+            WriteDialog.WindowX = data.WriteDialogWindowX ?? WriteDialog.WindowX;
+            WriteDialog.WindowY = data.WriteDialogWindowY ?? WriteDialog.WindowY;
+            WriteDialog.FontFamily = data.WriteDialogFontFamily ?? WriteDialog.FontFamily;
+            WriteDialog.FontSize = data.WriteDialogFontSize ?? WriteDialog.FontSize;
+
+            // BackyardSettings
+            BackyardSettings.AutoArrangePortraits = data.BackyardAutoArrangePortraits ?? BackyardSettings.AutoArrangePortraits;
+            if (data.BackyardStarredCharacters != null)
+                BackyardSettings.StarredCharacters = new HashSet<string>(data.BackyardStarredCharacters);
 
             // MRU
             MRUList = data.MRU ?? new List<MRUEntry>();
@@ -358,6 +446,25 @@ public static class AppSettings
                 BackyardWriteUserPersona = BackyardLink.WriteUserPersona,
                 BackyardBackupModelSettings = BackyardLink.BackupModelSettings,
                 BackyardBackupUserPersona = BackyardLink.BackupUserPersona,
+                BackyardLastVersion = BackyardLink.LastVersion.isDefined ? BackyardLink.LastVersion.ToFullString() : null,
+
+                // WriteDialog
+                WriteDialogWordWrap = WriteDialog.WordWrap,
+                WriteDialogHighlight = WriteDialog.Highlight,
+                WriteDialogHighlightNames = WriteDialog.HighlightNames,
+                WriteDialogHighlightNumbers = WriteDialog.HighlightNumbers,
+                WriteDialogHighlightPronouns = WriteDialog.HighlightPronouns,
+                WriteDialogAutoBreakLine = WriteDialog.AutoBreakLine,
+                WriteDialogWindowWidth = WriteDialog.WindowWidth,
+                WriteDialogWindowHeight = WriteDialog.WindowHeight,
+                WriteDialogWindowX = WriteDialog.WindowX,
+                WriteDialogWindowY = WriteDialog.WindowY,
+                WriteDialogFontFamily = WriteDialog.FontFamily,
+                WriteDialogFontSize = WriteDialog.FontSize,
+
+                // BackyardSettings
+                BackyardAutoArrangePortraits = BackyardSettings.AutoArrangePortraits,
+                BackyardStarredCharacters = BackyardSettings.StarredCharacters.Count > 0 ? BackyardSettings.StarredCharacters.ToList() : null,
 
                 // MRU
                 MRU = MRUList,
@@ -485,6 +592,25 @@ public static class AppSettings
         public bool? BackyardWriteUserPersona { get; set; }
         public bool? BackyardBackupModelSettings { get; set; }
         public bool? BackyardBackupUserPersona { get; set; }
+        public string? BackyardLastVersion { get; set; }
+
+        // WriteDialog
+        public bool? WriteDialogWordWrap { get; set; }
+        public bool? WriteDialogHighlight { get; set; }
+        public bool? WriteDialogHighlightNames { get; set; }
+        public bool? WriteDialogHighlightNumbers { get; set; }
+        public bool? WriteDialogHighlightPronouns { get; set; }
+        public bool? WriteDialogAutoBreakLine { get; set; }
+        public double? WriteDialogWindowWidth { get; set; }
+        public double? WriteDialogWindowHeight { get; set; }
+        public double? WriteDialogWindowX { get; set; }
+        public double? WriteDialogWindowY { get; set; }
+        public string? WriteDialogFontFamily { get; set; }
+        public double? WriteDialogFontSize { get; set; }
+
+        // BackyardSettings extended
+        public bool? BackyardAutoArrangePortraits { get; set; }
+        public List<string>? BackyardStarredCharacters { get; set; }
 
         // MRU
         public List<MRUEntry>? MRU { get; set; }
