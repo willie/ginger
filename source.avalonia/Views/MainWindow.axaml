@@ -123,13 +123,19 @@
                     <MenuItem Header="By _Name" Command="{Binding SortRecipesByNameCommand}"/>
                     <MenuItem Header="By _Category" Command="{Binding SortRecipesByCategoryCommand}"/>
                 </MenuItem>
+                <Separator/>
+                <MenuItem Header="_Expand All" Command="{Binding ExpandAllCommand}" InputGesture="Ctrl+E"/>
+                <MenuItem Header="_Collapse All" Command="{Binding CollapseAllCommand}" InputGesture="Ctrl+Shift+E"/>
             </MenuItem>
             <MenuItem Header="_Actors">
                 <MenuItem Header="_Add Actor" Command="{Binding AddActorCommand}"/>
-                <MenuItem Header="_Remove Actor" Command="{Binding RemoveActorCommand}"
+                <MenuItem Header="_Import Actor..." Command="{Binding ImportActorCommand}"/>
+                <MenuItem Header="E_xport Actor..." Command="{Binding ExportActorCommand}"
                           IsEnabled="{Binding CanRemoveActor}"/>
                 <Separator/>
-                <MenuItem Header="_Rearrange Actors..." Command="{Binding RearrangeActorsCommand}"
+                <MenuItem Header="_Remove Actor" Command="{Binding RemoveActorCommand}"
+                          IsEnabled="{Binding CanRemoveActor}"/>
+                <MenuItem Header="Re_arrange Actors..." Command="{Binding RearrangeActorsCommand}"
                           IsEnabled="{Binding CanRemoveActor}"/>
             </MenuItem>
             <MenuItem Header="_Lorebook">

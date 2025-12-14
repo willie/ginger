@@ -250,6 +250,34 @@ public class DialogService
     }
 
     /// <summary>
+    /// Show the Backyard character browser dialog in multi-select mode.
+    /// </summary>
+    public async Task<(bool success, List<Integration.Backyard.GroupInstance> groups,
+        List<Integration.Backyard.CharacterInstance> characters)> ShowBackyardBrowserMultiSelectAsync(string? title = null)
+    {
+        var window = GetMainWindow();
+        if (window == null)
+            return (false, new(), new());
+
+        var dialog = new Views.Dialogs.BackyardBrowserDialog();
+        dialog.MultiSelectMode = true;
+        if (!string.IsNullOrEmpty(title))
+            dialog.Title = title;
+
+        if (!dialog.LoadCharacters())
+        {
+            await ShowMessageBoxAsync("Connection Error",
+                "Could not connect to Backyard AI. Please ensure Backyard AI is installed and has been run at least once.",
+                MessageBoxButtons.Ok);
+            return (false, new(), new());
+        }
+
+        await dialog.ShowDialog(window);
+
+        return (dialog.DialogResult, dialog.SelectedGroups, dialog.SelectedCharacters);
+    }
+
+    /// <summary>
     /// Show a text input dialog.
     /// </summary>
     public async Task<(bool success, string value)> ShowEnterNameDialogAsync(string title, string prompt, string defaultValue = "")

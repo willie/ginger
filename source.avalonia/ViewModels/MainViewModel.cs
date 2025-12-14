@@ -1782,6 +1782,163 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = $"Removed actor (remaining: {Current.Characters.Count})";
     }
 
+    [RelayCommand]
+    private async Task ImportActor()
+    {
+        if (Current.Characters.Count >= Constants.MaxActorCount)
+        {
+            StatusMessage = $"Maximum actors reached ({Constants.MaxActorCount})";
+            return;
+        }
+
+        var file = await _fileService.OpenFileAsync(
+            "Import Actor",
+            new[] { "*.png", "*.json", "*.charx", "*.byaf" });
+
+        if (file == null)
+            return;
+
+        try
+        {
+            StatusMessage = $"Importing {Path.GetFileName(file)}...";
+
+            var (result, card) = await _cardService.LoadAsync(file);
+
+            if (result != CharacterCardService.LoadResult.Success || card == null)
+            {
+                StatusMessage = "Failed to load character file";
+                return;
+            }
+
+            // Get the imported character data
+            var importedCharacter = new CharacterData
+            {
+                spokenName = card.Name ?? Constants.DefaultCharacterName,
+                gender = card.Gender,
+                persona = card.Persona,
+                personality = card.Personality,
+                scenario = card.Scenario,
+                example = card.Example,
+                greeting = card.Greeting,
+                system = card.System,
+            };
+
+            // Replace last empty actor if present
+            int lastIndex = Current.Characters.Count - 1;
+            var lastCharacter = Current.Characters[lastIndex];
+            bool lastIsEmpty = string.IsNullOrEmpty(lastCharacter.spokenName) &&
+                               string.IsNullOrEmpty(lastCharacter.persona) &&
+                               string.IsNullOrEmpty(lastCharacter.personality) &&
+                               lastCharacter.recipes.Count == 0;
+
+            if (lastIsEmpty && lastIndex > 0)
+            {
+                Current.Characters.RemoveAt(lastIndex);
+            }
+
+            // Add the imported character
+            Current.Characters.Add(importedCharacter);
+            Current.SelectedCharacter = Current.Characters.Count - 1;
+            SelectedActorIndex = Current.SelectedCharacter;
+
+            // Add portrait as actor portrait if available
+            if (card.PortraitData != null && Current.SelectedCharacter > 0)
+            {
+                var portraitAsset = new AssetFile
+                {
+                    name = $"Portrait ({importedCharacter.spokenName})",
+                    actorIndex = Current.SelectedCharacter,
+                    type = AssetFile.AssetType.Icon,
+                    isEmbeddedAsset = true,
+                    data = new AssetData { data = card.PortraitData }
+                };
+                Current.Card.assets.Add(portraitAsset);
+            }
+
+            LoadCharacterIntoUI();
+            OnPropertyChanged(nameof(CanRemoveActor));
+            OnPropertyChanged(nameof(IsMultiCharacter));
+            MarkDirty();
+            RegenerateOutput();
+            StatusMessage = $"Imported actor: {importedCharacter.spokenName} (total: {Current.Characters.Count})";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error importing actor: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportActor()
+    {
+        if (Current.Characters.Count <= 1)
+        {
+            StatusMessage = "No additional actors to export";
+            return;
+        }
+
+        var character = Current.Character;
+        var actorName = character.spokenName ?? character.name ?? "actor";
+
+        var file = await _fileService.SaveFileAsync(
+            "Export Actor",
+            actorName,
+            new[] { "*.png", "*.json" });
+
+        if (file == null)
+            return;
+
+        try
+        {
+            StatusMessage = $"Exporting {actorName}...";
+
+            // Get actor portrait if available
+            byte[]? portraitData = null;
+            if (Current.SelectedCharacter > 0)
+            {
+                // Find portrait for this specific actor
+                var portraitAsset = Current.Card.assets.FirstOrDefault(a =>
+                    a.actorIndex == Current.SelectedCharacter &&
+                    (a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait));
+                if (portraitAsset != null)
+                    portraitData = portraitAsset.data.data;
+            }
+            else
+            {
+                portraitData = Current.Card.portraitImage?.data;
+            }
+
+            // Create a standalone card from this actor
+            var card = new CharacterCard
+            {
+                Name = character.spokenName ?? character.name,
+                Gender = character.gender,
+                Persona = character.persona,
+                Personality = character.personality,
+                Scenario = character.scenario,
+                Example = character.example,
+                Greeting = character.greeting,
+                System = character.system,
+                PortraitData = portraitData,
+            };
+
+            bool success = await _cardService.SaveAsync(file, card);
+
+            if (success)
+            {
+                StatusMessage = $"Exported actor: {actorName}";
+            }
+            else
+            {
+                StatusMessage = "Failed to export actor";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error exporting actor: {ex.Message}";
+        }
+    }
+
     partial void OnSelectedActorIndexChanged(int value)
     {
         if (value >= 0 && value < Current.Characters.Count)
@@ -2764,29 +2921,57 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        // Export as a file that can then be imported via Import Folder to Backyard
-        var filePath = await _fileService.SaveFileAsync(
-            "Save Character for Backyard",
-            $"{CharacterName.Replace(" ", "_")}.json",
-            new[] { "*.json" });
-
-        if (string.IsNullOrEmpty(filePath))
-            return;
+        // Ensure data is synced
+        SyncToCurrent();
 
         try
         {
-            StatusMessage = "Exporting character...";
+            StatusMessage = "Creating character in Backyard...";
 
-            // Use the card service to export as JSON
-            var card = ToCard();
-            var json = Newtonsoft.Json.JsonConvert.SerializeObject(card, Newtonsoft.Json.Formatting.Indented);
-            await File.WriteAllTextAsync(filePath, json);
+            // Generate output for Backyard
+            var output = Generator.Generate(Generator.Option.Export | Generator.Option.Faraday);
+            var backyardCard = Integration.BackyardLinkCard.FromOutput(output);
+            backyardCard.EnsureSystemPrompt(false);
 
-            StatusMessage = $"Character saved. Use 'Import Folder to Backyard' to add to Backyard AI";
+            // Gather images for the character
+            var imageInputs = new List<Integration.Backyard.ImageInput>();
+            if (Current.Card.portraitImage != null)
+            {
+                imageInputs.Add(new Integration.Backyard.ImageInput()
+                {
+                    image = Current.Card.portraitImage,
+                    fileExt = "png",
+                });
+            }
+
+            // Create character in Backyard
+            var args = new Integration.Backyard.CreateCharacterArguments
+            {
+                card = backyardCard,
+                imageInput = imageInputs.ToArray(),
+            };
+
+            Integration.Backyard.CharacterInstance newCharacter;
+            Integration.Backyard.Link.Image[] imageLinks;
+            var createError = await Task.Run(() =>
+            {
+                return Integration.Backyard.Database.CreateNewCharacter(args, out newCharacter, out imageLinks);
+            });
+
+            if (createError != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Failed to create character: {createError}";
+                return;
+            }
+
+            // Refresh character list
+            Integration.Backyard.RefreshCharacters();
+
+            StatusMessage = $"Character '{CharacterName}' created in Backyard AI";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error exporting character: {ex.Message}";
+            StatusMessage = $"Error creating character: {ex.Message}";
         }
     }
 
@@ -3105,7 +3290,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void PurgeUnusedImages()
+    private async Task PurgeUnusedImages()
     {
         if (!Integration.Backyard.IsConnected)
         {
@@ -3113,8 +3298,81 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // This feature requires implementation in the Backyard database layer
-        StatusMessage = "Purge unused images: Feature not yet fully implemented";
+        var backyardLocation = AppSettings.BackyardLink.Location;
+        if (string.IsNullOrEmpty(backyardLocation))
+        {
+            StatusMessage = "Backyard AI location not configured";
+            return;
+        }
+
+        var imagesFolder = Path.Combine(backyardLocation, "images");
+        if (!Directory.Exists(imagesFolder))
+        {
+            StatusMessage = "Images folder not found";
+            return;
+        }
+
+        // Get all image URLs referenced in database
+        var error = Integration.Backyard.Database.GetAllImageUrls(out var imageUrls);
+        if (error != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = $"Failed to get image URLs: {error}";
+            return;
+        }
+
+        if (imageUrls == null || imageUrls.Length == 0)
+        {
+            StatusMessage = "No images found in database";
+            return;
+        }
+
+        // Get referenced image filenames
+        var referencedImages = new HashSet<string>(
+            imageUrls
+                .Select(fn => Path.GetFileName(fn)?.ToLowerInvariant())
+                .Where(fn => !string.IsNullOrEmpty(fn))!,
+            StringComparer.OrdinalIgnoreCase);
+
+        // Get all image files in folder
+        var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp" };
+        var allImageFiles = Directory.GetFiles(imagesFolder)
+            .Where(f => imageExtensions.Contains(Path.GetExtension(f)))
+            .ToList();
+
+        // Find unreferenced images
+        var unreferencedImages = allImageFiles
+            .Where(f => !referencedImages.Contains(Path.GetFileName(f).ToLowerInvariant()))
+            .ToList();
+
+        if (unreferencedImages.Count == 0)
+        {
+            StatusMessage = "No unused images found";
+            return;
+        }
+
+        var confirm = await _dialogService.ShowConfirmationDialogAsync(
+            "Purge Unused Images",
+            $"Found {unreferencedImages.Count} unused image(s).\n\nDo you want to move them to trash?");
+
+        if (!confirm)
+            return;
+
+        int deleted = 0;
+        foreach (var imagePath in unreferencedImages)
+        {
+            try
+            {
+                File.Delete(imagePath);
+                deleted++;
+            }
+            catch
+            {
+                // Skip files that can't be deleted
+            }
+        }
+
+        StatusMessage = $"Purged {deleted} unused image(s)";
     }
 
     #endregion
@@ -3719,27 +3977,85 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // For now, export as a JSON file that can be imported into Backyard
-        var filters = new[]
+        // Check if feature is supported
+        if (!Integration.BackyardValidation.CheckFeature(Integration.BackyardValidation.Feature.GroupChat))
         {
-            new FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } }
-        };
-
-        var path = await _dialogService.ShowSaveFileDialogAsync("Save Party", $"{CharacterName}_party.json", filters);
-        if (string.IsNullOrEmpty(path))
+            StatusMessage = "Group chat feature not supported in this version of Backyard";
             return;
+        }
+
+        SyncToCurrent();
 
         try
         {
-            // Create a multi-character card for the party
-            var card = ToCard();
-            var json = System.Text.Json.JsonSerializer.Serialize(card, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(path, json);
-            StatusMessage = $"Party exported to {Path.GetFileName(path)} - Import via Backyard > Import Folder";
+            var options = Generator.Option.Export | Generator.Option.Faraday | Generator.Option.Linked | Generator.Option.Group;
+            var outputs = Generator.GenerateMany(options);
+
+            // User persona
+            UserData userInfo = null;
+            if (AppSettings.BackyardLink.WriteUserPersona)
+            {
+                string userPersona = outputs[0].userPersona.ToFaraday();
+                if (!string.IsNullOrEmpty(userPersona))
+                {
+                    userInfo = new UserData()
+                    {
+                        name = Current.Card.userPlaceholder,
+                        persona = userPersona,
+                    };
+                    outputs[0].userPersona = GingerString.Empty;
+                }
+            }
+
+            var cards = outputs.Select(o => Integration.BackyardLinkCard.FromOutput(o)).ToArray();
+            if (cards == null || cards.Length == 0)
+            {
+                StatusMessage = "Failed to generate party cards";
+                return;
+            }
+
+            // Set character names
+            for (int i = 0; i < cards.Length && i < Current.Characters.Count; ++i)
+                cards[i].data.name = Current.Characters[i].name;
+            cards[0].data.isNSFW = cards.Any(c => c.data.isNSFW);
+            if (string.IsNullOrEmpty(Current.Card.name))
+                cards[0].data.displayName = string.Join(" and ", cards.Select(c => c.data.name));
+            cards[0].EnsureSystemPrompt(true);
+
+            var imageInput = Integration.BackyardUtil.GatherImages();
+
+            var args = new Integration.Backyard.CreatePartyArguments()
+            {
+                cards = cards,
+                imageInput = imageInput,
+                userInfo = userInfo,
+            };
+
+            Integration.Backyard.GroupInstance createdGroup;
+            Integration.Backyard.CharacterInstance[] createdCharacters;
+            Integration.Backyard.Link.Image[] imageLinks;
+
+            var error = await Task.Run(() =>
+            {
+                return Integration.Backyard.Database.CreateNewParty(args, out createdGroup, out createdCharacters, out imageLinks);
+            });
+
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Failed to create party: {error}";
+                return;
+            }
+
+            Current.IsFileDirty = true;
+
+            // Refresh character list
+            Integration.Backyard.RefreshCharacters();
+
+            StatusMessage = $"Party created in Backyard with {cards.Length} characters";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Export failed: {ex.Message}";
+            StatusMessage = $"Create party failed: {ex.Message}";
         }
     }
 
@@ -3772,7 +4088,7 @@ public partial class MainViewModel : ObservableObject
         if (!dialog.DialogResult)
             return;
 
-        // Apply to all characters in Backyard (simplified - just save as defaults)
+        // Save as defaults
         AppSettings.Settings.DefaultTemperature = dialog.Temperature;
         AppSettings.Settings.DefaultMinP = dialog.MinP;
         AppSettings.Settings.DefaultTopP = dialog.TopP;
@@ -3781,8 +4097,68 @@ public partial class MainViewModel : ObservableObject
         AppSettings.Settings.DefaultRepeatLastN = dialog.RepeatLastN;
         AppSettings.Save();
 
-        var characterCount = Integration.Backyard.Characters.Count();
-        StatusMessage = $"Model settings saved as defaults (will apply to new characters)";
+        // Create chat parameters from dialog values
+        var chatParameters = new Integration.Backyard.ChatParameters()
+        {
+            temperature = dialog.Temperature,
+            minP = dialog.MinP,
+            topP = dialog.TopP,
+            topK = dialog.TopK,
+            repeatPenalty = dialog.RepeatPenalty,
+            repeatLastN = dialog.RepeatLastN,
+        };
+
+        // Get all groups and update their chats
+        var groups = Integration.Backyard.Groups.ToList();
+        int totalGroups = groups.Count;
+        int succeeded = 0;
+        int failed = 0;
+
+        await _dialogService.RunWithProgressAsync(
+            "Updating Model Settings",
+            "Updating all character chats...",
+            async (cancellationToken, progress) =>
+            {
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
+                    var group = groups[i];
+                    progress.Report(($"Processing {group.GetDisplayName()}...", (double)i / totalGroups));
+
+                    // Get chats for this group
+                    Integration.Backyard.ChatInstance[] chats = null;
+                    var error = await Task.Run(() =>
+                    {
+                        Integration.Backyard.ChatInstance[] outChats;
+                        var result = Integration.Backyard.Database.GetChats(group.instanceId, out outChats);
+                        chats = outChats;
+                        return result;
+                    });
+
+                    if (error == Integration.Backyard.Error.NoError && chats != null && chats.Length > 0)
+                    {
+                        // Update chat parameters for all chats in this group
+                        var chatIds = chats.Select(c => c.instanceId).ToArray();
+                        var updateError = await Task.Run(() =>
+                            Integration.Backyard.Database.UpdateChatParameters(chatIds, null, chatParameters));
+
+                        if (updateError == Integration.Backyard.Error.NoError)
+                            succeeded++;
+                        else
+                            failed++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+            },
+            true);
+
+        StatusMessage = $"Model settings updated for {succeeded} of {totalGroups} characters" +
+            (failed > 0 ? $" ({failed} failed)" : "");
     }
 
     [RelayCommand]
@@ -3843,25 +4219,96 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // Show browser to select characters to delete
-        var (success, group, character, _) = await _dialogService.ShowBackyardBrowserAsync();
-        if (!success || character == null)
+        // Refresh character list
+        if (Integration.Backyard.RefreshCharacters() != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = "Failed to refresh character list";
+            return;
+        }
+
+        // Show browser to select characters to delete (multi-select mode)
+        var (success, groups, characters) = await _dialogService.ShowBackyardBrowserMultiSelectAsync("Select characters to delete");
+        if (!success || characters.Count == 0)
             return;
 
+        // Get all character IDs
+        var characterIds = characters.Select(c => c.instanceId).Distinct().ToArray();
+
+        // Get affected IDs from database
+        var error = Integration.Backyard.Database.ConfirmDeleteCharacters(characterIds, out var result);
+        if (error != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = $"Failed to prepare deletion: {error}";
+            return;
+        }
+
+        // Confirm deletion
+        string message = result.characterIds.Length == result.groupIds.Length
+            ? $"Are you sure you want to delete {result.characterIds.Length} character(s) from Backyard AI?\n\nThis action cannot be undone."
+            : $"Are you sure you want to delete {result.characterIds.Length} character(s) and their {result.groupIds.Length} associated chat(s) from Backyard AI?\n\nThis action cannot be undone.";
+
+        var confirm = await _dialogService.ShowConfirmationDialogAsync("Delete Characters", message);
+        if (!confirm)
+            return;
+
+        // Perform deletion
+        error = Integration.Backyard.Database.DeleteCharacters(result.characterIds, result.groupIds, result.imageIds);
+        if (error != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = $"Deletion failed: {error}";
+            return;
+        }
+
+        // Clean up orphaned users
+        Integration.Backyard.Database.DeleteOrphanedUsers(out _);
+
+        // Refresh character list
+        Integration.Backyard.RefreshCharacters();
+
+        StatusMessage = $"Deleted {result.characterIds.Length} character(s)";
+    }
+
+    [RelayCommand]
+    private async Task RepairBrokenImages()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
         var confirm = await _dialogService.ShowConfirmationDialogAsync(
-            "Delete Character",
-            $"Are you sure you want to delete '{character.Value.displayName}' from Backyard AI?\n\nThis action cannot be undone.");
+            "Repair Broken Images",
+            "This will scan the database for broken image references and attempt to repair them.\n\nContinue?");
 
         if (!confirm)
             return;
 
-        // Note: Direct database deletion would require additional API support
-        // For now, inform user to use Backyard AI directly
-        StatusMessage = "Character deletion requires using Backyard AI directly for safety";
+        StatusMessage = "Repairing broken images...";
+
+        var error = Integration.Backyard.Database.RepairImages(out int modified, out int skipped);
+
+        if (error == Integration.Backyard.Error.NotFound)
+        {
+            StatusMessage = "Images folder not found";
+            return;
+        }
+        if (error != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = $"Repair failed: {error}";
+            return;
+        }
+
+        if (skipped > 0)
+            StatusMessage = $"Repaired {modified} image(s), {skipped} skipped (files not found)";
+        else if (modified > 0)
+            StatusMessage = $"Repaired {modified} image(s)";
+        else
+            StatusMessage = "No broken images found";
     }
 
     [RelayCommand]
-    private void RepairBrokenImages()
+    private async Task RepairLegacyChats()
     {
         if (!Integration.Backyard.ConnectionEstablished)
         {
@@ -3869,12 +4316,50 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // This would scan for images with broken references
-        StatusMessage = "Repair Broken Images: Use Backyard AI's built-in tools for database maintenance";
+        // Refresh character list
+        if (Integration.Backyard.RefreshCharacters() != Integration.Backyard.Error.NoError)
+        {
+            StatusMessage = "Failed to refresh character list";
+            return;
+        }
+
+        var groups = Integration.Backyard.Groups.ToArray();
+        if (groups.Length == 0)
+        {
+            StatusMessage = "No characters found to repair";
+            return;
+        }
+
+        var confirm = await _dialogService.ShowConfirmationDialogAsync(
+            "Repair Legacy Chats",
+            $"This will repair legacy chat formats for all {groups.Length} character(s).\n\nContinue?");
+
+        if (!confirm)
+            return;
+
+        StatusMessage = "Repairing legacy chats...";
+
+        int totalModified = 0;
+        int charactersModified = 0;
+
+        foreach (var group in groups)
+        {
+            var error = Integration.Backyard.Database.RepairChats(group.instanceId, out int modified);
+            if (error == Integration.Backyard.Error.NoError && modified > 0)
+            {
+                totalModified += modified;
+                charactersModified++;
+            }
+        }
+
+        if (totalModified > 0)
+            StatusMessage = $"Repaired {totalModified} chat(s) across {charactersModified} character(s)";
+        else
+            StatusMessage = "No legacy chats needed repair";
     }
 
     [RelayCommand]
-    private void RepairLegacyChats()
+    private async Task ResetModelsLocation()
     {
         if (!Integration.Backyard.ConnectionEstablished)
         {
@@ -3882,21 +4367,21 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        // This would migrate old chat formats
-        StatusMessage = "Repair Legacy Chats: Use Backyard AI's built-in tools for chat migration";
-    }
+        var confirm = await _dialogService.ShowConfirmationDialogAsync(
+            "Reset Model Download Location",
+            "This will reset the model download location setting in Backyard AI to the default.\n\nContinue?");
 
-    [RelayCommand]
-    private void ResetModelsLocation()
-    {
-        if (!Integration.Backyard.ConnectionEstablished)
+        if (!confirm)
+            return;
+
+        var error = Integration.Backyard.Database.ResetModelDownloadLocation();
+        if (error != Integration.Backyard.Error.NoError)
         {
-            StatusMessage = "Not connected to Backyard AI";
+            StatusMessage = $"Reset failed: {error}";
             return;
         }
 
-        // Reset model path settings
-        StatusMessage = "Reset Models Location: Configure in Backyard AI settings";
+        StatusMessage = "Model download location has been reset to default";
     }
 
     [RelayCommand]

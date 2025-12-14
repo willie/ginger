@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -10,8 +11,19 @@ namespace Ginger.Views.Dialogs;
 
 public partial class BackyardBrowserDialog : Window
 {
+    public static readonly StyledProperty<bool> MultiSelectModeProperty =
+        AvaloniaProperty.Register<BackyardBrowserDialog, bool>(nameof(MultiSelectMode), false);
+
+    public bool MultiSelectMode
+    {
+        get => GetValue(MultiSelectModeProperty);
+        set => SetValue(MultiSelectModeProperty, value);
+    }
+
     public Backyard.GroupInstance? SelectedGroup { get; private set; }
     public Backyard.CharacterInstance? SelectedCharacter { get; private set; }
+    public List<Backyard.GroupInstance> SelectedGroups { get; private set; } = new();
+    public List<Backyard.CharacterInstance> SelectedCharacters { get; private set; } = new();
     public bool WantsLink { get; private set; }
     public bool DialogResult { get; private set; }
 
@@ -19,6 +31,7 @@ public partial class BackyardBrowserDialog : Window
     private List<CharacterItem> _allCharacters = new();
     private List<CharacterItem> _filteredCharacters = new();
     private Dictionary<string, Backyard.ChatCount> _chatCounts = new();
+    private bool _ignoreSelectionEvents = false;
 
     public BackyardBrowserDialog()
     {
@@ -195,6 +208,75 @@ public partial class BackyardBrowserDialog : Window
         Close();
     }
 
+    private void SelectAllCheck_Checked(object? sender, RoutedEventArgs e)
+    {
+        if (_ignoreSelectionEvents) return;
+        _ignoreSelectionEvents = true;
+        foreach (var item in _filteredCharacters)
+            item.IsSelected = true;
+        CharacterList.ItemsSource = null;
+        CharacterList.ItemsSource = _filteredCharacters;
+        UpdateMultiSelectStatus();
+        _ignoreSelectionEvents = false;
+    }
+
+    private void SelectAllCheck_Unchecked(object? sender, RoutedEventArgs e)
+    {
+        if (_ignoreSelectionEvents) return;
+        _ignoreSelectionEvents = true;
+        foreach (var item in _filteredCharacters)
+            item.IsSelected = false;
+        CharacterList.ItemsSource = null;
+        CharacterList.ItemsSource = _filteredCharacters;
+        UpdateMultiSelectStatus();
+        _ignoreSelectionEvents = false;
+    }
+
+    private void SelectButton_Click(object? sender, RoutedEventArgs e)
+    {
+        SelectedGroups.Clear();
+        SelectedCharacters.Clear();
+
+        foreach (var item in _allCharacters.Where(c => c.IsSelected))
+        {
+            SelectedGroups.Add(item.Group);
+
+            // Get the characters from the group
+            if (item.Group.activeMembers?.Length > 0)
+            {
+                foreach (var memberId in item.Group.activeMembers)
+                {
+                    var character = Backyard.Database.GetCharacter(memberId);
+                    if (character.isCharacter)
+                        SelectedCharacters.Add(character);
+                }
+            }
+        }
+
+        if (SelectedGroups.Count > 0)
+        {
+            DialogResult = true;
+            Close();
+        }
+    }
+
+    private void UpdateMultiSelectStatus()
+    {
+        int selectedCount = _allCharacters.Count(c => c.IsSelected);
+        SelectButton.Content = $"Select ({selectedCount})";
+        SelectButton.IsEnabled = selectedCount > 0;
+
+        // Update select all checkbox state
+        _ignoreSelectionEvents = true;
+        if (selectedCount == 0)
+            SelectAllCheck.IsChecked = false;
+        else if (selectedCount == _filteredCharacters.Count)
+            SelectAllCheck.IsChecked = true;
+        else
+            SelectAllCheck.IsChecked = null; // Indeterminate not easily supported, just uncheck
+        _ignoreSelectionEvents = false;
+    }
+
     private class FolderItem
     {
         public string Name { get; set; } = "";
@@ -211,6 +293,7 @@ public partial class BackyardBrowserDialog : Window
         public int ChatCount { get; set; }
         public DateTime LastChat { get; set; }
         public DateTime UpdateDate { get; set; }
+        public bool IsSelected { get; set; }
 
         public string TypeLabel => IsParty ? "Group" : "Character";
         public bool HasChatCount => ChatCount > 0;

@@ -272,6 +272,94 @@ namespace Ginger
 			return output;
 		}
 
+		public static Output[] GenerateMany(Option option = Option.Export)
+		{
+			List<Output> outputPerCharacter = GenerateAllCharacters(option | Option.Group);
+
+			// Combine character outputs
+			int numChannels = EnumHelper.ToInt(Recipe.Component.Count);
+
+			var outputByChannel = new GingerString[numChannels];
+			GingerString[] greetings = null;
+			GingerString[] group_greetings = null;
+			for (int iChannel = 0; iChannel < numChannels; ++iChannel)
+			{
+				var eChannel = EnumHelper.FromInt(iChannel, Recipe.Component.Invalid);
+
+				if (eChannel == Recipe.Component.Greeting)
+				{
+					// Actor greetings: Prepend actor name
+					List<GingerString> lsGreetings = new List<GingerString>();
+					for (int i = 0; i < outputPerCharacter.Count; ++i)
+					{
+						string name = Current.Characters[i].name;
+						if (outputPerCharacter[i].greetings != null)
+						{
+							foreach (var greeting in outputPerCharacter[i].greetings.Where(g => g.IsNullOrEmpty() == false))
+							{
+								if (i > 0 && string.IsNullOrEmpty(name) == false)
+									lsGreetings.Add(GingerString.FromString(string.Concat(name, ": ", greeting.ToString())));
+								else
+									lsGreetings.Add(greeting);
+							}
+						}
+					}
+
+					greetings = lsGreetings.ToArray();
+				}
+				else if (eChannel == Recipe.Component.Greeting_Group)
+				{
+					group_greetings = outputPerCharacter
+						.Where(o => o.group_greetings != null)
+						.SelectMany(o => o.group_greetings)
+						.Where(g => g.IsNullOrEmpty() == false)
+						.ToArray();
+				}
+				else if (eChannel != Recipe.Component.Persona)
+				{
+					// Concatenate channels
+					var texts = outputPerCharacter
+						.Select(o => o.GetText(eChannel))
+						.Where(g => g.IsNullOrEmpty() == false)
+						.ToArray();
+
+					if (texts.Length == 1)
+						outputByChannel[iChannel] = texts[0];
+					else if (texts.Length > 1)
+						outputByChannel[iChannel] = GingerString.Join(Text.ParagraphBreak, texts);
+				}
+			}
+
+			Output[] outputs = new Output[outputPerCharacter.Count];
+
+			// Primary output
+			outputs[0] = new Output() {
+				persona = outputPerCharacter[0].persona,
+				lorebook = outputPerCharacter[0].lorebook,
+				system = outputByChannel[0],
+				system_post_history = outputByChannel[7],
+				userPersona = outputByChannel[2],
+				scenario = outputByChannel[3],
+				example = outputByChannel[4],
+				grammar = outputByChannel[5],
+				greetings = greetings,
+				group_greetings = group_greetings,
+				context = outputPerCharacter[0].context,
+			};
+
+			// Actor outputs
+			for (int i = 1; i < outputPerCharacter.Count; ++i)
+			{
+				outputs[i] = new Output() {
+					persona = outputPerCharacter[i].persona,
+					lorebook = outputPerCharacter[i].lorebook,
+					context = outputPerCharacter[i].context,
+				};
+			}
+
+			return outputs;
+		}
+
 		private static List<Output> GenerateAllCharacters(Option options)
 		{
 			Recipe internalGlobalRecipe = RecipeBook.GetRecipeByID(RecipeBook.GlobalInternal)?.Instantiate();

@@ -5,14 +5,15 @@
         Width="800"
         Height="550"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        x:Name="ThisWindow">
 
     <Grid RowDefinitions="Auto,*,Auto">
         <!-- Search/Filter Bar -->
         <Border Grid.Row="0" Padding="12"
                 BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                 <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <TextBox x:Name="SearchBox" Grid.Column="1"
                          Watermark="Filter characters..."
@@ -23,6 +24,11 @@
                           SelectedIndex="0"/>
                 <CheckBox x:Name="ShowPartiesCheck" Grid.Column="3"
                           Content="Show groups" IsChecked="True"/>
+                <CheckBox x:Name="SelectAllCheck" Grid.Column="4"
+                          Content="Select All" Margin="12,0,0,0"
+                          IsVisible="{Binding ElementName=ThisWindow, Path=MultiSelectMode}"
+                          Checked="SelectAllCheck_Checked"
+                          Unchecked="SelectAllCheck_Unchecked"/>
             </Grid>
         </Border>
 
@@ -50,8 +56,12 @@
                              DoubleTapped="CharacterList_DoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="x:Object">
-                                <Grid ColumnDefinitions="Auto,*" Margin="4">
-                                    <Border Width="48" Height="48" CornerRadius="4"
+                                <Grid ColumnDefinitions="Auto,Auto,*" Margin="4">
+                                    <CheckBox IsVisible="{Binding ElementName=ThisWindow, Path=MultiSelectMode}"
+                                              IsChecked="{ReflectionBinding IsSelected, Mode=TwoWay}"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,8,0"/>
+                                    <Border Grid.Column="1" Width="48" Height="48" CornerRadius="4"
                                             Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
                                             Margin="0,0,12,0">
                                         <TextBlock Text="?" FontSize="24"
@@ -59,7 +69,7 @@
                                                    VerticalAlignment="Center"
                                                    Opacity="0.5"/>
                                     </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                         <TextBlock Text="{ReflectionBinding DisplayName, FallbackValue='Character'}"
                                                    FontWeight="SemiBold"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
@@ -89,15 +99,25 @@
             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                 <TextBlock x:Name="StatusText" VerticalAlignment="Center"
                            FontSize="11" Opacity="0.7"/>
+                <!-- Single-select buttons -->
                 <Button Grid.Column="2" x:Name="ImportButton"
                         Content="Import" Width="80"
                         Click="ImportButton_Click"
                         IsDefault="True"
-                        Margin="0,0,8,0"/>
+                        Margin="0,0,8,0"
+                        IsVisible="{Binding ElementName=ThisWindow, Path=!MultiSelectMode}"/>
                 <Button Grid.Column="3" x:Name="LinkButton"
                         Content="Link" Width="80"
                         Click="LinkButton_Click"
-                        Margin="0,0,8,0"/>
+                        Margin="0,0,8,0"
+                        IsVisible="{Binding ElementName=ThisWindow, Path=!MultiSelectMode}"/>
+                <!-- Multi-select button -->
+                <Button Grid.Column="2" x:Name="SelectButton"
+                        Content="Select (0)" Width="100"
+                        Click="SelectButton_Click"
+                        IsDefault="True"
+                        Margin="0,0,8,0"
+                        IsVisible="{Binding ElementName=ThisWindow, Path=MultiSelectMode}"/>
                 <Button Grid.Column="4" Content="Close" Width="80"
                         Click="CloseButton_Click"
                         IsCancel="True"/>
