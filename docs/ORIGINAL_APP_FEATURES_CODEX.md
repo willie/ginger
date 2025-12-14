@@ -2,7 +2,7 @@
 - Create new card from recipes: start blank/new-from-template, add recipes by category buttons, fill parameters, regenerate preview, bake when ready (MainForm.Designer buttons, MainFunctions.Regenerate/BakeAll).
 - Write from scratch: open Write Dialog for longform editing, then paste into recipe text parameters or bake outputs (WriteDialog files, RecipePanel text fields).
 - Import/remix existing: load PNG/JSON/CHARX/YAML/BYAF, recipes/lore auto-populated, edit panels, regenerate, export to chosen format (MainFunctions.ImportCharacter/ImportLorebook/Export*).
-- Convert formats: select preview/export format (Default/SillyTavern/Faraday/FaradayParty/PlainText), export to PNG/JSON/CHARX/YAML/Backyard (AppSettings.Settings.OutputPreviewFormat, FileUtil).
+- Convert formats: select preview/export format (Default/SillyTavern/Faraday/FaradayParty/PlainText), export to PNG/JSON/CHARX/YAML/Backyard/Agnai/Pygmalion/TextGenWebUI, or Ginger multi-format PNG/Character Backup ZIP via format picker (AppSettings.Settings.OutputPreviewFormat, FileUtil, FileFormatDialog).
 - Group/party authoring: add actors via Additional Characters menu, per-actor recipes/portraits, bake actor individually or preview FaradayParty outputs (RecipePanel greetings, MainFunctions.BakeActor, OutputPreview party handling).
 - Backyard-linked editing: connect, import characters/parties, live edit and save back, reestablish/break links, bulk import/export, manage chats and model settings, create/restore backups (BackyardFunctions.*).
 - Lorebook creation/remix: add lore recipes, edit entries with paging/filtering, merge lorebooks, rearrange entries, import/export multiple worldbook formats (LorebookParameterPanel, mergeLoreMenuItem).
@@ -11,12 +11,13 @@
 
 **Port Completeness Checklist (must-implement behaviors)**
 - Screen parity: SidePanel groups, Recipe tab with add-row buttons, Output tab preview, Notes tab; status bar with token/connection/asset indicators; menus and dialogs callable via shortcuts and menu entries.
-- File I/O: open/save/revert/incremental save; import PNG/JSON/CHARX/YAML/BYAF; export PNG/JSON/CHARX/YAML/Backyard; preserve/round-trip embedded assets, portraits/backgrounds, alt greetings, lorebooks, MRU list, window positions.
+- File I/O: open/save/revert/incremental save; import PNG/JSON/CHARX/YAML/BYAF; export PNG/JSON/CHARX/YAML/Backyard plus Ginger multi-format PNG embed and Character Backup ZIP; supports Agnai/Pygmalion/TextGenWebUI outputs; preserve/round-trip embedded assets, portraits/backgrounds, alt greetings, lorebooks, MRU list, window positions; expose format picker (FileFormatDialog) with solo/group variants.
+- Chat logs: import/export/read Tavern/TextGenWebUI/Agnai/Ginger chat logs and backups for Backyard utilities and staging (Models/Formats/ChatLogs).
 - Generation pipeline: Regenerate honors all include/exclude toggles, persona placement flags, scenario prune, style grammar, detail level, text style, preview format; token counts reflect selected format; Bake All/Bake Actor produce editable recipes matching output text including lore and greetings.
 - Recipes UI: add/reorder/enable/disable/collapse; per-recipe detail level, raw toggle, NSFW flag; bake single; set primary greeting; save as snippet/recipe; save/rename lorebook; copy/paste with undo; syntax highlighting toggle respects performance settings.
 - Parameters: all parameter types (text/number/range/list/multi-choice/choice slider/boolean/measurement/hint/lorebook/chat parameters/actor choice/code); undo support; placeholder replacement (user/character markers) and gender swap/gender overrides applied across text and lore.
 - SidePanel behaviors: character name lock when linked group member; user placeholder disabled when AutoConvertNames off; creator/notes/version/tags; gender and user gender overrides; detail level/text style; lore count; background and portrait replace/paste/remove/resize; background effects blur/darken/desaturate; include toggles and persona placement; grammar styling toggle; collapse state persisted.
-- Output preview logic: mode-specific section labels, persona merge rules, `{original}` replacement, combining system/post-history when author note disabled, party preview for FaradayParty; Plain Text render option.
+- Output preview logic: mode-specific section labels, persona merge rules, `{original}` replacement, combining system/post-history when author note disabled, party preview for FaradayParty; Plain Text render option; author note and user persona include/omit rules honored.
 - Group/actor handling: actor dropdown/additional characters menu; per-actor portraits/assets; actor-specific recipes; primary/alt greetings preserved; Bake Actor uses current actor context; placeholder resolution uses actor names.
 - Lorebooks: paging/filtering/add/remove, keyphrase/position/tags/probability fields, token counts; merge lorebooks; rearrange lore mode; import/export Tavern/Agnaistic/Ginger worldbooks.
 - Clipboard/snippets: snippet creation and insertion; recipe/snippet save from panel; clipboard staging for chat parameters/lore/recipes/chat messages.
@@ -140,7 +141,7 @@
 - Shows transient status messages, actor count, embedded assets indicator, Backyard connection icon, token info refreshed by timer (MainForm.Designer status bar items).
 
 **File Format Compatibility**
-- Character cards: Ginger XML, SillyTavern V2/V3 (PNG chunks chara/ccv3), Faraday (Backyard AI), Agnai/Pygmalion, others via schema helpers (Resources/Schemas, Model/Formats/*).
+- Character cards: Ginger XML (multi-format PNG embed), SillyTavern V2/V3 (PNG chunks chara/ccv3), Faraday (Backyard AI), Agnai/Pygmalion JSON, TextGenWebUI YAML, Character Backup ZIP, BYAF archives (Resources/Schemas, Model/Formats/*).
 - Lorebooks/worldbooks: Tavern worldbook, Agnaistic characterbook, Ginger lorebook; import/export through LorebookParameter/FileUtil.
 - Chat logs: Tavern, TextGenWebUI, Agnai, Ginger backups; used for Backyard utilities and chat staging (Models/Formats/ChatLogs/*).
 - Backups: Backyard Archive BYAF import/export for characters, scenarios, manifests (Model/Formats/BackyardArchive/*).
