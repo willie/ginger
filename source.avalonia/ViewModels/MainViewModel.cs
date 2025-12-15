@@ -676,6 +676,79 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Sets or updates the background asset in Current.Card.assets.
+    /// </summary>
+    private void SetBackgroundAsset(byte[] imageData)
+    {
+        // Remove any existing background asset
+        var existingBackground = Current.Card.assets.FirstOrDefault(a =>
+            a.type == AssetFile.AssetType.Background && a.isEmbeddedAsset);
+
+        if (existingBackground != null)
+        {
+            Current.Card.assets.Remove(existingBackground);
+        }
+
+        if (imageData != null && imageData.Length > 0)
+        {
+            var backgroundAsset = new AssetFile
+            {
+                name = "Background",
+                type = AssetFile.AssetType.Background,
+                isEmbeddedAsset = true,
+                data = new AssetData { data = imageData }
+            };
+            Current.Card.assets.Add(backgroundAsset);
+        }
+    }
+
+    /// <summary>
+    /// Removes the background asset from Current.Card.assets.
+    /// </summary>
+    private void ClearBackgroundAsset()
+    {
+        var existingBackground = Current.Card.assets.FirstOrDefault(a =>
+            a.type == AssetFile.AssetType.Background && a.isEmbeddedAsset);
+
+        if (existingBackground != null)
+        {
+            Current.Card.assets.Remove(existingBackground);
+        }
+    }
+
+    /// <summary>
+    /// Loads background from Current.Card.assets into _backgroundData and BackgroundImage.
+    /// </summary>
+    private void LoadBackgroundFromAssets()
+    {
+        var backgroundAsset = Current.Card.assets.FirstOrDefault(a =>
+            a.type == AssetFile.AssetType.Background && a.isEmbeddedAsset);
+
+        if (backgroundAsset != null && backgroundAsset.data.data != null && backgroundAsset.data.data.Length > 0)
+        {
+            try
+            {
+                _backgroundData = backgroundAsset.data.data;
+                using var stream = new MemoryStream(_backgroundData);
+                BackgroundImage = new Bitmap(stream);
+                HasBackgroundImage = true;
+            }
+            catch
+            {
+                _backgroundData = null;
+                BackgroundImage = null;
+                HasBackgroundImage = false;
+            }
+        }
+        else
+        {
+            _backgroundData = null;
+            BackgroundImage = null;
+            HasBackgroundImage = false;
+        }
+    }
+
+    /// <summary>
     /// Returns true if the current portrait is larger than MaxImageDimension and can be resized.
     /// </summary>
     public bool CanResizePortrait
@@ -783,6 +856,7 @@ public partial class MainViewModel : ObservableObject
                 using var stream = new MemoryStream(_backgroundData);
                 BackgroundImage = new Bitmap(stream);
                 HasBackgroundImage = true;
+                SetBackgroundAsset(_backgroundData);
                 MarkDirty();
                 StatusMessage = "Background loaded";
             }
@@ -799,6 +873,7 @@ public partial class MainViewModel : ObservableObject
         _backgroundData = null;
         BackgroundImage = null;
         HasBackgroundImage = false;
+        ClearBackgroundAsset();
         MarkDirty();
         StatusMessage = "Background cleared";
     }
@@ -825,6 +900,7 @@ public partial class MainViewModel : ObservableObject
                     using var stream = new MemoryStream(imageBytes);
                     BackgroundImage = new Bitmap(stream);
                     HasBackgroundImage = true;
+                    SetBackgroundAsset(_backgroundData);
                     MarkDirty();
                     StatusMessage = "Background pasted from clipboard";
                     return;
@@ -839,6 +915,7 @@ public partial class MainViewModel : ObservableObject
                 using var stream = new MemoryStream(_backgroundData);
                 BackgroundImage = new Bitmap(stream);
                 HasBackgroundImage = true;
+                SetBackgroundAsset(_backgroundData);
                 MarkDirty();
                 StatusMessage = "Background loaded from clipboard path";
                 return;
@@ -867,6 +944,7 @@ public partial class MainViewModel : ObservableObject
             using var stream = new MemoryStream(_backgroundData);
             BackgroundImage = new Bitmap(stream);
             HasBackgroundImage = true;
+            SetBackgroundAsset(_backgroundData);
             MarkDirty();
             StatusMessage = "Portrait copied to background";
         }
@@ -890,6 +968,7 @@ public partial class MainViewModel : ObservableObject
             _backgroundData = ImageService.BlurImage(_backgroundData, 15);
             using var stream = new MemoryStream(_backgroundData);
             BackgroundImage = new Bitmap(stream);
+            SetBackgroundAsset(_backgroundData);
             MarkDirty();
             StatusMessage = "Background blurred";
         }
@@ -913,6 +992,7 @@ public partial class MainViewModel : ObservableObject
             _backgroundData = ImageService.DarkenImage(_backgroundData, 0.5f);
             using var stream = new MemoryStream(_backgroundData);
             BackgroundImage = new Bitmap(stream);
+            SetBackgroundAsset(_backgroundData);
             MarkDirty();
             StatusMessage = "Background darkened";
         }
@@ -936,6 +1016,7 @@ public partial class MainViewModel : ObservableObject
             _backgroundData = ImageService.DesaturateImage(_backgroundData);
             using var stream = new MemoryStream(_backgroundData);
             BackgroundImage = new Bitmap(stream);
+            SetBackgroundAsset(_backgroundData);
             MarkDirty();
             StatusMessage = "Background desaturated";
         }
@@ -953,6 +1034,7 @@ public partial class MainViewModel : ObservableObject
             using var stream = new MemoryStream(data);
             BackgroundImage = new Bitmap(stream);
             HasBackgroundImage = true;
+            SetBackgroundAsset(_backgroundData);
         }
         catch
         {
@@ -1285,12 +1367,22 @@ public partial class MainViewModel : ObservableObject
                 break;
         }
 
-        // Generate output using the full Generator pipeline
-        var output = Generator.Generate(options);
-        _currentOutput = output;
+        Generator.Output output;
 
-        // Format output for display
-        OutputPreview = FormatOutputForDisplay(output);
+        // For party preview, use GenerateMany to show all actors
+        if (AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.FaradayParty)
+        {
+            var outputs = Generator.GenerateMany(options);
+            output = outputs[Current.SelectedCharacter];
+            _currentOutput = output;
+            OutputPreview = FormatOutputForDisplay(outputs);
+        }
+        else
+        {
+            output = Generator.Generate(options);
+            _currentOutput = output;
+            OutputPreview = FormatOutputForDisplay(output);
+        }
 
         // Update counts
         RecipeCount = Recipes.Count(r => r.IsEnabled);
@@ -1590,6 +1682,193 @@ public partial class MainViewModel : ObservableObject
         return sbOutput.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// Format multiple outputs for party/group display, showing each actor's persona.
+    /// </summary>
+    private static string FormatOutputForDisplay(Generator.Output[] outputs)
+    {
+        if (outputs == null || outputs.Length == 0)
+            return "( NO OUTPUT )";
+
+        var sbOutput = new System.Text.StringBuilder();
+
+        // Use first output for shared content (system, scenario, etc.)
+        string outputSystem = outputs[0].system.ToOutputPreview();
+        string outputSystemPostHistory = outputs[0].system_post_history.ToOutputPreview();
+        string outputPersonality = outputs[0].personality.ToOutputPreview();
+        string outputScenario = outputs[0].scenario.ToOutputPreview();
+        string outputGreeting = outputs[0].greeting.ToOutputPreview(Recipe.Component.Greeting);
+        string outputExample = outputs[0].example.ToOutputPreview(Recipe.Component.Example);
+        string outputGrammar = outputs[0].grammar.ToOutputPreview();
+        string outputUserPersona = outputs[0].userPersona.ToOutputPreview();
+
+        bool bUserPersona = Backyard.ConnectionEstablished && AppSettings.BackyardLink.WriteUserPersona;
+
+        if (!(Backyard.ConnectionEstablished && AppSettings.BackyardLink.WriteAuthorNote))
+        {
+            // Combine system prompts
+            if (!string.IsNullOrEmpty(outputSystemPostHistory))
+                outputSystem = string.Join("\r\n", outputSystem, outputSystemPostHistory).TrimStart();
+            outputSystemPostHistory = null;
+        }
+
+        // Replace {original}
+        if (!string.IsNullOrWhiteSpace(outputSystem))
+        {
+            string original = FaradayCardV4.OriginalModelInstructionsByFormat[EnumHelper.ToInt(Current.Card.textStyle)];
+            int pos_original = outputSystem.IndexOf(GingerString.OriginalMarker, 0);
+            if (pos_original != -1)
+            {
+                var sbSystem = new System.Text.StringBuilder(outputSystem);
+                sbSystem.Remove(pos_original, 10);
+                sbSystem.Insert(pos_original, original);
+                sbSystem.Replace(GingerString.OriginalMarker, ""); // Only once
+                outputSystem = sbSystem.ToString();
+            }
+        }
+
+        // Append user persona to scenario for more accurate token count
+        if (!outputs[0].userPersona.IsNullOrEmpty())
+        {
+            outputScenario = string.Concat(outputScenario, "\n\n", outputUserPersona).Trim();
+            outputUserPersona = "";
+        }
+
+        // Model instructions
+        if (!string.IsNullOrEmpty(outputSystem))
+        {
+            sbOutput.AppendLine(FormatHeader("MODEL INSTRUCTIONS"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputSystem);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputSystemPostHistory))
+        {
+            sbOutput.AppendLine(FormatHeader("MODEL INSTRUCTIONS (IMPORTANT)"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputSystemPostHistory);
+            sbOutput.AppendLine();
+        }
+
+        // Per-actor persona - this is the key difference from single output
+        for (int i = 0; i < Current.Characters.Count && i < outputs.Length; ++i)
+        {
+            string outputPersona = outputs[i].persona.ToOutputPreview();
+            if (!string.IsNullOrEmpty(outputPersona))
+            {
+                sbOutput.AppendLine(FormatHeader($"CHARACTER PERSONA ({Current.Characters[i].name.ToUpperInvariant()})"));
+                sbOutput.AppendLine();
+                sbOutput.AppendLine(outputPersona);
+                sbOutput.AppendLine();
+            }
+        }
+
+        if (!string.IsNullOrEmpty(outputPersonality))
+        {
+            sbOutput.AppendLine(FormatHeader("PERSONALITY SUMMARY"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputPersonality);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputUserPersona))
+        {
+            sbOutput.AppendLine(FormatHeader("USER PERSONA"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputUserPersona);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputScenario))
+        {
+            sbOutput.AppendLine(FormatHeader("SCENARIO"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputScenario);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputExample))
+        {
+            sbOutput.AppendLine(FormatHeader("EXAMPLE CHAT"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputExample);
+            sbOutput.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(outputGreeting))
+        {
+            sbOutput.AppendLine(FormatHeader("FIRST MESSAGE"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputGreeting);
+            sbOutput.AppendLine();
+        }
+
+        // Alternate greetings
+        if (outputs[0].greetings != null && outputs[0].greetings.Length > 1)
+        {
+            for (int i = 1; i < outputs[0].greetings.Length; ++i)
+            {
+                var greeting = outputs[0].greetings[i].ToOutputPreview(Recipe.Component.Greeting);
+                if (outputs[0].greetings.Length > 2)
+                    sbOutput.AppendLine(FormatHeader($"ALTERNATE GREETING #{i}"));
+                else
+                    sbOutput.AppendLine(FormatHeader("ALTERNATE GREETING"));
+                sbOutput.AppendLine();
+                sbOutput.AppendLine(greeting);
+                sbOutput.AppendLine();
+            }
+        }
+
+        // Group greetings
+        if (outputs[0].group_greetings != null && outputs[0].group_greetings.Length > 0)
+        {
+            for (int i = 0; i < outputs[0].group_greetings.Length; ++i)
+            {
+                var greeting = outputs[0].group_greetings[i].ToOutputPreview(Recipe.Component.Greeting);
+                if (outputs[0].group_greetings.Length > 1)
+                    sbOutput.AppendLine(FormatHeader($"GROUP-ONLY GREETING #{i + 1}"));
+                else
+                    sbOutput.AppendLine(FormatHeader("GROUP-ONLY GREETING"));
+                sbOutput.AppendLine();
+                sbOutput.AppendLine(greeting);
+                sbOutput.AppendLine();
+            }
+        }
+
+        // Lorebook (from first output)
+        if (outputs[0].hasLore)
+        {
+            var entryCount = outputs[0].lorebook.entries.Count;
+            sbOutput.AppendLine(FormatHeader($"LOREBOOK ({entryCount} {(entryCount == 1 ? "ENTRY" : "ENTRIES")})"));
+
+            for (int i = 0; i < outputs[0].lorebook.entries.Count; ++i)
+            {
+                var entry = outputs[0].lorebook.entries[i];
+                sbOutput.AppendLine();
+                sbOutput.AppendLine($"#{i + 1} [{GingerString.FromString(entry.key).ToOutputPreview(Recipe.Component.Invalid)}]");
+                sbOutput.AppendLine(GingerString.FromString(entry.value).ToOutputPreview(Recipe.Component.Invalid));
+            }
+            sbOutput.AppendLine();
+        }
+
+        // Grammar
+        if (!string.IsNullOrEmpty(outputGrammar))
+        {
+            sbOutput.AppendLine(FormatHeader("GRAMMAR"));
+            sbOutput.AppendLine();
+            sbOutput.AppendLine(outputGrammar);
+            sbOutput.AppendLine();
+        }
+
+        if (sbOutput.Length == 0)
+        {
+            sbOutput.AppendLine("( NO OUTPUT )");
+        }
+
+        return sbOutput.ToString().TrimEnd();
+    }
+
     private static string FormatHeader(string text)
     {
         const string line = "--------------------------------------------------"; // 50 chars
@@ -1755,6 +2034,9 @@ public partial class MainViewModel : ObservableObject
             // Sync ViewModel state to Current model so Generator and Backyard work correctly
             SyncToCurrent();
         }
+
+        // Load background from embedded assets
+        LoadBackgroundFromAssets();
 
         RegenerateOutput();
     }
