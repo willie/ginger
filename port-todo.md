@@ -68,5 +68,7 @@ Port Parity TODO (Avalonia vs Original WinForms)
 - Actor handling parity
   - Implement per-actor portrait/background overrides and paste/resize flows; sidebar uses single shared portrait/background for all actors.
 
-- Undo/redo
-  - Hook edits into `UndoService` (RecordAction/RecordPropertyChange) so Undo/Redo work; currently the service is unused and commands do nothing (UndoService.cs, MainViewModel.cs).
+- Undo/redo [PARTIAL]
+  - Undo/Redo now work for: add/remove recipes, reorder recipes, add/remove lorebook entries, move lorebook entries.
+  - Clear undo history on New and LoadFile.
+  - Still missing: text field changes, property edits.

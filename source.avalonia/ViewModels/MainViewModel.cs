@@ -524,6 +524,26 @@ public partial class MainViewModel : ObservableObject
         Current.Character.recipes.Add(cloned);
         var vm = new RecipeViewModel(this, cloned);
         Recipes.Add(vm);
+
+        // Record undo action
+        _undoService.RecordAction("Add recipe",
+            () =>
+            {
+                // Undo: remove the added recipe
+                Current.Character.recipes.Remove(cloned);
+                Recipes.Remove(vm);
+                MarkDirty();
+                RegenerateOutput();
+            },
+            () =>
+            {
+                // Redo: add again
+                Current.Character.recipes.Add(cloned);
+                Recipes.Add(vm);
+                MarkDirty();
+                RegenerateOutput();
+            });
+
         MarkDirty();
         RegenerateOutput();
         StatusMessage = $"Added recipe: {recipe.title}";
@@ -1694,12 +1714,46 @@ public partial class MainViewModel : ObservableObject
             Name = $"Entry {LorebookEntries.Count + 1}",
         };
         LorebookEntries.Add(entry);
+
+        // Record undo action
+        _undoService.RecordAction("Add lore entry",
+            () =>
+            {
+                LorebookEntries.Remove(entry);
+                MarkDirty();
+                RegenerateOutput();
+            },
+            () =>
+            {
+                LorebookEntries.Add(entry);
+                MarkDirty();
+                RegenerateOutput();
+            });
+
         MarkDirty();
         RegenerateOutput();
     }
 
     public void RemoveLorebookEntry(LorebookEntryViewModel entry)
     {
+        var idx = LorebookEntries.IndexOf(entry);
+        if (idx < 0) return;
+
+        // Record undo action
+        _undoService.RecordAction("Remove lore entry",
+            () =>
+            {
+                LorebookEntries.Insert(Math.Min(idx, LorebookEntries.Count), entry);
+                MarkDirty();
+                RegenerateOutput();
+            },
+            () =>
+            {
+                LorebookEntries.Remove(entry);
+                MarkDirty();
+                RegenerateOutput();
+            });
+
         LorebookEntries.Remove(entry);
         MarkDirty();
         RegenerateOutput();
@@ -1710,6 +1764,9 @@ public partial class MainViewModel : ObservableObject
         var index = LorebookEntries.IndexOf(entry);
         if (index > 0)
         {
+            _undoService.RecordAction("Move lore entry",
+                () => { LorebookEntries.Move(index - 1, index); MarkDirty(); },
+                () => { LorebookEntries.Move(index, index - 1); MarkDirty(); });
             LorebookEntries.Move(index, index - 1);
             MarkDirty();
         }
@@ -1720,6 +1777,9 @@ public partial class MainViewModel : ObservableObject
         var index = LorebookEntries.IndexOf(entry);
         if (index < LorebookEntries.Count - 1)
         {
+            _undoService.RecordAction("Move lore entry",
+                () => { LorebookEntries.Move(index + 1, index); MarkDirty(); },
+                () => { LorebookEntries.Move(index, index + 1); MarkDirty(); });
             LorebookEntries.Move(index, index + 1);
             MarkDirty();
         }
@@ -2321,6 +2381,9 @@ public partial class MainViewModel : ObservableObject
         _isDirty = false;
         _portraitData = null;
 
+        // Clear undo history for new character
+        _undoService.Clear();
+
         CharacterName = "";
         SpokenName = "";
         Creator = "";
@@ -2491,6 +2554,8 @@ public partial class MainViewModel : ObservableObject
                     LoadFromCard(card);
                     _currentFilePath = filePath;
                     _isDirty = false;
+                    // Clear undo history for newly loaded character
+                    _undoService.Clear();
                     UpdateWindowTitle();
                     StatusMessage = $"Loaded {card.Name} ({card.SourceFormat})";
                     // Add to MRU
@@ -3222,6 +3287,29 @@ public partial class MainViewModel : ObservableObject
         if (idx >= 0)
         {
             var source = recipe.GetSourceRecipe();
+            var sourceIdx = source != null ? Current.Character.recipes.IndexOf(source) : -1;
+
+            // Record undo action
+            _undoService.RecordAction("Remove recipe",
+                () =>
+                {
+                    // Undo: restore the recipe
+                    if (source != null && sourceIdx >= 0)
+                        Current.Character.recipes.Insert(Math.Min(sourceIdx, Current.Character.recipes.Count), source);
+                    Recipes.Insert(Math.Min(idx, Recipes.Count), recipe);
+                    MarkDirty();
+                    RegenerateOutput();
+                },
+                () =>
+                {
+                    // Redo: remove again
+                    if (source != null && Current.Character.recipes.Contains(source))
+                        Current.Character.recipes.Remove(source);
+                    Recipes.Remove(recipe);
+                    MarkDirty();
+                    RegenerateOutput();
+                });
+
             if (source != null && Current.Character.recipes.Contains(source))
                 Current.Character.recipes.Remove(source);
 
@@ -3298,9 +3386,47 @@ public partial class MainViewModel : ObservableObject
             return;
 
         var vm = Recipes[fromIndex];
+        var source = vm.GetSourceRecipe();
+
+        // Record undo action
+        _undoService.RecordAction("Move recipe",
+            () =>
+            {
+                // Undo: move back
+                Recipes.Move(toIndex, fromIndex);
+                if (source != null)
+                {
+                    var list = Current.Character.recipes;
+                    int idx = list.IndexOf(source);
+                    if (idx >= 0)
+                    {
+                        list.RemoveAt(idx);
+                        list.Insert(Math.Min(fromIndex, list.Count), source);
+                    }
+                }
+                MarkDirty();
+                RegenerateOutput();
+            },
+            () =>
+            {
+                // Redo: move again
+                Recipes.Move(fromIndex, toIndex);
+                if (source != null)
+                {
+                    var list = Current.Character.recipes;
+                    int idx = list.IndexOf(source);
+                    if (idx >= 0)
+                    {
+                        list.RemoveAt(idx);
+                        list.Insert(Math.Min(toIndex, list.Count), source);
+                    }
+                }
+                MarkDirty();
+                RegenerateOutput();
+            });
+
         Recipes.Move(fromIndex, toIndex);
 
-        var source = vm.GetSourceRecipe();
         if (source != null)
         {
             var list = Current.Character.recipes;
@@ -3308,8 +3434,8 @@ public partial class MainViewModel : ObservableObject
             if (srcIdx >= 0)
             {
                 list.RemoveAt(srcIdx);
-                toIndex = Math.Min(toIndex, list.Count);
-                list.Insert(toIndex, source);
+                var targetIdx = Math.Min(toIndex, list.Count);
+                list.Insert(targetIdx, source);
             }
         }
 
