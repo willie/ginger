@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
         x:Class="Ginger.Views.Dialogs.WriteDialog"
         Title="Extended Editor"
         Width="700" Height="500"
@@ -27,11 +28,34 @@
                     </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
+                <MenuItem Header="_Syntax Highlighting" x:Name="HighlightMenuItem" Click="Highlight_Click">
+                    <MenuItem.Icon>
+                        <CheckBox x:Name="HighlightCheck" IsChecked="True" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Highlight _Names" x:Name="HighlightNamesMenuItem" Click="HighlightNames_Click">
+                    <MenuItem.Icon>
+                        <CheckBox x:Name="HighlightNamesCheck" IsChecked="True" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Highlight N_umbers" x:Name="HighlightNumbersMenuItem" Click="HighlightNumbers_Click">
+                    <MenuItem.Icon>
+                        <CheckBox x:Name="HighlightNumbersCheck" IsChecked="True" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Highlight _Pronouns" x:Name="HighlightPronounsMenuItem" Click="HighlightPronouns_Click">
+                    <MenuItem.Icon>
+                        <CheckBox x:Name="HighlightPronounsCheck" IsChecked="False" BorderThickness="0"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="_Spell Check Language" x:Name="SpellCheckLanguageMenu"/>
                 <MenuItem Header="_Change Font..." Click="ChangeFont_Click"/>
             </MenuItem>
             <MenuItem Header="_Search">
                 <MenuItem Header="_Find..." Click="Find_Click" InputGesture="Ctrl+F"/>
+                <MenuItem Header="Find _Next" Click="FindNext_Click" InputGesture="F3"/>
+                <MenuItem Header="Find _Previous" Click="FindPrevious_Click" InputGesture="Shift+F3"/>
                 <MenuItem Header="Find and _Replace..." Click="FindReplace_Click" InputGesture="Ctrl+H"/>
             </MenuItem>
             <MenuItem Header="_Tools">
@@ -39,14 +63,14 @@
             </MenuItem>
         </Menu>
 
-        <!-- Text Editor -->
-        <TextBox Grid.Row="1" x:Name="TextEditor"
-                 AcceptsReturn="True"
-                 AcceptsTab="True"
-                 TextWrapping="Wrap"
-                 Margin="8"
-                 FontFamily="Consolas, Monaco, Menlo, monospace"
-                 FontSize="13"/>
+        <!-- Text Editor using AvaloniaEdit -->
+        <ae:TextEditor Grid.Row="1" x:Name="TextEditor"
+                       Margin="8"
+                       FontFamily="Consolas, Monaco, Menlo, monospace"
+                       FontSize="13"
+                       ShowLineNumbers="False"
+                       HorizontalScrollBarVisibility="Auto"
+                       VerticalScrollBarVisibility="Auto"/>
 
         <!-- Status Bar -->
         <Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
