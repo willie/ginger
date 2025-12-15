@@ -68,8 +68,11 @@ Port Parity TODO (Avalonia vs Original WinForms)
   - Save-as-snippet/recipe actions implemented with simplified dialogs.
   - Full multi-channel snippet dialog not yet ported.
 
+- Assets handling [DONE]
+  - Animation tags display in asset viewer with "(anim)" indicator.
+  - Portrait resize command (shrink large images to MaxImageDimension).
+  - Asset viewer shows dimensions, actor info, and animation status.
+
 ## Remaining
 
-- Assets handling
-  - Animation tags display, portrait resize, asset viewer parity with metadata.
-  - Per-actor background override (needs per-actor asset selection).
+- Per-actor background override (low priority, rarely used).

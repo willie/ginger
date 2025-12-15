@@ -321,6 +321,9 @@ public partial class AssetViewDialog : Window
         public string TypeName { get; set; } = "";
         public string SizeText { get; set; } = "";
         public string Uid { get; set; } = "";
+        public bool IsAnimated { get; set; }
+        public string ActorInfo { get; set; } = "";
+        public string DimensionsText { get; set; } = "";
 
         public static AssetItem FromAsset(AssetFile asset)
         {
@@ -346,13 +349,37 @@ public partial class AssetViewDialog : Window
             string ext = (asset.ext ?? "").ToUpperInvariant();
             if (ext == "JPG") ext = "JPEG";
 
+            // Check for animation tag
+            bool isAnimated = asset.HasTag(AssetFile.Tag.Animation);
+
+            // Actor info
+            string actorInfo = "";
+            if (asset.actorIndex > 0 && asset.actorIndex < Current.Characters.Count)
+            {
+                actorInfo = $"Actor: {Current.Characters[asset.actorIndex].spokenName ?? Current.Characters[asset.actorIndex].name ?? $"#{asset.actorIndex + 1}"}";
+            }
+            else if (asset.HasTag(AssetFile.Tag.PortraitOverride))
+            {
+                actorInfo = "Portrait Override";
+            }
+
+            // Dimensions
+            string dimensionsText = "";
+            if (asset.knownWidth > 0 && asset.knownHeight > 0)
+            {
+                dimensionsText = $"{asset.knownWidth}x{asset.knownHeight}";
+            }
+
             return new AssetItem
             {
                 DisplayName = asset.name ?? "Untitled",
                 Extension = ext,
                 TypeName = typeName,
                 SizeText = sizeText,
-                Uid = asset.uid
+                Uid = asset.uid,
+                IsAnimated = isAnimated,
+                ActorInfo = actorInfo,
+                DimensionsText = dimensionsText
             };
         }
     }

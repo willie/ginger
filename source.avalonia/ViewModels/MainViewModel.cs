@@ -691,6 +691,97 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Returns true if the current portrait is larger than MaxImageDimension and can be resized.
+    /// </summary>
+    public bool CanResizePortrait
+    {
+        get
+        {
+            if (PortraitImage == null)
+                return false;
+            return PortraitImage.PixelSize.Width > Constants.MaxImageDimension ||
+                   PortraitImage.PixelSize.Height > Constants.MaxImageDimension;
+        }
+    }
+
+    [RelayCommand]
+    private void ResizePortrait()
+    {
+        if (PortraitImage == null)
+            return;
+
+        int srcWidth = PortraitImage.PixelSize.Width;
+        int srcHeight = PortraitImage.PixelSize.Height;
+
+        if (srcWidth <= Constants.MaxImageDimension && srcHeight <= Constants.MaxImageDimension)
+        {
+            StatusMessage = "Portrait is already within size limits";
+            return;
+        }
+
+        // Calculate new dimensions
+        float scale = Math.Min((float)Constants.MaxImageDimension / srcWidth, (float)Constants.MaxImageDimension / srcHeight);
+        int newWidth = Math.Max((int)Math.Round(srcWidth * scale), 1);
+        int newHeight = Math.Max((int)Math.Round(srcHeight * scale), 1);
+
+        try
+        {
+            // Resize using SkiaSharp
+            byte[]? currentData = Current.SelectedCharacter <= 0
+                ? _portraitData
+                : Current.Card.assets.FirstOrDefault(a =>
+                    a.actorIndex == Current.SelectedCharacter &&
+                    (a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait))?.data.data;
+
+            if (currentData == null)
+            {
+                StatusMessage = "No portrait data to resize";
+                return;
+            }
+
+            using var originalBitmap = SkiaSharp.SKBitmap.Decode(currentData);
+            if (originalBitmap == null)
+            {
+                StatusMessage = "Failed to decode portrait image";
+                return;
+            }
+
+            using var resizedBitmap = originalBitmap.Resize(new SkiaSharp.SKImageInfo(newWidth, newHeight), SkiaSharp.SKFilterQuality.High);
+            if (resizedBitmap == null)
+            {
+                StatusMessage = "Failed to resize portrait image";
+                return;
+            }
+
+            using var image = SkiaSharp.SKImage.FromBitmap(resizedBitmap);
+            using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+            var resizedData = data.ToArray();
+
+            // Update the portrait
+            if (Current.SelectedCharacter <= 0)
+            {
+                _portraitData = resizedData;
+                using var stream = new MemoryStream(resizedData);
+                PortraitImage = new Bitmap(stream);
+            }
+            else
+            {
+                SetActorPortrait(Current.SelectedCharacter, resizedData);
+                using var stream = new MemoryStream(resizedData);
+                PortraitImage = new Bitmap(stream);
+            }
+
+            MarkDirty();
+            OnPropertyChanged(nameof(CanResizePortrait));
+            StatusMessage = $"Resized portrait from {srcWidth}x{srcHeight} to {newWidth}x{newHeight}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error resizing portrait: {ex.Message}";
+        }
+    }
+
     #region Background Image Commands
 
     [RelayCommand]
@@ -915,6 +1006,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnGreetingChanged(string value) { MarkDirty(); RegenerateOutput(); }
     partial void OnExampleMessagesChanged(string value) { MarkDirty(); RegenerateOutput(); }
     partial void OnSystemPromptChanged(string value) { MarkDirty(); RegenerateOutput(); }
+    partial void OnPortraitImageChanged(Bitmap? value) => OnPropertyChanged(nameof(CanResizePortrait));
 
     partial void OnUserPlaceholderChanged(string value)
     {

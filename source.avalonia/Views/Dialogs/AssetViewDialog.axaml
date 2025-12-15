@@ -20,16 +20,26 @@
                      SelectionChanged="AssetsList_SelectionChanged">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="dialogs:AssetViewDialog+AssetItem">
-                        <Grid ColumnDefinitions="*,60,100,80" Margin="4">
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,60,100,80" Margin="4,4,4,6">
                             <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Extension}"
-                                       VerticalAlignment="Center" Foreground="Gray"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding Extension}" Foreground="Gray"/>
+                                <TextBlock Text="(anim)" Foreground="Orange" FontStyle="Italic"
+                                           IsVisible="{Binding IsAnimated}"/>
+                            </StackPanel>
                             <TextBlock Grid.Column="2" Text="{Binding TypeName}"
                                        VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="{Binding SizeText}"
                                        VerticalAlignment="Center" HorizontalAlignment="Right"
                                        Foreground="Gray"/>
+                            <!-- Second row: metadata -->
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="{Binding DimensionsText}" FontSize="10" Foreground="Gray"
+                                           IsVisible="{Binding DimensionsText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding ActorInfo}" FontSize="10" Foreground="SteelBlue"
+                                           IsVisible="{Binding ActorInfo, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>

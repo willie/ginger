@@ -402,6 +402,9 @@
                                 <Button.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Load Image..." Command="{Binding LoadPortraitCommand}"/>
+                                        <MenuItem Header="Resize (Shrink Large Image)" Command="{Binding ResizePortraitCommand}"
+                                                  IsEnabled="{Binding CanResizePortrait}"/>
+                                        <Separator/>
                                         <MenuItem Header="Clear" Command="{Binding ClearPortraitCommand}"/>
                                     </ContextMenu>
                                 </Button.ContextMenu>
