@@ -1,4 +1,6 @@
-﻿namespace AvsAnLib.Internals {
+﻿#nullable disable
+
+namespace AvsAnLib.Internals {
     /// <summary>
     /// The built-in dictionary derived from wikipedia that describes which prefixes have which article
     /// </summary>

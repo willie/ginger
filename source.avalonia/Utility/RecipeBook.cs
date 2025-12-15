@@ -4,6 +4,8 @@
 // CHANGES: WinForms-specific code removed
 //          Moved from Model/Recipe to Utility directory
 // =============================================================================
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.IO;

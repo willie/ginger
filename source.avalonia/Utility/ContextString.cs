@@ -1,4 +1,6 @@
-﻿using Ginger;
+﻿#nullable disable
+
+using Ginger;
 using System;
 using System.Collections.Generic;
 using System.Linq;

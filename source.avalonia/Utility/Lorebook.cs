@@ -6,6 +6,7 @@
 // =============================================================================
 // Lorebook class for character world information
 // Full implementation with all format converters
+#nullable disable
 
 using System;
 using System.Collections.Generic;

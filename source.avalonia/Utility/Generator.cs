@@ -4,6 +4,8 @@
 // CHANGES: WinForms UI code removed (no dialog/control references)
 //          Moved from Model/Generation to Utility directory
 // =============================================================================
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;

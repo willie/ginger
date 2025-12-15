@@ -1,6 +1,7 @@
 // Stub implementations for Backyard integration
 // These provide minimal interfaces to allow compilation
 // Full implementations will be added as needed
+#nullable disable
 
 using System;
 using System.Collections.Generic;
@@ -127,7 +128,6 @@ namespace Ginger
 				using var canvas = new SKCanvas(result);
 				using var paint = new SKPaint
 				{
-					FilterQuality = SKFilterQuality.High,
 					IsAntialias = true
 				};
 

@@ -1,5 +1,6 @@
 // Parameter interfaces and base classes
 // Copied from original Ginger for Avalonia port
+#nullable disable
 
 using System;
 using System.Collections.Generic;

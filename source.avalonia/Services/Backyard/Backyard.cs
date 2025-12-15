@@ -8,6 +8,8 @@
 //          - TypeAffinity enum replaced with GetFieldType() checks
 //          - DateTimeExtensions.FromUnixTime -> DateTimeOffset.FromUnixTimeMilliseconds
 // =============================================================================
+#nullable disable
+
 using System;
 using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
@@ -593,7 +595,7 @@ namespace Ginger.Integration
 						_filenameHash = null;
 					else
 					{
-						using (var sha1 = new System.Security.Cryptography.SHA256CryptoServiceProvider())
+						using (var sha1 = System.Security.Cryptography.SHA256.Create())
 						{
 							byte[] bytes = Encoding.UTF8.GetBytes(value.ToLowerInvariant());
 							_filenameHash = string.Concat(sha1.ComputeHash(bytes).Select(x => x.ToString("X2")));
@@ -785,7 +787,7 @@ namespace Ginger.Integration
 				else if (_filenameHash == null)
 					return false;
 
-				using (var sha1 = new System.Security.Cryptography.SHA256CryptoServiceProvider())
+				using (var sha1 = System.Security.Cryptography.SHA256.Create())
 				{
 					byte[] bytes = Encoding.UTF8.GetBytes(otherFilename.ToLowerInvariant());
 					string hash = string.Concat(sha1.ComputeHash(bytes).Select(x => x.ToString("X2")));

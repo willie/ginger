@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace AvsAnLib.Internals {
     public static class NodeDeserializer {
         static int DenseIntParse(string str, ref int cursor) {

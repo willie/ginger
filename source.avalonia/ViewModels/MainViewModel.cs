@@ -9,6 +9,9 @@
 //          Direct control manipulation -> ObservableProperty bindings
 //          Sync methods -> async/await patterns
 // =============================================================================
+#nullable enable
+#pragma warning disable CS8600, CS8601, CS8604, CS8619 // Nullable reference type warnings
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -815,7 +818,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            using var resizedBitmap = originalBitmap.Resize(new SkiaSharp.SKImageInfo(newWidth, newHeight), SkiaSharp.SKFilterQuality.High);
+            using var resizedBitmap = originalBitmap.Resize(new SkiaSharp.SKImageInfo(newWidth, newHeight), new SkiaSharp.SKSamplingOptions(SkiaSharp.SKFilterMode.Linear, SkiaSharp.SKMipmapMode.Linear));
             if (resizedBitmap == null)
             {
                 StatusMessage = "Failed to resize portrait image";
@@ -1076,20 +1079,20 @@ public partial class MainViewModel : ObservableObject
     private string _oldUserPlaceholder = "";
 
     // Changing methods - capture old values before change
-    partial void OnCharacterNameChanging(string value) => _oldCharacterName = _characterName;
-    partial void OnSpokenNameChanging(string value) => _oldSpokenName = _spokenName;
-    partial void OnCreatorChanging(string value) => _oldCreator = _creator;
-    partial void OnVersionChanging(string value) => _oldVersion = _version;
-    partial void OnTagsChanging(string value) => _oldTags = _tags;
-    partial void OnCommentChanging(string value) => _oldComment = _comment;
-    partial void OnNotesChanging(string value) => _oldNotes = _notes;
-    partial void OnPersonaChanging(string value) => _oldPersona = _persona;
-    partial void OnPersonalityChanging(string value) => _oldPersonality = _personality;
-    partial void OnScenarioChanging(string value) => _oldScenario = _scenario;
-    partial void OnGreetingChanging(string value) => _oldGreeting = _greeting;
-    partial void OnExampleMessagesChanging(string value) => _oldExampleMessages = _exampleMessages;
-    partial void OnSystemPromptChanging(string value) => _oldSystemPrompt = _systemPrompt;
-    partial void OnUserPlaceholderChanging(string value) => _oldUserPlaceholder = _userPlaceholder;
+    partial void OnCharacterNameChanging(string value) => _oldCharacterName = CharacterName;
+    partial void OnSpokenNameChanging(string value) => _oldSpokenName = SpokenName;
+    partial void OnCreatorChanging(string value) => _oldCreator = Creator;
+    partial void OnVersionChanging(string value) => _oldVersion = Version;
+    partial void OnTagsChanging(string value) => _oldTags = Tags;
+    partial void OnCommentChanging(string value) => _oldComment = Comment;
+    partial void OnNotesChanging(string value) => _oldNotes = Notes;
+    partial void OnPersonaChanging(string value) => _oldPersona = Persona;
+    partial void OnPersonalityChanging(string value) => _oldPersonality = Personality;
+    partial void OnScenarioChanging(string value) => _oldScenario = Scenario;
+    partial void OnGreetingChanging(string value) => _oldGreeting = Greeting;
+    partial void OnExampleMessagesChanging(string value) => _oldExampleMessages = ExampleMessages;
+    partial void OnSystemPromptChanging(string value) => _oldSystemPrompt = SystemPrompt;
+    partial void OnUserPlaceholderChanging(string value) => _oldUserPlaceholder = UserPlaceholder;
 
     partial void OnCharacterNameChanged(string value)
     {
@@ -6963,9 +6966,10 @@ public partial class LorebookEntryViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PasteEntryAsync()
+    private Task PasteEntryAsync()
     {
         _parent?.PasteLorebookEntryAfter(this);
+        return Task.CompletedTask;
     }
 
     [RelayCommand]

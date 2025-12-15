@@ -1,5 +1,6 @@
 // Stub implementations for missing utilities in Avalonia port
 // These provide minimal interfaces to allow the macro system to compile
+#nullable disable
 
 using System;
 using System.Collections.Generic;

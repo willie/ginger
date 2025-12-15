@@ -1,3 +1,5 @@
+#nullable disable
+
 using System.Xml;
 
 namespace Ginger

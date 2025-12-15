@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable disable
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -456,7 +458,6 @@ namespace Ginger
 			if (value == null)
 				return null;
 
-			string mainCharacterPlaceholder;
 			StringBuilder sb;
 			switch (AppSettings.Settings.PreviewFormat)
 			{

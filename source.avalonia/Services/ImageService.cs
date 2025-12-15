@@ -1,3 +1,6 @@
+#nullable enable
+#pragma warning disable CS8600, CS8601, CS8604, CS8619 // Nullable reference type warnings
+
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -572,7 +575,7 @@ public class ImageService
             int newWidth = (int)(source.Width * ratio);
             int newHeight = (int)(source.Height * ratio);
 
-            return source.Resize(new SKImageInfo(newWidth, newHeight), SKFilterQuality.High);
+            return source.Resize(new SKImageInfo(newWidth, newHeight), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
         }
         catch
         {
@@ -590,7 +593,7 @@ public class ImageService
 
         try
         {
-            return source.Resize(new SKImageInfo(width, height), SKFilterQuality.High);
+            return source.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
         }
         catch
         {

@@ -1,3 +1,5 @@
+#nullable disable
+
 using System;
 using System.IO;
 using SkiaSharp;
@@ -272,7 +274,7 @@ namespace Ginger
 			int newWidth = (int)(_bitmap.Width * ratio);
 			int newHeight = (int)(_bitmap.Height * ratio);
 
-			var resized = _bitmap.Resize(new SKImageInfo(newWidth, newHeight), SKFilterQuality.High);
+			var resized = _bitmap.Resize(new SKImageInfo(newWidth, newHeight), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 			return FromBitmap(resized);
 		}
 

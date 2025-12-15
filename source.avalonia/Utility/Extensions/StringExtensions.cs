@@ -1,4 +1,5 @@
 ﻿// String extension methods
+#nullable disable
 
 using System;
 using System.Text;
@@ -167,7 +168,6 @@ namespace Ginger
 
 		public static int IndexOfReverse(this string text, char ch, int startIndex)
 		{
-			int index;
 			if (startIndex < 0 || startIndex >= text.Length)
 				return -1;
 

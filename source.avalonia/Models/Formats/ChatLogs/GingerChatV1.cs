@@ -4,6 +4,9 @@
 // CHANGES: Major adaptations for Avalonia compatibility
 //          Namespace changed to Ginger.Models.Formats.ChatLogs
 // =============================================================================
+#nullable enable
+#pragma warning disable CS8600, CS8601, CS8604, CS8619 // Nullable reference type warnings
+
 using System;
 using System.Collections.Generic;
 using System.Linq;

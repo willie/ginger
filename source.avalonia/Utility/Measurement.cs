@@ -1,5 +1,6 @@
 // Measurement utilities for unit conversion
 // Copied from original codebase with minimal changes for Avalonia port
+#nullable disable
 
 using System;
 using System.Globalization;

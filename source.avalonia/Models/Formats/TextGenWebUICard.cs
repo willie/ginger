@@ -1,3 +1,5 @@
+#nullable disable
+
 using System.Text;
 using Ginger.Models;
 using YamlDotNet.Serialization;

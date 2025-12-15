@@ -1,3 +1,6 @@
+#nullable disable
+#pragma warning disable CA2022 // Avoid inexact read with Stream.Read
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -3,6 +3,9 @@
 // STATUS: adapted
 // CHANGES: System.Data.SQLite -> Microsoft.Data.Sqlite for cross-platform support
 // =============================================================================
+#nullable disable
+#pragma warning disable CS0168 // Variable declared but never used
+
 using System;
 using Microsoft.Data.Sqlite;
 using System.Collections.Generic;

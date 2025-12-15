@@ -4,6 +4,8 @@
 // CHANGES: Adaptations for Avalonia compatibility
 //          Namespace changed to Ginger.Models.Formats.ChatLogs
 // =============================================================================
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,4 +1,6 @@
-﻿namespace Ginger
+﻿#nullable disable
+
+namespace Ginger
 {
 	public static class ContextHelper
 	{

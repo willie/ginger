@@ -1,5 +1,6 @@
 // Global state for Avalonia port
 // Provides interface for generation and macro system
+#nullable disable
 
 using System;
 using System.Collections.Generic;

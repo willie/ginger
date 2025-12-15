@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace AvsAnLib.Internals {
     /// <summary>
     /// The ratio of a's vs. an's for a given prefix

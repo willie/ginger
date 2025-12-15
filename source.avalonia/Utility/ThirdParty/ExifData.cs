@@ -66,6 +66,8 @@
 //
 // The Code Project Open License (CPOL): https://www.codeproject.com/info/cpol10.aspx
 // -------------------------------------------------------------------------------------------------
+#nullable disable
+#pragma warning disable CA2022 // Avoid inexact read with Stream.Read
 
 using System;
 using System.Collections;

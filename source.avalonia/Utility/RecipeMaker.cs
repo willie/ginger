@@ -1,5 +1,6 @@
 // RecipeMaker - Creates recipes from output
 // Simplified for Avalonia port
+#nullable disable
 
 using System;
 using System.Collections.Generic;

@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Ginger.Integration;
 
 namespace Ginger.Views.Dialogs;
@@ -190,21 +191,25 @@ public partial class LinkEditChatDialog : Window
         if (chat?.history == null)
             return;
 
-        var dialog = new SaveFileDialog
+        var filters = new[]
         {
-            Title = "Export Chat",
-            DefaultExtension = "json",
-            Filters = new List<FileDialogFilter>
-            {
-                new() { Name = "Ginger Chat (*.json)", Extensions = { "json" } },
-                new() { Name = "Backyard Chat Backup (*.json)", Extensions = { "json" } },
-                new() { Name = "Text File (*.txt)", Extensions = { "txt" } }
-            }
+            new FilePickerFileType("Ginger Chat") { Patterns = new[] { "*.json" } },
+            new FilePickerFileType("Backyard Chat Backup") { Patterns = new[] { "*.json" } },
+            new FilePickerFileType("Text File") { Patterns = new[] { "*.txt" } }
         };
 
-        var result = await dialog.ShowAsync(this);
-        if (string.IsNullOrEmpty(result))
+        var options = new FilePickerSaveOptions
+        {
+            Title = "Export Chat",
+            SuggestedFileName = "chat.json",
+            FileTypeChoices = filters
+        };
+
+        var file = await this.StorageProvider.SaveFilePickerAsync(options);
+        if (file == null)
             return;
+
+        var result = file.Path.LocalPath;
 
         try
         {

@@ -8,6 +8,9 @@
 //          Sync I/O -> async/await patterns
 //          Format detection and dispatch centralized
 // =============================================================================
+#nullable enable
+#pragma warning disable CS8600, CS8601, CS8604, CS8619 // Nullable reference type warnings
+
 using System;
 using System.Collections.Generic;
 using System.IO;

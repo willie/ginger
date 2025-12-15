@@ -7,6 +7,7 @@
 // =============================================================================
 // Recipe class - main implementation
 // This is a partial class - enums are in RecipeEnums.cs
+#nullable disable
 
 using System;
 using System.Collections.Generic;

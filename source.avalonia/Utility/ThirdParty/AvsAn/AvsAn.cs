@@ -1,4 +1,5 @@
 //by Eamon Nerbonne (from http://home.nerbonne.org/A-vs-An), Apache 2.0 license.
+#nullable disable
 
 using AvsAnLib.Internals;
 

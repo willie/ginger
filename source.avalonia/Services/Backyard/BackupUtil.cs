@@ -6,6 +6,10 @@
 //          - BackupData nested classes refactored to FullBackupData
 //          - Async patterns added throughout
 // =============================================================================
+#nullable enable
+#pragma warning disable CA2022 // Avoid inexact read with Stream.Read
+#pragma warning disable CS8600, CS8601, CS8604, CS8619 // Nullable reference type warnings
+
 using System;
 using System.Collections.Generic;
 using System.IO;
