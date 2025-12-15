@@ -1,53 +1,64 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:Ginger.Views.Dialogs"
         x:Class="Ginger.Views.Dialogs.CreateSnippetDialog"
+        x:DataType="dialogs:CreateSnippetDialog"
         Title="Create Snippet"
-        Width="600"
-        Height="450"
+        Width="650"
+        Height="550"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        CanResize="True"
+        MinWidth="500"
+        MinHeight="400">
 
-    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto">
         <!-- Snippet Name -->
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Name:" Margin="0,0,0,4"/>
             <TextBox x:Name="NameBox" Watermark="Folder/Name..." MaxLength="64"/>
         </StackPanel>
 
-        <!-- Target Component -->
-        <StackPanel Grid.Row="1" Margin="0,0,0,12">
-            <TextBlock Text="Target Component:" Margin="0,0,0,4"/>
-            <ComboBox x:Name="ComponentCombo" SelectedIndex="0">
-                <ComboBoxItem Content="Persona"/>
-                <ComboBoxItem Content="Personality"/>
-                <ComboBoxItem Content="Scenario"/>
-                <ComboBoxItem Content="Greeting"/>
-                <ComboBoxItem Content="Example"/>
-                <ComboBoxItem Content="System Prompt"/>
-                <ComboBoxItem Content="Post-History"/>
-                <ComboBoxItem Content="User Persona"/>
-                <ComboBoxItem Content="Grammar"/>
-            </ComboBox>
-        </StackPanel>
-
-        <!-- Content Label -->
-        <TextBlock Grid.Row="2" Text="Content:" Margin="0,0,0,4"/>
-
-        <!-- Content -->
-        <TextBox Grid.Row="3" x:Name="ContentBox"
-                 Watermark="Snippet content..."
-                 TextWrapping="Wrap"
-                 AcceptsReturn="True"
-                 VerticalContentAlignment="Top"
-                 Margin="0,0,0,12"/>
+        <!-- Channel Panels -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="0,0,0,12">
+            <ScrollViewer>
+                <ItemsControl x:Name="ChannelsList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dialogs:SnippetChannelItem">
+                            <Border Margin="4" CornerRadius="4" Background="{Binding ChannelColor}">
+                                <Grid RowDefinitions="Auto,*" Margin="8">
+                                    <!-- Header with checkbox and channel name -->
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ChannelName}" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{Binding HeaderForeground}"/>
+                                    </StackPanel>
+                                    <!-- Content -->
+                                    <TextBox Grid.Row="1" Text="{Binding Content}"
+                                             IsEnabled="{Binding IsEnabled}"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             MinHeight="60"
+                                             MaxHeight="150"
+                                             Margin="0,8,0,0"
+                                             VerticalContentAlignment="Top"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
 
         <!-- Options -->
-        <CheckBox Grid.Row="4" x:Name="SwapPronounsCheck"
-                  Content="Replace gendered pronouns"
+        <CheckBox Grid.Row="2" x:Name="SwapPronounsCheck"
+                  Content="Replace gendered pronouns with neutral markers"
                   Margin="0,0,0,12"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button x:Name="CreateButton" Content="Create" Width="80"
                     Click="CreateButton_Click" IsDefault="True"/>
             <Button Content="Cancel" Width="80"

@@ -23,6 +23,7 @@ public partial class MainViewModel : ObservableObject
     private readonly RecipeService _recipeService;
     private readonly DialogService _dialogService;
     private readonly UndoService _undoService;
+    private readonly TextUndoHelper _textUndoHelper;
     private readonly TokenizerService _tokenizerService;
     private CharacterCard? _currentCard;
     private string? _currentFilePath;
@@ -340,6 +341,7 @@ public partial class MainViewModel : ObservableObject
         _recipeService = recipeService;
         _dialogService = dialogService;
         _undoService = new UndoService();
+        _textUndoHelper = new TextUndoHelper(_undoService);
         _tokenizerService = new TokenizerService();
         _selectedDetailLevel = "Normal detail";
 
@@ -982,8 +984,41 @@ public partial class MainViewModel : ObservableObject
 
     #region Property Change Handlers
 
+    // Old values for text undo tracking
+    private string _oldCharacterName = "";
+    private string _oldSpokenName = "";
+    private string _oldCreator = "";
+    private string _oldVersion = "";
+    private string _oldTags = "";
+    private string _oldComment = "";
+    private string _oldNotes = "";
+    private string _oldPersona = "";
+    private string _oldPersonality = "";
+    private string _oldScenario = "";
+    private string _oldGreeting = "";
+    private string _oldExampleMessages = "";
+    private string _oldSystemPrompt = "";
+    private string _oldUserPlaceholder = "";
+
+    // Changing methods - capture old values before change
+    partial void OnCharacterNameChanging(string value) => _oldCharacterName = _characterName;
+    partial void OnSpokenNameChanging(string value) => _oldSpokenName = _spokenName;
+    partial void OnCreatorChanging(string value) => _oldCreator = _creator;
+    partial void OnVersionChanging(string value) => _oldVersion = _version;
+    partial void OnTagsChanging(string value) => _oldTags = _tags;
+    partial void OnCommentChanging(string value) => _oldComment = _comment;
+    partial void OnNotesChanging(string value) => _oldNotes = _notes;
+    partial void OnPersonaChanging(string value) => _oldPersona = _persona;
+    partial void OnPersonalityChanging(string value) => _oldPersonality = _personality;
+    partial void OnScenarioChanging(string value) => _oldScenario = _scenario;
+    partial void OnGreetingChanging(string value) => _oldGreeting = _greeting;
+    partial void OnExampleMessagesChanging(string value) => _oldExampleMessages = _exampleMessages;
+    partial void OnSystemPromptChanging(string value) => _oldSystemPrompt = _systemPrompt;
+    partial void OnUserPlaceholderChanging(string value) => _oldUserPlaceholder = _userPlaceholder;
+
     partial void OnCharacterNameChanged(string value)
     {
+        _textUndoHelper.RecordTextChange(nameof(CharacterName), "Edit name", _oldCharacterName, value, v => CharacterName = v);
         MarkDirty();
         UpdateWindowTitle();
         RegenerateOutput();
@@ -991,25 +1026,88 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSpokenNameChanged(string value)
     {
+        _textUndoHelper.RecordTextChange(nameof(SpokenName), "Edit spoken name", _oldSpokenName, value, v => SpokenName = v);
         MarkDirty();
         RegenerateOutput();
     }
 
-    partial void OnCreatorChanged(string value) => MarkDirty();
-    partial void OnVersionChanged(string value) => MarkDirty();
-    partial void OnTagsChanged(string value) => MarkDirty();
-    partial void OnCommentChanged(string value) => MarkDirty();
-    partial void OnNotesChanged(string value) => MarkDirty();
-    partial void OnPersonaChanged(string value) { MarkDirty(); RegenerateOutput(); }
-    partial void OnPersonalityChanged(string value) { MarkDirty(); RegenerateOutput(); }
-    partial void OnScenarioChanged(string value) { MarkDirty(); RegenerateOutput(); }
-    partial void OnGreetingChanged(string value) { MarkDirty(); RegenerateOutput(); }
-    partial void OnExampleMessagesChanged(string value) { MarkDirty(); RegenerateOutput(); }
-    partial void OnSystemPromptChanged(string value) { MarkDirty(); RegenerateOutput(); }
+    partial void OnCreatorChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Creator), "Edit creator", _oldCreator, value, v => Creator = v);
+        MarkDirty();
+    }
+
+    partial void OnVersionChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Version), "Edit version", _oldVersion, value, v => Version = v);
+        MarkDirty();
+    }
+
+    partial void OnTagsChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Tags), "Edit tags", _oldTags, value, v => Tags = v);
+        MarkDirty();
+    }
+
+    partial void OnCommentChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Comment), "Edit comment", _oldComment, value, v => Comment = v);
+        MarkDirty();
+    }
+
+    partial void OnNotesChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Notes), "Edit notes", _oldNotes, value, v => Notes = v);
+        MarkDirty();
+    }
+
+    partial void OnPersonaChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Persona), "Edit persona", _oldPersona, value, v => Persona = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnPersonalityChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Personality), "Edit personality", _oldPersonality, value, v => Personality = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnScenarioChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Scenario), "Edit scenario", _oldScenario, value, v => Scenario = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnGreetingChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(Greeting), "Edit greeting", _oldGreeting, value, v => Greeting = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnExampleMessagesChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(ExampleMessages), "Edit examples", _oldExampleMessages, value, v => ExampleMessages = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
+    partial void OnSystemPromptChanged(string value)
+    {
+        _textUndoHelper.RecordTextChange(nameof(SystemPrompt), "Edit system prompt", _oldSystemPrompt, value, v => SystemPrompt = v);
+        MarkDirty();
+        RegenerateOutput();
+    }
+
     partial void OnPortraitImageChanged(Bitmap? value) => OnPropertyChanged(nameof(CanResizePortrait));
 
     partial void OnUserPlaceholderChanged(string value)
     {
+        _textUndoHelper.RecordTextChange(nameof(UserPlaceholder), "Edit user name", _oldUserPlaceholder, value, v => UserPlaceholder = v);
         MarkDirty();
         RegenerateOutput();
     }
@@ -2562,6 +2660,7 @@ public partial class MainViewModel : ObservableObject
         _portraitData = null;
 
         // Clear undo history for new character
+        _textUndoHelper.FlushPendingChanges();
         _undoService.Clear();
 
         CharacterName = "";
@@ -2736,6 +2835,7 @@ public partial class MainViewModel : ObservableObject
                     _currentFilePath = filePath;
                     _isDirty = false;
                     // Clear undo history for newly loaded character
+                    _textUndoHelper.FlushPendingChanges();
                     _undoService.Clear();
                     UpdateWindowTitle();
                     StatusMessage = $"Loaded {card.Name} ({card.SourceFormat})";
