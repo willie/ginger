@@ -1,3 +1,9 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Formats/ChatLogs/GingerChatV1.cs
+// STATUS: adapted
+// CHANGES: Major adaptations for Avalonia compatibility
+//          Namespace changed to Ginger.Models.Formats.ChatLogs
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.Linq;

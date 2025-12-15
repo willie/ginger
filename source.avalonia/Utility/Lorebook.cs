@@ -1,3 +1,9 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Lorebook/Lorebook.cs
+// STATUS: adapted
+// CHANGES: Moved from Model/Lorebook to Utility directory
+//          Minor adaptations for Avalonia compatibility
+// =============================================================================
 // Lorebook class for character world information
 // Full implementation with all format converters
 

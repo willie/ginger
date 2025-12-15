@@ -1,4 +1,9 @@
-﻿using System;
+// =============================================================================
+// PORT ORIGIN: source/src/Utility/Integration/Revisions/BackyardDatabase_v28.cs
+// STATUS: adapted
+// CHANGES: System.Data.SQLite -> Microsoft.Data.Sqlite for cross-platform support
+// =============================================================================
+using System;
 using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
 using System.IO;

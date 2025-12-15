@@ -1,3 +1,9 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Generation/Generator.cs
+// STATUS: adapted
+// CHANGES: WinForms UI code removed (no dialog/control references)
+//          Moved from Model/Generation to Utility directory
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.Linq;

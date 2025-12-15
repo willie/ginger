@@ -1,3 +1,13 @@
+// =============================================================================
+// PORT ORIGIN: Consolidated from multiple WinForms files:
+//              - source/src/Model/GingerCharacter.cs (format dispatch logic)
+//              - source/src/Model/Formats/FileUtil.cs (file I/O operations)
+//              - Various format parsers in source/src/Model/Formats/
+// STATUS: consolidated
+// CHANGES: Static methods consolidated into service class
+//          Sync I/O -> async/await patterns
+//          Format detection and dispatch centralized
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.IO;

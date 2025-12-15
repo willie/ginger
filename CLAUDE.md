@@ -37,7 +37,7 @@ msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
 
 ## Avalonia Port Architecture (`source.avalonia/`)
 
-Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~6,700 lines) is the central hub containing all character editing state, file operations, and commands.
+Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~7,000 lines) is the central hub containing all character editing state, file operations, and commands.
 
 ### Key Directories
 - **ViewModels/** - `MainViewModel.cs` contains all character editing state, file operations, and commands
@@ -68,15 +68,15 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~6,700 lines) 
 
 **GingerString** - Central class handling placeholder conversion between formats (`{{char}}`/`{{user}}` ↔ `{char}`/`{user}` ↔ internal markers). Located in `Utility/GingerString.cs`.
 
-**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Services/Backyard/`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms). Database schema versions handled by `Revisions/BackyardDatabase_v*.cs`.
+**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Services/Backyard/`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms). Database schema versions handled by `Revisions/BackyardDatabase_v28.cs` and `BackyardDatabase_v37.cs`.
 
 ## Content Files
 
-- `Content/en/Recipes/` - 162 recipe XML definitions (identical in both implementations)
-- `Content/en/Snippets/` - Reusable text snippets
-- `Content/en/Templates/` - Card templates
-- `Content/en/Internal/` - Global macros and styles
-- `Dictionaries/` - Spell check dictionaries (en_US, en_GB)
+- `source/Content/en/Recipes/` - 162 recipe XML definitions (copied to Avalonia output during build)
+- `source/Content/en/Snippets/` - Reusable text snippets
+- `source/Content/en/Templates/` - Card templates
+- `source/Content/en/Internal/` - Global macros and styles
+- `source/Dictionaries/` - Spell check dictionaries (en_US, en_GB)
 
 ## Code Reuse Between Implementations
 
@@ -84,16 +84,22 @@ The Avalonia port directly reuses original code wherever possible. These files a
 
 | File | Status |
 |------|--------|
-| `GingerString.cs` | Identical |
+| `GingerString.cs` | Identical (trivial using added) |
 | `ContextString.cs` | Identical |
 | `StringBank.cs`, `StringHandle.cs`, `Text.cs` | Identical |
-| `Backyard.cs` | Near-identical (SQLite library swap only) |
+| `Conditional.cs`, `RuleBank.cs` | Identical |
+| All `Extensions/*.cs` | Identical |
+| `Backyard.cs` | Adapted (SQLite library swap) |
 | `Generator.cs`, `Recipe.cs` | Adapted (WinForms code removed) |
 | All chat log formats | Adapted |
 | Content XML files | Copied verbatim |
 
+**For detailed port documentation, see:**
+- [`docs/PORT_MAPPING.md`](docs/PORT_MAPPING.md) - File-by-file mapping between implementations
+- [`docs/PORT_DECISIONS.md`](docs/PORT_DECISIONS.md) - Rationale for adaptation decisions
+
 **When porting features:** Copy from original `source/src/` with minimal changes. Only adapt for:
-- `System.Drawing` → `Avalonia.Media`
+- `System.Drawing` → `SkiaSharp` (via `ImageService`)
 - `System.Data.SQLite` → `Microsoft.Data.Sqlite`
 - WinForms dialogs → Avalonia AXAML + code-behind
 

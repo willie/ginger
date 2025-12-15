@@ -1,3 +1,14 @@
+// =============================================================================
+// PORT ORIGIN: Consolidated from multiple WinForms files:
+//              - source/src/Interface/Forms/MainForm.cs (~2,945 LOC)
+//              - source/src/Interface/Forms/MainFunctions.cs (~1,795 LOC)
+//              - source/src/Interface/Forms/BackyardFunctions.cs (~2,295 LOC)
+// STATUS: consolidated
+// CHANGES: WinForms code-behind pattern -> MVVM ViewModel pattern
+//          Event handlers -> RelayCommand attributes
+//          Direct control manipulation -> ObservableProperty bindings
+//          Sync methods -> async/await patterns
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

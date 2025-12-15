@@ -1,3 +1,10 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Recipe/Recipe.cs
+// STATUS: adapted
+// CHANGES: System.Drawing.Color -> Avalonia.Media.Color
+//          WinForms-specific code removed
+//          Moved from Model/Recipe to Utility directory
+// =============================================================================
 // Recipe class - main implementation
 // This is a partial class - enums are in RecipeEnums.cs
 

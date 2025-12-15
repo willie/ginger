@@ -1,4 +1,14 @@
-﻿using System;
+// =============================================================================
+// PORT ORIGIN: source/src/Utility/Integration/Backyard.cs
+// STATUS: adapted
+// CHANGES: System.Data.SQLite -> Microsoft.Data.Sqlite for cross-platform support
+//          - SQLiteConnection -> SqliteConnection
+//          - SQLiteDataReader -> SqliteDataReader
+//          - SQLiteException -> SqliteException
+//          - TypeAffinity enum replaced with GetFieldType() checks
+//          - DateTimeExtensions.FromUnixTime -> DateTimeOffset.FromUnixTimeMilliseconds
+// =============================================================================
+using System;
 using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
 using System.IO;

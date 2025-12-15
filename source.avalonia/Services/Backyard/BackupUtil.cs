@@ -1,3 +1,11 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Utility/Integration/Utilities/BackupUtil.cs
+// STATUS: adapted
+// CHANGES: Major restructuring for cross-platform support
+//          - System.Drawing removed (image handling via ImageService)
+//          - BackupData nested classes refactored to FullBackupData
+//          - Async patterns added throughout
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.IO;

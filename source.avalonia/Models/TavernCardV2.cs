@@ -1,3 +1,9 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Formats/CharacterCards/TavernCardV2.cs
+// STATUS: adapted
+// CHANGES: Major restructuring for cleaner JSON serialization
+//          Moved from Model/Formats/CharacterCards to Models directory
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.Linq;

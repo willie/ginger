@@ -1,3 +1,9 @@
+// =============================================================================
+// PORT ORIGIN: source/src/Model/Recipe/RecipeBook.cs
+// STATUS: adapted
+// CHANGES: WinForms-specific code removed
+//          Moved from Model/Recipe to Utility directory
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.IO;
