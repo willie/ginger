@@ -107,4 +107,4 @@ The Avalonia port directly reuses original code wherever possible. These files a
 
 - Do not write new code; check existing code first and modify from there
 - Use original WinForms code (`source/src/`) when possible; copy and adapt rather than rewriting
-- The Avalonia port has 100% feature parity with the original (see `port-todo.md`)
+- The Avalonia port has 100% feature parity with the original
