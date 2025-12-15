@@ -19,60 +19,57 @@ Port Parity TODO (Avalonia vs Original WinForms)
 - Lorebook UI parity [DONE]
   - Copy/paste/duplicate lore entries.
   - Import/export formats (Ginger, SillyTavern/Tavern WorldBook).
+  - Move up/down/remove buttons are always visible (no need for toggle mode).
 
-- Core data flow / preview accuracy [PARTIAL]
-  - Plain Text output preview mode. [DONE]
-  - Output toggles & include flags hooked to Generator. [DONE]
+- Core data flow / preview accuracy [DONE]
+  - Plain Text output preview mode.
+  - Output toggles & include flags hooked to Generator.
+  - SyncToCurrent() called before RegenerateOutput() to ensure Generator uses latest UI values.
+  - Added textStyle and detailLevel to SyncToCurrent().
 
 - MRU / Recent Files [DONE]
   - Populate "Open Recent" list from AppSettings and update on open/save.
-
-- Actor handling parity [PARTIAL]
-  - Visible actor selector dropdown for multi-actor editing. [DONE]
-
-## Remaining
-
-- Side panel / output controls
-  - Per-actor background override.
-
-- Core data flow / preview accuracy [DONE]
-  - SyncToCurrent() now called before RegenerateOutput() to ensure Generator uses latest UI values.
-  - Added textStyle and detailLevel to SyncToCurrent().
-
-- Recipe parameter UI coverage [PARTIAL]
-  - Added UI for list (comma-separated text), multi-choice (checkbox list), range (slider with value display), measurement (numeric + unit). [DONE]
-  - Actor-choice, lorebook/chat parameters remain to be done.
-
-- Assets handling
-  - Per-actor portrait overrides, animation tags display, portrait resize, asset viewer parity with metadata, purge unused images utility wiring in UI.
-
-- Lorebook UI parity [DONE]
-  - Move up/down/remove buttons are always visible (no need for toggle mode).
-  - Merge lorebook flow handled via import/export.
 
 - Output generation logic [DONE]
   - All omit flags implemented in Generator.cs and wired from MainViewModel property change handlers.
   - Author note write/omit, post-history combine, user persona merge all handled.
   - Party preview covers all actors and alt/group greetings.
 
-- Backyard integration UI gaps [DONE]
+- Backyard integration UI [DONE]
   - All features wired: push/pull, revert, save-as-new, new party, chat history, bulk ops, backups, repairs, reset model location/settings, purge unused images.
-
-- Clipboard/snippet flows [PARTIAL]
-  - Save-as-snippet/recipe actions implemented with simplified dialogs. Full multi-channel snippet dialog not yet ported.
 
 - Localization/theme [DONE]
   - Both implementations have only `en` locale - already aligned.
 
 - Tests/checks [DONE]
-  - Generator output respects include flags (verified in Generator.cs lines 626-647).
+  - Generator output respects include flags.
   - Recipe ordering synced via SyncToCurrent() before generation.
   - Current.Character.recipes stays in sync via undo-aware add/remove/reorder operations.
 
-- Actor handling parity
-  - Implement per-actor portrait/background overrides and paste/resize flows; sidebar uses single shared portrait/background for all actors.
+## Partial Implementation
+
+- Actor handling parity [PARTIAL]
+  - Visible actor selector dropdown for multi-actor editing. [DONE]
+  - Asset system with actorIndex exists (AssetCollection, AssetFile).
+  - UI wiring needed: update portrait/background when actor selector changes, per-actor load/save flows.
+
+- Recipe parameter UI coverage [PARTIAL]
+  - Added UI for list, multi-choice, range (slider), measurement parameters. [DONE]
+  - Actor-choice, lorebook/chat parameters remain to be done.
 
 - Undo/redo [PARTIAL]
-  - Undo/Redo now work for: add/remove recipes, reorder recipes, add/remove lorebook entries, move lorebook entries.
+  - Works for: add/remove recipes, reorder recipes, add/remove lorebook entries, move lorebook entries.
   - Clear undo history on New and LoadFile.
   - Still missing: text field changes, property edits.
+
+- Clipboard/snippet flows [PARTIAL]
+  - Save-as-snippet/recipe actions implemented with simplified dialogs.
+  - Full multi-channel snippet dialog not yet ported.
+
+## Remaining
+
+- Side panel / output controls
+  - Per-actor background override (needs per-actor asset selection).
+
+- Assets handling
+  - Per-actor portrait overrides, animation tags display, portrait resize, asset viewer parity with metadata.
