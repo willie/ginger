@@ -68,6 +68,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasBackgroundImage;
 
+    [ObservableProperty]
+    private bool _isPortraitFallback;
+
     #endregion
 
     #region Card Information
@@ -566,9 +569,24 @@ public partial class MainViewModel : ObservableObject
         {
             try
             {
-                _portraitData = await File.ReadAllBytesAsync(file);
-                using var stream = new MemoryStream(_portraitData);
-                PortraitImage = new Bitmap(stream);
+                var imageData = await File.ReadAllBytesAsync(file);
+
+                if (Current.SelectedCharacter <= 0)
+                {
+                    // Main character: update main portrait
+                    _portraitData = imageData;
+                    using var stream = new MemoryStream(_portraitData);
+                    PortraitImage = new Bitmap(stream);
+                    IsPortraitFallback = false;
+                }
+                else
+                {
+                    // Secondary actor: create/update actor-specific portrait asset
+                    SetActorPortrait(Current.SelectedCharacter, imageData);
+                    using var stream = new MemoryStream(imageData);
+                    PortraitImage = new Bitmap(stream);
+                    IsPortraitFallback = false;
+                }
                 MarkDirty();
                 StatusMessage = "Portrait loaded";
             }
@@ -582,8 +600,20 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearPortrait()
     {
-        _portraitData = null;
-        PortraitImage = null;
+        if (Current.SelectedCharacter <= 0)
+        {
+            // Main character: clear main portrait
+            _portraitData = null;
+            PortraitImage = null;
+            IsPortraitFallback = false;
+        }
+        else
+        {
+            // Secondary actor: remove actor-specific portrait asset
+            ClearActorPortrait(Current.SelectedCharacter);
+            // Show fallback to main portrait
+            ShowFallbackPortrait();
+        }
         MarkDirty();
         StatusMessage = "Portrait cleared";
     }
@@ -592,15 +622,72 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            _portraitData = data;
-            using var stream = new MemoryStream(data);
-            PortraitImage = new Bitmap(stream);
+            if (Current.SelectedCharacter <= 0)
+            {
+                _portraitData = data;
+                using var stream = new MemoryStream(data);
+                PortraitImage = new Bitmap(stream);
+                IsPortraitFallback = false;
+            }
+            else
+            {
+                SetActorPortrait(Current.SelectedCharacter, data);
+                using var stream = new MemoryStream(data);
+                PortraitImage = new Bitmap(stream);
+                IsPortraitFallback = false;
+            }
             MarkDirty();
             StatusMessage = "Portrait loaded";
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error loading portrait: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Sets or updates the portrait asset for a secondary actor.
+    /// </summary>
+    private void SetActorPortrait(int actorIndex, byte[] imageData)
+    {
+        // Remove any existing portrait for this actor
+        var existingAsset = Current.Card.assets.FirstOrDefault(a =>
+            a.actorIndex == actorIndex &&
+            (a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait));
+
+        if (existingAsset != null)
+        {
+            Current.Card.assets.Remove(existingAsset);
+        }
+
+        // Create new portrait asset
+        var actorName = actorIndex < Current.Characters.Count
+            ? Current.Characters[actorIndex].spokenName ?? Current.Characters[actorIndex].name ?? $"Actor {actorIndex + 1}"
+            : $"Actor {actorIndex + 1}";
+
+        var portraitAsset = new AssetFile
+        {
+            name = $"Portrait ({actorName})",
+            actorIndex = actorIndex,
+            type = AssetFile.AssetType.Icon,
+            isEmbeddedAsset = true,
+            data = new AssetData { data = imageData }
+        };
+        Current.Card.assets.Add(portraitAsset);
+    }
+
+    /// <summary>
+    /// Removes the portrait asset for a secondary actor.
+    /// </summary>
+    private void ClearActorPortrait(int actorIndex)
+    {
+        var existingAsset = Current.Card.assets.FirstOrDefault(a =>
+            a.actorIndex == actorIndex &&
+            (a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait));
+
+        if (existingAsset != null)
+        {
+            Current.Card.assets.Remove(existingAsset);
         }
     }
 
@@ -1387,6 +1474,7 @@ public partial class MainViewModel : ObservableObject
         {
             PortraitImage = null;
         }
+        IsPortraitFallback = false;
 
         // Lorebook - load all metadata for round-trip
         LorebookEntries.Clear();
@@ -2394,6 +2482,7 @@ public partial class MainViewModel : ObservableObject
         SelectedGender = null;
         UserGender = null;
         PortraitImage = null;
+        IsPortraitFallback = false;
         Notes = "";
 
         Persona = "";
@@ -3247,6 +3336,88 @@ public partial class MainViewModel : ObservableObject
         {
             Recipes.Add(new RecipeViewModel(this, recipe));
         }
+
+        // Update portrait for this actor
+        UpdateActorPortrait();
+    }
+
+    /// <summary>
+    /// Updates the portrait display based on the currently selected actor.
+    /// Actor 0 uses the main portrait; other actors use their per-actor portrait if available.
+    /// </summary>
+    private void UpdateActorPortrait()
+    {
+        int actorIndex = Current.SelectedCharacter;
+
+        if (actorIndex <= 0)
+        {
+            // Main character: show main portrait
+            if (_portraitData != null && _portraitData.Length > 0)
+            {
+                try
+                {
+                    using var stream = new MemoryStream(_portraitData);
+                    PortraitImage = new Bitmap(stream);
+                }
+                catch
+                {
+                    PortraitImage = null;
+                }
+            }
+            else
+            {
+                PortraitImage = null;
+            }
+            IsPortraitFallback = false;
+        }
+        else
+        {
+            // Secondary actor: look for actor-specific portrait
+            var portraitAsset = Current.Card.assets.FirstOrDefault(a =>
+                a.actorIndex == actorIndex &&
+                (a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait));
+
+            if (portraitAsset != null && portraitAsset.data.data != null && portraitAsset.data.data.Length > 0)
+            {
+                try
+                {
+                    using var stream = new MemoryStream(portraitAsset.data.data);
+                    PortraitImage = new Bitmap(stream);
+                    IsPortraitFallback = false;
+                }
+                catch
+                {
+                    // Fall back to main portrait
+                    ShowFallbackPortrait();
+                }
+            }
+            else
+            {
+                // No actor-specific portrait, fall back to main portrait (grayed)
+                ShowFallbackPortrait();
+            }
+        }
+    }
+
+    private void ShowFallbackPortrait()
+    {
+        if (_portraitData != null && _portraitData.Length > 0)
+        {
+            try
+            {
+                using var stream = new MemoryStream(_portraitData);
+                PortraitImage = new Bitmap(stream);
+            }
+            catch
+            {
+                PortraitImage = null;
+            }
+        }
+        else
+        {
+            PortraitImage = null;
+        }
+        IsPortraitFallback = true;
     }
 
     #endregion

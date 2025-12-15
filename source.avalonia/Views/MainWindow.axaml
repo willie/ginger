@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Ginger.ViewModels"
+        xmlns:conv="using:Ginger.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -13,6 +14,10 @@
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
+
+    <Window.Resources>
+        <conv:BoolToOpacityConverter x:Key="BoolToOpacityConverter" TrueValue="0.4" FalseValue="1.0"/>
+    </Window.Resources>
 
     <Window.Styles>
         <Style Selector="Expander">
@@ -401,7 +406,17 @@
                                     </ContextMenu>
                                 </Button.ContextMenu>
                                 <Panel>
-                                    <Image Source="{Binding PortraitImage}" Stretch="Uniform"/>
+                                    <Image Source="{Binding PortraitImage}" Stretch="Uniform"
+                                           Opacity="{Binding IsPortraitFallback, Converter={StaticResource BoolToOpacityConverter}}"/>
+                                    <TextBlock Text="(No actor portrait)"
+                                               IsVisible="{Binding IsPortraitFallback}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Bottom"
+                                               Margin="0,0,0,4"
+                                               FontSize="10"
+                                               Foreground="White"
+                                               Background="#80000000"
+                                               Padding="4,2"/>
                                     <StackPanel IsVisible="{Binding PortraitImage, Converter={x:Static ObjectConverters.IsNull}}"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 Spacing="4">
@@ -1068,6 +1083,18 @@
                                                                                       IsVisible="{Binding IsChoiceParameter}"
                                                                                       FontSize="11"
                                                                                       HorizontalAlignment="Stretch"/>
+                                                                            <!-- Actor Choice -->
+                                                                            <ComboBox ItemsSource="{Binding ActorChoiceOptions}"
+                                                                                      SelectedItem="{Binding SelectedActorChoice}"
+                                                                                      IsVisible="{Binding IsActorChoiceParameter}"
+                                                                                      FontSize="11"
+                                                                                      HorizontalAlignment="Stretch">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <TextBlock Text="{Binding Label}"/>
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
                                                                             <!-- Multi-Choice (Checkboxes) -->
                                                                             <ItemsControl ItemsSource="{Binding MultiChoiceItems}"
                                                                                           IsVisible="{Binding IsMultiChoiceParameter}">

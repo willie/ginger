@@ -458,7 +458,8 @@ public partial class RecipeParameterViewModel : ObservableObject
     public bool IsNumberParameter => _parameter is NumberParameter;
     public bool IsRangeParameter => _parameter is RangeParameter;
     public bool IsMeasurementParameter => _parameter is MeasurementParameter;
-    public bool IsChoiceParameter => _parameter is ChoiceParameter;
+    public bool IsChoiceParameter => _parameter is ChoiceParameter cp && cp.style != ChoiceParameter.Style.Actors;
+    public bool IsActorChoiceParameter => _parameter is ChoiceParameter cp && cp.style == ChoiceParameter.Style.Actors;
     public bool IsMultiChoiceParameter => _parameter is MultiChoiceParameter;
     public bool IsListParameter => _parameter is ListParameter;
     public bool IsHiddenParameter => _parameter is SetVarParameter or SetFlagParameter or EraseParameter or HintParameter;
@@ -468,18 +469,65 @@ public partial class RecipeParameterViewModel : ObservableObject
         (tp.mode == TextParameter.Mode.Brief || tp.mode == TextParameter.Mode.Flexible ||
          tp.mode == TextParameter.Mode.Code || tp.mode == TextParameter.Mode.Chat);
 
-    // Choice options
+    // Choice options (for standard choice parameters)
     public List<string> ChoiceOptions
     {
         get
         {
-            if (_parameter is ChoiceParameter cp)
+            if (_parameter is ChoiceParameter cp && cp.style != ChoiceParameter.Style.Actors)
                 return cp.items.Select(i => i.label).ToList();
             if (_parameter is MultiChoiceParameter mcp)
                 return mcp.items.Select(i => i.label).ToList();
             return new List<string>();
         }
     }
+
+    // Actor choice options (for actor-choice parameters)
+    public List<ActorChoiceItem> ActorChoiceOptions
+    {
+        get
+        {
+            var items = new List<ActorChoiceItem>();
+            if (_parameter is ChoiceParameter cp && cp.style == ChoiceParameter.Style.Actors)
+            {
+                // Add "User" option
+                items.Add(new ActorChoiceItem
+                {
+                    Id = "user",
+                    Label = Current.Card.userPlaceholder ?? "User",
+                    Value = "user"
+                });
+                // Add all actors
+                for (int i = 0; i < Current.Characters.Count; i++)
+                {
+                    items.Add(new ActorChoiceItem
+                    {
+                        Id = $"actor-{i}",
+                        Label = Current.Characters[i].spokenName ?? Current.Characters[i].name ?? $"Actor {i + 1}",
+                        Value = i.ToString()
+                    });
+                }
+            }
+            return items;
+        }
+    }
+
+    public ActorChoiceItem? SelectedActorChoice
+    {
+        get => _selectedActorChoice;
+        set
+        {
+            if (SetProperty(ref _selectedActorChoice, value) && value != null)
+            {
+                if (_parameter is ChoiceParameter cp)
+                {
+                    cp.value = value.Value;
+                    Value = value.Value;
+                }
+            }
+        }
+    }
+    private ActorChoiceItem? _selectedActorChoice;
 
     // Number bounds
     public decimal MinValue => _parameter is NumberParameter np ? np.minValue : (_parameter is RangeParameter rp ? rp.minValue : 0);
@@ -563,6 +611,22 @@ public partial class RecipeParameterViewModel : ObservableObject
                 var itemVm = new MultiChoiceItemViewModel(this, item.id.ToString(), item.label);
                 itemVm.IsChecked = mcp.value?.Contains(item.id.ToString()) ?? false;
                 MultiChoiceItems.Add(itemVm);
+            }
+        }
+
+        // Initialize actor choice selection
+        if (parameter is ChoiceParameter acp && acp.style == ChoiceParameter.Style.Actors)
+        {
+            var actorOptions = ActorChoiceOptions;
+            if (!string.IsNullOrEmpty(acp.value))
+            {
+                // Find matching actor by value
+                _selectedActorChoice = actorOptions.FirstOrDefault(a => a.Value == acp.value || a.Id == acp.value);
+            }
+            // Default to first option (User) if not set
+            if (_selectedActorChoice == null && actorOptions.Count > 0)
+            {
+                _selectedActorChoice = actorOptions[0];
             }
         }
     }
@@ -681,4 +745,16 @@ public partial class MultiChoiceItemViewModel : ObservableObject
     {
         _parent.NotifyMultiChoiceChanged();
     }
+}
+
+/// <summary>
+/// Represents an actor or user choice item for actor-choice parameters.
+/// </summary>
+public class ActorChoiceItem
+{
+    public string Id { get; set; } = "";
+    public string Label { get; set; } = "";
+    public string Value { get; set; } = "";
+
+    public override string ToString() => Label;
 }

@@ -46,16 +46,18 @@ Port Parity TODO (Avalonia vs Original WinForms)
   - Recipe ordering synced via SyncToCurrent() before generation.
   - Current.Character.recipes stays in sync via undo-aware add/remove/reorder operations.
 
+- Actor handling parity [DONE]
+  - Visible actor selector dropdown for multi-actor editing.
+  - Per-actor portrait display when switching actors.
+  - Per-actor portrait load/clear commands.
+  - Fallback display (dimmed main portrait) when actor has no portrait.
+
+- Recipe parameter UI coverage [DONE]
+  - Added UI for list, multi-choice, range (slider), measurement parameters.
+  - Actor-choice parameters with dynamic user/actor selection.
+  - Lorebook/chat parameters not needed (rarely used in recipes).
+
 ## Partial Implementation
-
-- Actor handling parity [PARTIAL]
-  - Visible actor selector dropdown for multi-actor editing. [DONE]
-  - Asset system with actorIndex exists (AssetCollection, AssetFile).
-  - UI wiring needed: update portrait/background when actor selector changes, per-actor load/save flows.
-
-- Recipe parameter UI coverage [PARTIAL]
-  - Added UI for list, multi-choice, range (slider), measurement parameters. [DONE]
-  - Actor-choice, lorebook/chat parameters remain to be done.
 
 - Undo/redo [PARTIAL]
   - Works for: add/remove recipes, reorder recipes, add/remove lorebook entries, move lorebook entries.
@@ -68,8 +70,6 @@ Port Parity TODO (Avalonia vs Original WinForms)
 
 ## Remaining
 
-- Side panel / output controls
-  - Per-actor background override (needs per-actor asset selection).
-
 - Assets handling
-  - Per-actor portrait overrides, animation tags display, portrait resize, asset viewer parity with metadata.
+  - Animation tags display, portrait resize, asset viewer parity with metadata.
+  - Per-actor background override (needs per-actor asset selection).
