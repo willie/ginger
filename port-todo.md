@@ -53,11 +53,11 @@ Port Parity TODO (Avalonia vs Original WinForms)
 - Output generation logic
   - Honor include grammar/user persona toggles, author note write/omit rules, post-history combine rules, scenario omission flags, user persona merge vs separate; ensure party preview covers all actors and alt/group greetings.
 
-- Backyard integration UI gaps
-  - Ensure push/pull/revert/save-as-new/new party, chat history, bulk ops, backups, repairs, reset model location/settings, purge unused images all exposed and wired.
+- Backyard integration UI gaps [DONE]
+  - All features wired: push/pull, revert, save-as-new, new party, chat history, bulk ops, backups, repairs, reset model location/settings, purge unused images.
 
-- Clipboard/snippet flows
-  - Save-as-snippet/recipe actions wired to dialogs with proper content (including grammar/post-history/user persona when present).
+- Clipboard/snippet flows [PARTIAL]
+  - Save-as-snippet/recipe actions implemented with simplified dialogs. Full multi-channel snippet dialog not yet ported.
 
 - Localization/theme
   - Ensure locale menu aligns with content packs.
