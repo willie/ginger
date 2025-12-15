@@ -100,3 +100,4 @@ The Avalonia port directly reuses original code wherever possible. These files a
 - Use original code as much as possible when porting features
 - Don't mock tests
 - See `source.avalonia/IMPLEMENTATION_PLAN.md` for feature parity tracking
+- do not write new code, check existing code first, modify, from there

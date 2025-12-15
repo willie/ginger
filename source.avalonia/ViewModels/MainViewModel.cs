@@ -180,28 +180,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _includeLore = true;
 
-    // Legacy filter properties for compatibility
-    [ObservableProperty]
-    private bool _filterModelInstructions = true;
-
-    [ObservableProperty]
-    private bool _filterAttributes = true;
-
-    [ObservableProperty]
-    private bool _filterPersonality = true;
-
-    [ObservableProperty]
-    private bool _filterScenario = true;
-
-    [ObservableProperty]
-    private bool _filterGreeting = true;
-
-    [ObservableProperty]
-    private bool _filterExample = true;
-
-    [ObservableProperty]
-    private bool _filterLore = true;
-
     #endregion
 
     #region Statistics
@@ -438,7 +416,11 @@ public partial class MainViewModel : ObservableObject
         {
             TokenCount = result.tokens_total;
 
-            // Use format-specific permanent token count
+            // Set format-specific permanent token counts for UI display
+            PermanentTokensFaraday = result.tokens_permanent_faraday;
+            PermanentTokensSillyTavern = result.tokens_permanent_silly;
+
+            // Set the combined PermanentTokens based on current preview format
             PermanentTokens = AppSettings.Settings.PreviewFormat == AppSettings.Settings.OutputPreviewFormat.SillyTavern
                 ? result.tokens_permanent_silly
                 : result.tokens_permanent_faraday;
