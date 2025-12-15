@@ -983,6 +983,9 @@ public partial class MainViewModel : ObservableObject
 
     private void RegenerateOutput()
     {
+        // Sync UI fields to Current so Generator uses the latest values
+        SyncToCurrent();
+
         // Build Generator options based on preview format
         Generator.Option options = Generator.Option.Preview;
 
@@ -1571,6 +1574,26 @@ public partial class MainViewModel : ObservableObject
         Current.Card.versionString = Version;
         Current.Card.userPlaceholder = UserPlaceholder;
         Current.Card.userGender = UserGender;
+
+        // Text style
+        Current.Card.textStyle = SelectedTextStyle switch
+        {
+            "Chat (asterisks)" => CardData.TextStyle.Chat,
+            "Novel (quotes)" => CardData.TextStyle.Novel,
+            "Mixed" => CardData.TextStyle.Mixed,
+            "Decorative quotes" => CardData.TextStyle.Decorative,
+            "Bold" => CardData.TextStyle.Bold,
+            "Parentheses" => CardData.TextStyle.Parentheses,
+            _ => CardData.TextStyle.None,
+        };
+
+        // Detail level
+        Current.Card.detailLevel = SelectedDetailLevel switch
+        {
+            "Less detail" => CardData.DetailLevel.Low,
+            "More detail" => CardData.DetailLevel.High,
+            _ => CardData.DetailLevel.Normal,
+        };
 
         // Parse tags
         Current.Card.tags.Clear();

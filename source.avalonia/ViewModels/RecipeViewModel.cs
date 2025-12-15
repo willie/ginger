@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -454,7 +455,9 @@ public partial class RecipeParameterViewModel : ObservableObject
     // Parameter type detection
     public bool IsTextParameter => _parameter is TextParameter;
     public bool IsBoolParameter => _parameter is BooleanParameter;
-    public bool IsNumberParameter => _parameter is NumberParameter or MeasurementParameter or RangeParameter;
+    public bool IsNumberParameter => _parameter is NumberParameter;
+    public bool IsRangeParameter => _parameter is RangeParameter;
+    public bool IsMeasurementParameter => _parameter is MeasurementParameter;
     public bool IsChoiceParameter => _parameter is ChoiceParameter;
     public bool IsMultiChoiceParameter => _parameter is MultiChoiceParameter;
     public bool IsListParameter => _parameter is ListParameter;
@@ -484,6 +487,18 @@ public partial class RecipeParameterViewModel : ObservableObject
     public decimal StepValue => _parameter is NumberParameter np && np.mode == NumberParameter.Mode.Integer ? 1 :
                                 (_parameter is RangeParameter rp && rp.mode == RangeParameter.Mode.Integer ? 1 : 0.1m);
 
+    // Range slider suffix (e.g., "%" for percent mode)
+    public string RangeSuffix => _parameter is RangeParameter rp ?
+        (rp.mode == RangeParameter.Mode.Percent ? "%" : rp.suffix ?? "") : "";
+
+    // Measurement properties
+    public string MeasurementUnit => _parameter is MeasurementParameter mp ? mp.unit ?? "" : "";
+    public decimal MeasurementMagnitude => _parameter is MeasurementParameter mp ? mp.magnitude : 0;
+    public string MeasurementMode => _parameter is MeasurementParameter mp ? EnumHelper.ToString(mp.mode) : "";
+
+    // Multi-choice items collection (for checkbox list)
+    public ObservableCollection<MultiChoiceItemViewModel> MultiChoiceItems { get; } = new();
+
     [ObservableProperty]
     private string _value = "";
 
@@ -497,7 +512,13 @@ public partial class RecipeParameterViewModel : ObservableObject
     private decimal _numericValue;
 
     [ObservableProperty]
+    private double _sliderValue;
+
+    [ObservableProperty]
     private string? _selectedOption;
+
+    [ObservableProperty]
+    private string _listValue = "";
 
     public RecipeParameterViewModel(RecipeViewModel parent, IParameter parameter)
     {
@@ -516,7 +537,14 @@ public partial class RecipeParameterViewModel : ObservableObject
         else if (parameter is BaseParameter<decimal> numParam)
         {
             _numericValue = numParam.value;
+            _sliderValue = (double)numParam.value;
             _value = _numericValue.ToString();
+        }
+        else if (parameter is BaseParameter<HashSet<string>> setParam)
+        {
+            // ListParameter or MultiChoiceParameter
+            _listValue = string.Join(", ", setParam.value ?? new HashSet<string>());
+            _value = _listValue;
         }
         else
             _value = parameter.defaultValue ?? "";
@@ -526,6 +554,17 @@ public partial class RecipeParameterViewModel : ObservableObject
             _selectedOption = cp.items[cp.selectedIndex].label;
         else
             _selectedOption = _value;
+
+        // Initialize multi-choice items
+        if (parameter is MultiChoiceParameter mcp)
+        {
+            foreach (var item in mcp.items)
+            {
+                var itemVm = new MultiChoiceItemViewModel(this, item.id.ToString(), item.label);
+                itemVm.IsChecked = mcp.value?.Contains(item.id.ToString()) ?? false;
+                MultiChoiceItems.Add(itemVm);
+            }
+        }
     }
 
     partial void OnValueChanged(string value)
@@ -581,5 +620,65 @@ public partial class RecipeParameterViewModel : ObservableObject
         else if (_parameter is BaseParameter<decimal> np)
             np.isEnabled = value;
         _parent.NotifyParameterChanged();
+    }
+
+    partial void OnSliderValueChanged(double value)
+    {
+        if (_parameter is RangeParameter rp)
+        {
+            rp.value = (decimal)value;
+            NumericValue = (decimal)value;
+        }
+    }
+
+    partial void OnListValueChanged(string value)
+    {
+        if (_parameter is ListParameter lp)
+        {
+            var items = value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet();
+            lp.value = items;
+            Value = value;
+            _parent.NotifyParameterChanged();
+        }
+    }
+
+    public void NotifyMultiChoiceChanged()
+    {
+        if (_parameter is MultiChoiceParameter mcp)
+        {
+            var selected = MultiChoiceItems
+                .Where(i => i.IsChecked)
+                .Select(i => i.Id)
+                .ToHashSet();
+            mcp.value = selected;
+            Value = string.Join(", ", selected);
+            _parent.NotifyParameterChanged();
+        }
+    }
+}
+
+public partial class MultiChoiceItemViewModel : ObservableObject
+{
+    private readonly RecipeParameterViewModel _parent;
+
+    public string Id { get; }
+    public string Label { get; }
+
+    [ObservableProperty]
+    private bool _isChecked;
+
+    public MultiChoiceItemViewModel(RecipeParameterViewModel parent, string id, string label)
+    {
+        _parent = parent;
+        Id = id;
+        Label = label;
+    }
+
+    partial void OnIsCheckedChanged(bool value)
+    {
+        _parent.NotifyMultiChoiceChanged();
     }
 }

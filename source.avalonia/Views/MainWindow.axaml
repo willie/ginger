@@ -1040,12 +1040,59 @@
                                                                                            Maximum="{Binding MaxValue}"
                                                                                            Increment="{Binding StepValue}"
                                                                                            FontSize="11"/>
+                                                                            <!-- Range Slider -->
+                                                                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsRangeParameter}">
+                                                                                <Slider Grid.Column="0" Value="{Binding SliderValue}"
+                                                                                        Minimum="{Binding MinValue}"
+                                                                                        Maximum="{Binding MaxValue}"
+                                                                                        TickFrequency="{Binding StepValue}"
+                                                                                        IsSnapToTickEnabled="True"
+                                                                                        VerticalAlignment="Center"/>
+                                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+                                                                                    <TextBlock Text="{Binding NumericValue}" VerticalAlignment="Center" FontSize="11" MinWidth="40"/>
+                                                                                    <TextBlock Text="{Binding RangeSuffix}" VerticalAlignment="Center" FontSize="11"/>
+                                                                                </StackPanel>
+                                                                            </Grid>
+                                                                            <!-- Measurement -->
+                                                                            <StackPanel Orientation="Horizontal" IsVisible="{Binding IsMeasurementParameter}">
+                                                                                <NumericUpDown Value="{Binding NumericValue}"
+                                                                                               Minimum="0"
+                                                                                               Increment="1"
+                                                                                               FontSize="11"
+                                                                                               Width="100"/>
+                                                                                <TextBlock Text="{Binding MeasurementUnit}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"/>
+                                                                            </StackPanel>
                                                                             <!-- Choice -->
                                                                             <ComboBox ItemsSource="{Binding ChoiceOptions}"
                                                                                       SelectedItem="{Binding SelectedOption}"
                                                                                       IsVisible="{Binding IsChoiceParameter}"
                                                                                       FontSize="11"
                                                                                       HorizontalAlignment="Stretch"/>
+                                                                            <!-- Multi-Choice (Checkboxes) -->
+                                                                            <ItemsControl ItemsSource="{Binding MultiChoiceItems}"
+                                                                                          IsVisible="{Binding IsMultiChoiceParameter}">
+                                                                                <ItemsControl.ItemsPanel>
+                                                                                    <ItemsPanelTemplate>
+                                                                                        <WrapPanel Orientation="Horizontal"/>
+                                                                                    </ItemsPanelTemplate>
+                                                                                </ItemsControl.ItemsPanel>
+                                                                                <ItemsControl.ItemTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <CheckBox IsChecked="{Binding IsChecked}"
+                                                                                                  Content="{Binding Label}"
+                                                                                                  Margin="0,0,12,4"
+                                                                                                  FontSize="11"/>
+                                                                                    </DataTemplate>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                            <!-- List (comma-separated) -->
+                                                                            <TextBox Text="{Binding ListValue}"
+                                                                                     IsVisible="{Binding IsListParameter}"
+                                                                                     AcceptsReturn="True"
+                                                                                     TextWrapping="Wrap"
+                                                                                     MinHeight="24"
+                                                                                     FontSize="11"
+                                                                                     Watermark="Enter items separated by commas..."/>
                                                                         </Panel>
                                                                     </Grid>
                                                                 </DataTemplate>

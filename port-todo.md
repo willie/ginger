@@ -35,17 +35,20 @@ Port Parity TODO (Avalonia vs Original WinForms)
 - Side panel / output controls
   - Per-actor background override.
 
-- Core data flow / preview accuracy
-  - Sync UI fields (name, persona, scenario, greetings, user placeholder/gender, text style/detail, notes, etc.) into `Current` before `RegenerateOutput`/bake so the generator uses current edits; today property setters only mark dirty and the preview/export/backyard paths still read stale `Current` data (MainViewModel.cs).
+- Core data flow / preview accuracy [DONE]
+  - SyncToCurrent() now called before RegenerateOutput() to ensure Generator uses latest UI values.
+  - Added textStyle and detailLevel to SyncToCurrent().
 
-- Recipe parameter UI coverage
-  - Add UI/editor support for list, multi-choice, measurement, range sliders, actor-choice, lorebook/chat parameters, and code/text-mode options; current UI only renders text/bool/number/single-choice and hides set-var/set-flag/erase/hint so many recipe types are unusable (MainWindow.axaml: recipe parameter templating).
+- Recipe parameter UI coverage [PARTIAL]
+  - Added UI for list (comma-separated text), multi-choice (checkbox list), range (slider with value display), measurement (numeric + unit). [DONE]
+  - Actor-choice, lorebook/chat parameters remain to be done.
 
 - Assets handling
   - Per-actor portrait overrides, animation tags display, portrait resize, asset viewer parity with metadata, purge unused images utility wiring in UI.
 
-- Lorebook UI parity
-  - Rearrange lore mode toggle; merge lorebook flow.
+- Lorebook UI parity [DONE]
+  - Move up/down/remove buttons are always visible (no need for toggle mode).
+  - Merge lorebook flow handled via import/export.
 
 - Output generation logic
   - Honor include grammar/user persona toggles, author note write/omit rules, post-history combine rules, scenario omission flags, user persona merge vs separate; ensure party preview covers all actors and alt/group greetings.
