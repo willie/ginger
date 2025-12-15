@@ -37,17 +37,17 @@ msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
 
 ## Avalonia Port Architecture (`source.avalonia/`)
 
-Uses MVVM pattern with CommunityToolkit.Mvvm. The MainViewModel.cs (3,800+ lines) is the central hub containing ~90 RelayCommands for all application functionality.
+Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~6,700 lines) is the central hub containing all character editing state, file operations, and commands.
 
 ### Key Directories
 - **ViewModels/** - `MainViewModel.cs` contains all character editing state, file operations, and commands
-- **Views/** - Avalonia AXAML UI with 20+ dialogs in `Dialogs/`
-- **Services/** - Business logic: `CharacterCardService.cs` (format I/O), `RecipeService.cs`, `GeneratorService.cs`, `Backyard/` (SQLite integration)
+- **Views/** - Avalonia AXAML UI with 21 dialogs in `Dialogs/`
+- **Services/** - Business logic: `CharacterCardService.cs` (format I/O), `RecipeService.cs`, `Backyard/` (SQLite integration), `SpellCheckService.cs`, `TokenizerService.cs`
 - **Models/** - Data structures and format parsers in `Formats/`
 - **Utility/** - Core business logic ported from original (see Code Reuse section)
 
 ### Dependencies
-- Avalonia 11.2.1, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp
+- Avalonia 11.2.1, Avalonia.AvaloniaEdit, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp, Newtonsoft.Json, YamlDotNet
 
 ## Original Windows Forms Architecture (`source/src/`)
 
@@ -60,7 +60,7 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. The MainViewModel.cs (3,800+ lines
 
 ## Key Concepts
 
-**Recipes** - XML building blocks in `Content/en/Recipes/` (170 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters that generate character descriptions.
+**Recipes** - XML building blocks in `Content/en/Recipes/` (162 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters that generate character descriptions.
 
 **Character Card Formats** - Reads/writes:
 - Ginger native (GingerCardV1), TavernCardV2/V3 (SillyTavern), FaradayCard (Backyard AI V1-V4)
@@ -68,11 +68,13 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. The MainViewModel.cs (3,800+ lines
 
 **GingerString** - Central class handling placeholder conversion between formats (`{{char}}`/`{{user}}` ↔ `{char}`/`{user}` ↔ internal markers). Located in `Utility/GingerString.cs`.
 
-**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Backyard.cs`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms).
+**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Services/Backyard/`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms). Database schema versions handled by `Revisions/BackyardDatabase_v*.cs`.
 
 ## Content Files
 
-- `Content/en/Recipes/` - 170 recipe XML definitions (identical in both implementations)
+- `Content/en/Recipes/` - 162 recipe XML definitions (identical in both implementations)
+- `Content/en/Snippets/` - Reusable text snippets
+- `Content/en/Templates/` - Card templates
 - `Content/en/Internal/` - Global macros and styles
 - `Dictionaries/` - Spell check dictionaries (en_US, en_GB)
 
@@ -82,8 +84,8 @@ The Avalonia port directly reuses original code wherever possible. These files a
 
 | File | Status |
 |------|--------|
-| `GingerString.cs` | Identical (811 lines) |
-| `ContextString.cs` | Identical (1,465 lines) |
+| `GingerString.cs` | Identical |
+| `ContextString.cs` | Identical |
 | `StringBank.cs`, `StringHandle.cs`, `Text.cs` | Identical |
 | `Backyard.cs` | Near-identical (SQLite library swap only) |
 | `Generator.cs`, `Recipe.cs` | Adapted (WinForms code removed) |
@@ -97,7 +99,6 @@ The Avalonia port directly reuses original code wherever possible. These files a
 
 ## Development Guidelines
 
-- Use original code as much as possible when porting features
-- Don't mock tests
-- See `source.avalonia/IMPLEMENTATION_PLAN.md` for feature parity tracking
-- do not write new code, check existing code first, modify, from there
+- Do not write new code; check existing code first and modify from there
+- Use original WinForms code (`source/src/`) when possible; copy and adapt rather than rewriting
+- The Avalonia port has 100% feature parity with the original (see `port-todo.md`)

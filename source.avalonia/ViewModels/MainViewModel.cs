@@ -5314,28 +5314,72 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var filePath = await _fileService.SaveFileAsync(
-            "Save Backup",
-            "backyard_backup.db",
-            new[] { "*.db" });
+        // Show character browser to select character or group
+        var (success, selectedGroup, character, _) = await _dialogService.ShowBackyardBrowserAsync();
 
-        if (string.IsNullOrEmpty(filePath))
+        if (!success || selectedGroup == null)
             return;
 
         StatusMessage = "Creating backup...";
+
         try
         {
-            // Get database location from Backyard settings
-            var dbLocation = AppSettings.BackyardLink.Location;
-            if (!string.IsNullOrEmpty(dbLocation) && File.Exists(dbLocation))
+            Integration.BackupUtil.FullBackupData? backup = null;
+            Integration.Backyard.Error error;
+
+            if (selectedGroup.Value.isParty)
             {
-                File.Copy(dbLocation, filePath, overwrite: true);
-                StatusMessage = $"Backup created: {Path.GetFileName(filePath)}";
+                error = await Task.Run(() => Integration.BackupUtil.CreateBackup(selectedGroup.Value, out backup));
+            }
+            else if (character != null)
+            {
+                error = await Task.Run(() => Integration.BackupUtil.CreateBackup(character.Value, out backup));
             }
             else
             {
-                StatusMessage = "Could not locate Backyard database. Connect to Backyard first.";
+                StatusMessage = "No character selected";
+                return;
             }
+
+            if (error == Integration.Backyard.Error.NotFound)
+            {
+                StatusMessage = "Character not found in database";
+                return;
+            }
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Failed to create backup: {error}";
+                return;
+            }
+
+            if (backup == null)
+            {
+                StatusMessage = "No data to backup";
+                return;
+            }
+
+            // Generate filename
+            string characterName = Utility.FirstNonEmpty(
+                backup.displayName,
+                Constants.DefaultCharacterName).Replace(" ", "_");
+            string filename = $"{characterName} - {DateTime.Now:yyyy-MM-dd}.backup.zip";
+
+            var filePath = await _fileService.SaveFileAsync(
+                "Save Backup",
+                Utility.ValidFilename(filename),
+                new[] { "*.zip" });
+
+            if (string.IsNullOrEmpty(filePath))
+                return;
+
+            var writeError = await Task.Run(() => Integration.BackupUtil.WriteBackup(filePath, backup));
+            if (writeError != FileUtil.Error.NoError)
+            {
+                StatusMessage = $"Failed to write backup file: {writeError}";
+                return;
+            }
+
+            StatusMessage = $"Backup created: {Path.GetFileName(filePath)}";
         }
         catch (Exception ex)
         {
@@ -5346,35 +5390,166 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RestoreBackyardBackup()
     {
-        var confirm = await _dialogService.ShowConfirmationDialogAsync(
-            "Restore Backup",
-            "This will replace your current Backyard database. Are you sure?");
-        if (!confirm)
+        if (!Integration.Backyard.IsConnected)
+        {
+            StatusMessage = "Not connected to Backyard AI";
             return;
+        }
 
         var filePath = await _fileService.OpenFileAsync(
             "Open Backup",
-            new[] { "*.db" });
+            new[] { "*.zip" });
 
         if (string.IsNullOrEmpty(filePath))
             return;
 
-        StatusMessage = "Restoring backup...";
+        StatusMessage = "Reading backup...";
+
         try
         {
-            var dbLocation = AppSettings.BackyardLink.Location;
-            if (string.IsNullOrEmpty(dbLocation))
+            Integration.BackupUtil.FullBackupData? backup = null;
+            var readError = await Task.Run(() => Integration.BackupUtil.ReadBackup(filePath, out backup));
+            if (readError != FileUtil.Error.NoError || backup == null)
             {
-                StatusMessage = "No Backyard database location configured";
+                StatusMessage = "Invalid or corrupt backup file";
                 return;
             }
 
-            // Disconnect first
-            Integration.Backyard.Disconnect();
+            if (backup.characterCards == null || backup.characterCards.Length == 0)
+            {
+                StatusMessage = "No character data found in backup";
+                return;
+            }
 
-            // Copy backup over
-            File.Copy(filePath, dbLocation, overwrite: true);
-            StatusMessage = "Backup restored. Reconnect to Backyard to see changes.";
+            // Check if group backup is supported
+            if (backup.characterCards.Length > 1 &&
+                !Integration.BackyardValidation.CheckFeature(Integration.BackyardValidation.Feature.GroupChat))
+            {
+                StatusMessage = "Group backups not supported by this version of Backyard";
+                return;
+            }
+
+            // Confirm with user
+            var confirm = await _dialogService.ShowConfirmationDialogAsync(
+                "Restore Backup",
+                $"This will create '{backup.displayName}' with {backup.chats?.Count ?? 0} chat(s). Continue?");
+            if (!confirm)
+                return;
+
+            // Ask about model settings if present
+            bool importSettings = true;
+            if (backup.hasModelSettings)
+            {
+                importSettings = await _dialogService.ShowConfirmationDialogAsync(
+                    "Model Settings",
+                    "This backup contains model settings. Import them?");
+            }
+
+            if (!importSettings && backup.chats != null)
+            {
+                foreach (var chat in backup.chats)
+                    chat.parameters = null;
+            }
+
+            StatusMessage = "Restoring backup...";
+
+            // Prepare images
+            var images = new List<Integration.Backyard.ImageInput>();
+
+            if (backup.images != null)
+            {
+                images.AddRange(backup.images
+                    .Where(i => i.data != null && i.data.Length > 0)
+                    .Select(i => new Integration.Backyard.ImageInput
+                    {
+                        asset = new AssetFile
+                        {
+                            name = i.filename,
+                            actorIndex = i.characterIndex,
+                            data = AssetData.FromBytes(i.data),
+                            ext = i.ext,
+                            assetType = AssetFile.AssetType.Icon,
+                        },
+                        fileExt = i.ext,
+                    }));
+            }
+
+            if (backup.backgrounds != null)
+            {
+                images.AddRange(backup.backgrounds
+                    .Where(i => i.data != null && i.data.Length > 0)
+                    .Select(i => new Integration.Backyard.ImageInput
+                    {
+                        asset = new AssetFile
+                        {
+                            name = i.filename,
+                            data = AssetData.FromBytes(i.data),
+                            ext = i.ext,
+                            assetType = AssetFile.AssetType.Background,
+                        },
+                        fileExt = i.ext,
+                    }));
+            }
+
+            if (backup.userPortrait?.data != null && backup.userPortrait.data.Length > 0)
+            {
+                images.Add(new Integration.Backyard.ImageInput
+                {
+                    asset = new AssetFile
+                    {
+                        name = backup.userPortrait.filename,
+                        data = AssetData.FromBytes(backup.userPortrait.data),
+                        ext = backup.userPortrait.ext,
+                        assetType = AssetFile.AssetType.UserIcon,
+                    },
+                    fileExt = backup.userPortrait.ext,
+                });
+            }
+
+            // Get or create restore folder
+            Integration.Backyard.FolderInstance restoreFolder = default;
+            if (!string.IsNullOrEmpty(AppSettings.BackyardLink.BulkImportFolderName))
+            {
+                string folderName = "Restored from backup";
+                string folderUrl = Integration.BackyardUtil.ToFolderUrl(folderName);
+                restoreFolder = Integration.Backyard.Folders
+                    .FirstOrDefault(f => string.Compare(f.name, folderName, StringComparison.OrdinalIgnoreCase) == 0
+                        || string.Compare(f.url, folderUrl, StringComparison.OrdinalIgnoreCase) == 0);
+
+                if (restoreFolder.isEmpty)
+                    Integration.Backyard.Database.CreateNewFolder(folderName, out restoreFolder);
+            }
+
+            // Convert cards to BackyardLinkCard format
+            var cards = backup.characterCards
+                .Where(c => c != null)
+                .Select(c => Integration.BackyardLinkCard.FromFaradayCard(c))
+                .ToArray();
+
+            if (cards.Length > 0)
+                cards[0].EnsureSystemPrompt(cards.Length > 1);
+
+            // Create party arguments - chats are already in the right format
+            var args = new Integration.Backyard.CreatePartyArguments
+            {
+                cards = cards,
+                imageInput = images.ToArray(),
+                chats = backup.chats?.ToArray() ?? Array.Empty<BackupData.Chat>(),
+                userInfo = backup.userInfo,
+                folder = restoreFolder,
+            };
+
+            // Create the character/party
+            var error = await Task.Run(() =>
+                Integration.Backyard.Database.CreateNewParty(args, out _, out _, out _));
+
+            if (error != Integration.Backyard.Error.NoError)
+            {
+                StatusMessage = $"Failed to restore backup: {error}";
+                return;
+            }
+
+            StatusMessage = $"Backup restored: {backup.displayName}";
         }
         catch (Exception ex)
         {
@@ -6194,6 +6369,11 @@ public partial class MainViewModel : ObservableObject
         var window = desktop.MainWindow;
         if (window == null) return;
 
+        // Show browser to select characters (multi-select mode)
+        var (success, selectedGroups, _) = await _dialogService.ShowBackyardBrowserMultiSelectAsync("Select characters to update");
+        if (!success || selectedGroups.Count == 0)
+            return;
+
         // Show model settings dialog to get new values
         var dialog = new Views.Dialogs.EditModelSettingsDialog();
         dialog.LoadSettings(
@@ -6229,27 +6409,25 @@ public partial class MainViewModel : ObservableObject
             repeatLastN = dialog.RepeatLastN,
         };
 
-        // Get all groups and update their chats
-        var groups = Integration.Backyard.Groups.ToList();
-        int totalGroups = groups.Count;
+        int totalGroups = selectedGroups.Count;
         int succeeded = 0;
         int failed = 0;
 
         await _dialogService.RunWithProgressAsync(
             "Updating Model Settings",
-            "Updating all character chats...",
+            $"Updating {totalGroups} character(s)...",
             async (cancellationToken, progress) =>
             {
-                for (int i = 0; i < groups.Count; i++)
+                for (int i = 0; i < selectedGroups.Count; i++)
                 {
                     if (cancellationToken.IsCancellationRequested)
                         break;
 
-                    var group = groups[i];
+                    var group = selectedGroups[i];
                     progress.Report(($"Processing {group.GetDisplayName()}...", (double)i / totalGroups));
 
                     // Get chats for this group
-                    Integration.Backyard.ChatInstance[] chats = null;
+                    Integration.Backyard.ChatInstance[]? chats = null;
                     var error = await Task.Run(() =>
                     {
                         Integration.Backyard.ChatInstance[] outChats;
@@ -6279,6 +6457,84 @@ public partial class MainViewModel : ObservableObject
             true);
 
         StatusMessage = $"Model settings updated for {succeeded} of {totalGroups} characters" +
+            (failed > 0 ? $" ({failed} failed)" : "");
+    }
+
+    [RelayCommand]
+    private async Task ResetAllModelSettings()
+    {
+        if (!Integration.Backyard.ConnectionEstablished)
+        {
+            StatusMessage = "Not connected to Backyard AI";
+            return;
+        }
+
+        var confirmResult = await _dialogService.ShowMessageBoxAsync(
+            "Reset All Model Settings",
+            "This will reset model settings for ALL characters to their default values. Continue?",
+            MessageBoxButtons.YesNo);
+        if (confirmResult != MessageBoxResult.Yes)
+            return;
+
+        // Default chat parameters
+        var chatParameters = new Integration.Backyard.ChatParameters()
+        {
+            temperature = 1.2m,
+            minP = 0.1m,
+            topP = 0.9m,
+            topK = 30,
+            repeatPenalty = 1.05m,
+            repeatLastN = 256,
+        };
+
+        var groups = Integration.Backyard.Groups.ToList();
+        int totalGroups = groups.Count;
+        int succeeded = 0;
+        int failed = 0;
+
+        await _dialogService.RunWithProgressAsync(
+            "Resetting Model Settings",
+            "Resetting all character chats to defaults...",
+            async (cancellationToken, progress) =>
+            {
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
+                    var group = groups[i];
+                    progress.Report(($"Processing {group.GetDisplayName()}...", (double)i / totalGroups));
+
+                    // Get chats for this group
+                    Integration.Backyard.ChatInstance[]? chats = null;
+                    var error = await Task.Run(() =>
+                    {
+                        Integration.Backyard.ChatInstance[] outChats;
+                        var result = Integration.Backyard.Database.GetChats(group.instanceId, out outChats);
+                        chats = outChats;
+                        return result;
+                    });
+
+                    if (error == Integration.Backyard.Error.NoError && chats != null && chats.Length > 0)
+                    {
+                        var chatIds = chats.Select(c => c.instanceId).ToArray();
+                        var updateError = await Task.Run(() =>
+                            Integration.Backyard.Database.UpdateChatParameters(chatIds, null, chatParameters));
+
+                        if (updateError == Integration.Backyard.Error.NoError)
+                            succeeded++;
+                        else
+                            failed++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+            },
+            true);
+
+        StatusMessage = $"Model settings reset for {succeeded} of {totalGroups} characters" +
             (failed > 0 ? $" ({failed} failed)" : "");
     }
 

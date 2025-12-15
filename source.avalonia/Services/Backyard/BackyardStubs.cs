@@ -844,6 +844,7 @@ namespace Ginger
 			public Integration.Backyard.ChatParameters parameters { get; set; }
 			public Integration.ChatHistory history { get; set; }
 			public Integration.Backyard.ChatStaging staging { get; set; }
+			public string[] participants { get; set; }
 		}
 	}
 

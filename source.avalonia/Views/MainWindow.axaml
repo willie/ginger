@@ -280,6 +280,7 @@
                 <MenuItem Header="_Chat History..." Command="{Binding ShowChatHistoryCommand}"/>
                 <MenuItem Header="Edit _Model Settings..." Command="{Binding EditModelSettingsCommand}"/>
                 <MenuItem Header="_Bulk Edit Model Settings..." Command="{Binding BulkEditModelSettingsCommand}"/>
+                <MenuItem Header="_Reset All Model Settings" Command="{Binding ResetAllModelSettingsCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Utilities">
                     <MenuItem Header="Create _Backup..." Command="{Binding CreateBackyardBackupCommand}"/>
