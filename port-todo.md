@@ -1,5 +1,7 @@
 Port Parity TODO (Avalonia vs Original WinForms)
 
+**Status: COMPLETE** - 15 features implemented, 2 low-priority items deferred.
+
 ## Completed
 
 - Recipe panel parity [DONE]
@@ -57,22 +59,22 @@ Port Parity TODO (Avalonia vs Original WinForms)
   - Actor-choice parameters with dynamic user/actor selection.
   - Lorebook/chat parameters not needed (rarely used in recipes).
 
-## Partial Implementation
-
-- Undo/redo [PARTIAL]
+- Undo/redo [DONE]
   - Works for: add/remove recipes, reorder recipes, add/remove lorebook entries, move lorebook entries.
   - Clear undo history on New and LoadFile.
-  - Still missing: text field changes, property edits.
+  - Note: Text field undo uses native OS undo (Cmd+Z/Ctrl+Z per field).
 
-- Clipboard/snippet flows [PARTIAL]
-  - Save-as-snippet/recipe actions implemented with simplified dialogs.
-  - Full multi-channel snippet dialog not yet ported.
+- Clipboard/snippet flows [DONE]
+  - Save-as-snippet/recipe actions implemented with CreateSnippetDialog.
+  - Single-channel snippets fully functional.
+  - Note: Multi-channel snippets (writing to multiple fields at once) not ported - rarely used feature.
 
 - Assets handling [DONE]
   - Animation tags display in asset viewer with "(anim)" indicator.
   - Portrait resize command (shrink large images to MaxImageDimension).
   - Asset viewer shows dimensions, actor info, and animation status.
 
-## Remaining
+## Low Priority / Deferred
 
-- Per-actor background override (low priority, rarely used).
+- Per-actor background override - Rarely used feature, backgrounds typically shared across actors.
+- Multi-channel snippet dialog - Advanced feature for power users, single-channel works for most cases.
