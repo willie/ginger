@@ -7,3 +7,4 @@ source/Libraries/
 source.avalonia/bin/
 source.avalonia/obj/
 .DS_Store
+/.serve
