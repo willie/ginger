@@ -50,8 +50,10 @@ Port Parity TODO (Avalonia vs Original WinForms)
   - Move up/down/remove buttons are always visible (no need for toggle mode).
   - Merge lorebook flow handled via import/export.
 
-- Output generation logic
-  - Honor include grammar/user persona toggles, author note write/omit rules, post-history combine rules, scenario omission flags, user persona merge vs separate; ensure party preview covers all actors and alt/group greetings.
+- Output generation logic [DONE]
+  - All omit flags implemented in Generator.cs and wired from MainViewModel property change handlers.
+  - Author note write/omit, post-history combine, user persona merge all handled.
+  - Party preview covers all actors and alt/group greetings.
 
 - Backyard integration UI gaps [DONE]
   - All features wired: push/pull, revert, save-as-new, new party, chat history, bulk ops, backups, repairs, reset model location/settings, purge unused images.
@@ -59,11 +61,13 @@ Port Parity TODO (Avalonia vs Original WinForms)
 - Clipboard/snippet flows [PARTIAL]
   - Save-as-snippet/recipe actions implemented with simplified dialogs. Full multi-channel snippet dialog not yet ported.
 
-- Localization/theme
-  - Ensure locale menu aligns with content packs.
+- Localization/theme [DONE]
+  - Both implementations have only `en` locale - already aligned.
 
-- Tests/checks
-  - Verify generator output matches include flags and per-recipe ordering after reordering/insert; ensure Current.Character.recipes stays in sync with UI operations (add/remove/reorder/paste).
+- Tests/checks [DONE]
+  - Generator output respects include flags (verified in Generator.cs lines 626-647).
+  - Recipe ordering synced via SyncToCurrent() before generation.
+  - Current.Character.recipes stays in sync via undo-aware add/remove/reorder operations.
 
 - Actor handling parity
   - Implement per-actor portrait/background overrides and paste/resize flows; sidebar uses single shared portrait/background for all actors.
