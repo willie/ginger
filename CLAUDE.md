@@ -23,6 +23,12 @@ dotnet run --project source.avalonia/Ginger.Avalonia.csproj
 # Release build (creates self-contained executable)
 dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release
 
+# Platform-specific builds
+dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release -r osx-arm64 --self-contained  # macOS Apple Silicon
+dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release -r osx-x64 --self-contained    # macOS Intel
+dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release -r win-x64 --self-contained    # Windows
+dotnet publish source.avalonia/Ginger.Avalonia.csproj -c Release -r linux-x64 --self-contained  # Linux
+
 # Clean build (if experiencing issues)
 dotnet clean source.avalonia/Ginger.Avalonia.csproj && dotnet build source.avalonia/Ginger.Avalonia.csproj
 ```
@@ -37,14 +43,19 @@ msbuild source/Ginger.sln /p:Configuration=Release /p:Platform=x64
 
 ## Avalonia Port Architecture (`source.avalonia/`)
 
-Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~7,000 lines) is the central hub containing all character editing state, file operations, and commands.
+Uses MVVM pattern with CommunityToolkit.Mvvm.
+
+### Key Entry Points
+- **`MainViewModel.cs`** (~7,000 lines) - Central hub for all character editing. Methods organized into `#region` blocks: File Operations, Character State, Recipe Management, Lorebook, Backyard Integration, etc.
+- **`Current.cs`** - Global state holder accessed throughout as `Current.Card`, `Current.Character`, `Current.Characters[]`, `Current.SelectedCharacter`
+- **`Generator.cs`** - Converts recipes + parameters into final character output text
 
 ### Key Directories
-- **ViewModels/** - `MainViewModel.cs` contains all character editing state, file operations, and commands
+- **ViewModels/** - `MainViewModel.cs` plus `RecipeViewModel.cs` for recipe parameter editing
 - **Views/** - Avalonia AXAML UI with 21 dialogs in `Dialogs/`
 - **Services/** - Business logic: `CharacterCardService.cs` (format I/O), `RecipeService.cs`, `Backyard/` (SQLite integration), `SpellCheckService.cs`, `TokenizerService.cs`
 - **Models/** - Data structures and format parsers in `Formats/`
-- **Utility/** - Core business logic ported from original (see Code Reuse section)
+- **Utility/** - Core business logic ported from original
 
 ### Dependencies
 - Avalonia 11.2.1, Avalonia.AvaloniaEdit, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp, Newtonsoft.Json, YamlDotNet
@@ -60,7 +71,12 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~7,000 lines) 
 
 ## Key Concepts
 
-**Recipes** - XML building blocks in `Content/en/Recipes/` (162 files). Categories: Character, Model, Personality, NSFW, etc. Recipes contain customizable parameters that generate character descriptions.
+**Recipe System** - XML building blocks in `Content/en/Recipes/` (162 files):
+- `RecipeBook.cs` - Loads and manages all recipe XML definitions
+- `Recipe.cs` - Single recipe with parameters and `<Block>` template elements
+- `RecipeViewModel.cs` - UI binding for recipe parameter editing
+- Recipe XML uses `<Block>` elements with conditional `<Condition>` logic
+- Categories: Character, Model, Personality, NSFW, etc.
 
 **Character Card Formats** - Reads/writes:
 - Ginger native (GingerCardV1), TavernCardV2/V3 (SillyTavern), FaradayCard (Backyard AI V1-V4)
@@ -68,7 +84,11 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~7,000 lines) 
 
 **GingerString** - Central class handling placeholder conversion between formats (`{{char}}`/`{{user}}` ↔ `{char}`/`{user}` ↔ internal markers). Located in `Utility/GingerString.cs`.
 
-**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Services/Backyard/`). Supports push/pull sync, bulk export/import, chat history viewing. Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms). Database schema versions handled by `Revisions/BackyardDatabase_v28.cs` and `BackyardDatabase_v37.cs`.
+**Backyard Integration** - Direct SQLite access to Backyard AI's local database (`Services/Backyard/`):
+- Supports push/pull sync, bulk export/import, chat history viewing
+- Database versions v28 and v37 are separate complete implementations (~7,000 lines each), not incremental
+- `Backyard.cs` detects version and routes to `BackyardDatabase_v28.cs` or `BackyardDatabase_v37.cs`
+- Uses `Microsoft.Data.Sqlite` (Avalonia) or `System.Data.SQLite` (WinForms)
 
 ## Content Files
 
@@ -80,19 +100,7 @@ Uses MVVM pattern with CommunityToolkit.Mvvm. `MainViewModel.cs` (~7,000 lines) 
 
 ## Code Reuse Between Implementations
 
-The Avalonia port directly reuses original code wherever possible. These files are identical or near-identical:
-
-| File | Status |
-|------|--------|
-| `GingerString.cs` | Identical (trivial using added) |
-| `ContextString.cs` | Identical |
-| `StringBank.cs`, `StringHandle.cs`, `Text.cs` | Identical |
-| `Conditional.cs`, `RuleBank.cs` | Identical |
-| All `Extensions/*.cs` | Identical |
-| `Backyard.cs` | Adapted (SQLite library swap) |
-| `Generator.cs`, `Recipe.cs` | Adapted (WinForms code removed) |
-| All chat log formats | Adapted |
-| Content XML files | Copied verbatim |
+The Avalonia port directly reuses original code wherever possible. Many `Utility/` files are identical or near-identical between implementations.
 
 **For detailed port documentation, see:**
 - [`docs/PORT_MAPPING.md`](docs/PORT_MAPPING.md) - File-by-file mapping between implementations
