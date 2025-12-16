@@ -1534,7 +1534,7 @@ namespace Ginger
 			return Guid.NewGuid().ToString();
 		}
 
-		// Image-related stubs for Backyard integration (originally use System.Drawing)
+		// Image format utilities (cross-platform replacement for System.Drawing)
 		public enum ImageFileFormat
 		{
 			Png,

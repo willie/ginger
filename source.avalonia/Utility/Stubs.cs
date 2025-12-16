@@ -1,5 +1,5 @@
-// Stub implementations for missing utilities in Avalonia port
-// These provide minimal interfaces to allow the macro system to compile
+// Utility classes for Avalonia port
+// Provides enum extensions, embedded resources, and version info
 #nullable disable
 
 using System;

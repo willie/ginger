@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Ginger.Models;
 using Ginger.ViewModels;
 
@@ -21,6 +24,66 @@ public partial class MainWindow : Window
 
         // Handle additional keyboard shortcuts
         KeyDown += MainWindow_KeyDown;
+
+        // Subscribe to ViewModel events when DataContext is set
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+            vm.FocusMatchRequested += OnFocusMatchRequested;
+    }
+
+    private void OnFocusMatchRequested(object? sender, MainViewModel.SearchMatch match)
+    {
+        // Use dispatcher to ensure UI is updated before focusing
+        Dispatcher.UIThread.Post(() => FocusMatch(match), DispatcherPriority.Background);
+    }
+
+    private void FocusMatch(MainViewModel.SearchMatch match)
+    {
+        var recipeList = this.FindControl<ItemsControl>("RecipeList");
+        if (recipeList == null) return;
+
+        // Get recipe container
+        var recipeContainer = recipeList.ContainerFromIndex(match.RecipeIndex);
+        if (recipeContainer == null) return;
+
+        // Scroll into view
+        (recipeContainer as Control)?.BringIntoView();
+
+        // Find the Expander (recipe panel), then parameters ItemsControl, then the specific TextBox
+        var expander = FindDescendant<Expander>(recipeContainer);
+        if (expander == null) return;
+
+        // Find the parameters ItemsControl within the expander
+        var paramsControl = FindDescendant<ItemsControl>(expander);
+        if (paramsControl == null) return;
+
+        var paramContainer = paramsControl.ContainerFromIndex(match.ParameterIndex);
+        if (paramContainer == null) return;
+
+        var textBox = FindDescendant<TextBox>(paramContainer);
+        if (textBox == null) return;
+
+        textBox.BringIntoView();
+        textBox.Focus();
+        textBox.SelectionStart = match.StartPosition;
+        textBox.SelectionEnd = match.StartPosition + match.Length;
+    }
+
+    private static T? FindDescendant<T>(object? parent) where T : class
+    {
+        if (parent is T match) return match;
+        if (parent is not Avalonia.Visual visual) return null;
+
+        foreach (var child in visual.GetVisualChildren())
+        {
+            var result = FindDescendant<T>(child);
+            if (result != null) return result;
+        }
+        return null;
     }
 
     private void MainWindow_KeyDown(object? sender, KeyEventArgs e)

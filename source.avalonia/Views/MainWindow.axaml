@@ -951,8 +951,8 @@
                     <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
                         <Panel>
                             <!-- Recipe Tab Content -->
-                            <ScrollViewer IsVisible="{Binding IsRecipeTabActive}">
-                                <ItemsControl ItemsSource="{Binding Recipes}" Margin="12">
+                            <ScrollViewer IsVisible="{Binding IsRecipeTabActive}" x:Name="RecipeScrollViewer">
+                                <ItemsControl x:Name="RecipeList" ItemsSource="{Binding Recipes}" Margin="12">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"

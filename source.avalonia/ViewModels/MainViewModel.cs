@@ -3522,6 +3522,20 @@ public partial class MainViewModel : ObservableObject
     private bool _lastSearchMatchCase = false;
     private bool _lastSearchWholeWord = false;
 
+    // Search navigation state
+    private List<SearchMatch> _searchMatches = new();
+    private int _currentMatchIndex = -1;
+
+    public struct SearchMatch
+    {
+        public int RecipeIndex;
+        public int ParameterIndex;
+        public int StartPosition;
+        public int Length;
+    }
+
+    public event EventHandler<SearchMatch>? FocusMatchRequested;
+
     [RelayCommand]
     private void Find() => ShowFindDialog(findOnly: true);
 
@@ -3531,32 +3545,33 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void FindNext()
     {
-        if (string.IsNullOrEmpty(_lastSearchTerm))
+        if (_searchMatches.Count == 0)
         {
-            Find();
+            if (!string.IsNullOrEmpty(_lastSearchTerm))
+                PerformFind(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
+            else
+                Find();
             return;
         }
-        int count = CountOccurrences(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
-        if (count > 0)
-            StatusMessage = $"Found {count} occurrence(s) of \"{_lastSearchTerm}\"";
-        else
-            StatusMessage = $"No matches found for \"{_lastSearchTerm}\"";
+
+        _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
+        NavigateToCurrentMatch();
     }
 
     [RelayCommand]
     private void FindPrevious()
     {
-        if (string.IsNullOrEmpty(_lastSearchTerm))
+        if (_searchMatches.Count == 0)
         {
-            Find();
+            if (!string.IsNullOrEmpty(_lastSearchTerm))
+                PerformFind(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
+            else
+                Find();
             return;
         }
-        // For now, same as FindNext (would need cursor tracking for true previous)
-        int count = CountOccurrences(_lastSearchTerm, _lastSearchMatchCase, _lastSearchWholeWord);
-        if (count > 0)
-            StatusMessage = $"Found {count} occurrence(s) of \"{_lastSearchTerm}\"";
-        else
-            StatusMessage = $"No matches found for \"{_lastSearchTerm}\"";
+
+        _currentMatchIndex = (_currentMatchIndex - 1 + _searchMatches.Count) % _searchMatches.Count;
+        NavigateToCurrentMatch();
     }
 
     private void ShowFindDialog(bool findOnly)
@@ -3569,12 +3584,8 @@ public partial class MainViewModel : ObservableObject
                 _lastSearchMatchCase = matchCase;
                 _lastSearchWholeWord = wholeWord;
 
-                // Find in all recipes
-                int count = CountOccurrences(search, matchCase, wholeWord);
-                if (count > 0)
-                    StatusMessage = $"Found {count} occurrence(s) of \"{search}\"";
-                else
-                    StatusMessage = $"No matches found for \"{search}\"";
+                // Find and navigate to first match
+                PerformFind(search, matchCase, wholeWord);
             },
             onReplace: (search, replace, matchCase, wholeWord) =>
             {
@@ -3629,6 +3640,69 @@ public partial class MainViewModel : ObservableObject
             }
         }
         return count;
+    }
+
+    private void PerformFind(string search, bool matchCase, bool wholeWord)
+    {
+        _searchMatches.Clear();
+        _currentMatchIndex = -1;
+
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        for (int r = 0; r < Recipes.Count; r++)
+        {
+            var recipe = Recipes[r];
+            for (int p = 0; p < recipe.Parameters.Count; p++)
+            {
+                var param = recipe.Parameters[p];
+                if (!param.IsTextParameter || string.IsNullOrEmpty(param.Value))
+                    continue;
+
+                int[]? positions = wholeWord
+                    ? Utility.FindWholeWords(param.Value, search, comparison)
+                    : Utility.FindWords(param.Value, search, comparison);
+
+                if (positions != null)
+                {
+                    foreach (int pos in positions)
+                    {
+                        _searchMatches.Add(new SearchMatch
+                        {
+                            RecipeIndex = r,
+                            ParameterIndex = p,
+                            StartPosition = pos,
+                            Length = search.Length
+                        });
+                    }
+                }
+            }
+        }
+
+        if (_searchMatches.Count > 0)
+        {
+            _currentMatchIndex = 0;
+            NavigateToCurrentMatch();
+        }
+        else
+        {
+            StatusMessage = $"No matches found for \"{search}\"";
+        }
+    }
+
+    private void NavigateToCurrentMatch()
+    {
+        if (_currentMatchIndex < 0 || _currentMatchIndex >= _searchMatches.Count)
+            return;
+
+        var match = _searchMatches[_currentMatchIndex];
+        StatusMessage = $"Match {_currentMatchIndex + 1} of {_searchMatches.Count}";
+
+        // Expand recipe if collapsed
+        if (match.RecipeIndex < Recipes.Count)
+            Recipes[match.RecipeIndex].IsExpanded = true;
+
+        // Request focus via event (handled by View code-behind)
+        FocusMatchRequested?.Invoke(this, match);
     }
 
     private int PerformReplaceAll(string search, string replace, bool matchCase, bool wholeWord)
