@@ -93,11 +93,17 @@ public partial class BackyardBrowserDialog : Window
             string? imagePath = null;
             if (group.activeMembers?.Length > 0)
             {
-                var firstMemberId = group.activeMembers[0];
-                if (Backyard.Database.GetImageUrls(firstMemberId, out var imageUrls) == Backyard.Error.NoError
-                    && imageUrls?.Length > 0)
+                // activeMembers contains CharacterConfig.id (instanceId)
+                // We need CharacterConfigVersion.id (configId) for GetImageUrls
+                var firstMemberInstanceId = group.activeMembers[0];
+                var character = Backyard.Database.GetCharacter(firstMemberInstanceId);
+                if (character.isDefined && !string.IsNullOrEmpty(character.configId))
                 {
-                    imagePath = imageUrls[0];
+                    var error = Backyard.Database.GetImageUrls(character.configId, out var imageUrls);
+                    if (error == Backyard.Error.NoError && imageUrls?.Length > 0)
+                    {
+                        imagePath = imageUrls[0];
+                    }
                 }
             }
 
