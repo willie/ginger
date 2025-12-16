@@ -52,6 +52,11 @@ public partial class BackyardBrowserDialog : Window
                 return false;
         }
 
+        // Load characters from database
+        var refreshError = Backyard.RefreshCharacters();
+        if (refreshError != Backyard.Error.NoError)
+            return false;
+
         _allCharacters.Clear();
         _folders.Clear();
 
