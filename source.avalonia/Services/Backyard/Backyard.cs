@@ -904,7 +904,7 @@ namespace Ginger.Integration
 
 					if (BackyardValidation.DatabaseVersion == BackyardDatabaseVersion.Unknown) // Outdated or unsupported
 					{
-						LastError = "Validation failed";
+						LastError = "Validation failed: Unknown database version";
 						return Error.ValidationFailed;
 					}
 
@@ -1130,22 +1130,26 @@ namespace Ginger.Integration
 			string backyardPath = AppSettings.BackyardLink.Location;
 			if (string.IsNullOrWhiteSpace(backyardPath))
 			{
-#if DEBUG
-				string appPath = "faraday-canary"; // Use canary database during development and testing
-#else
-				string appPath = "faraday"; // Use production database
-#endif
 				// On macOS, Backyard AI uses ~/Library/Application Support/faraday/
 				// On Windows/Linux, it uses the standard ApplicationData folder
+				string basePath;
 				if (OperatingSystem.IsMacOS())
 				{
 					string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-					backyardPath = Path.Combine(home, "Library", "Application Support", appPath);
+					basePath = Path.Combine(home, "Library", "Application Support");
 				}
 				else
 				{
-					backyardPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appPath);
+					basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 				}
+
+#if DEBUG
+				// In debug mode, prefer canary if it exists, otherwise fall back to production
+				string canaryPath = Path.Combine(basePath, "faraday-canary");
+				backyardPath = Directory.Exists(canaryPath) ? canaryPath : Path.Combine(basePath, "faraday");
+#else
+				backyardPath = Path.Combine(basePath, "faraday");
+#endif
 			}
 			string dbFilePath = Path.Combine(backyardPath, "db.sqlite");
 			if (File.Exists(dbFilePath) == false)
