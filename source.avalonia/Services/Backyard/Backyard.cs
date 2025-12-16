@@ -1133,9 +1133,19 @@ namespace Ginger.Integration
 #if DEBUG
 				string appPath = "faraday-canary"; // Use canary database during development and testing
 #else
-				string appPath = "faraday"; // Use production database 
+				string appPath = "faraday"; // Use production database
 #endif
-				backyardPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appPath);
+				// On macOS, Backyard AI uses ~/Library/Application Support/faraday/
+				// On Windows/Linux, it uses the standard ApplicationData folder
+				if (OperatingSystem.IsMacOS())
+				{
+					string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+					backyardPath = Path.Combine(home, "Library", "Application Support", appPath);
+				}
+				else
+				{
+					backyardPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), appPath);
+				}
 			}
 			string dbFilePath = Path.Combine(backyardPath, "db.sqlite");
 			if (File.Exists(dbFilePath) == false)
