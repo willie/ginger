@@ -24,6 +24,10 @@ public partial class App : Application
         // Load settings on startup
         AppSettings.Load();
 
+        // Load recipes & lorebooks (matching original WinForms initialization)
+        RecipeBook.LoadRecipes();
+        Lorebooks.LoadLorebooks();
+
         // Auto-connect to Backyard if enabled
         InitializeBackyardConnection();
 

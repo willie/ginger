@@ -4,7 +4,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace Ginger
@@ -64,12 +66,30 @@ namespace Ginger
 	// BackyardModelDatabase is now implemented in Utility/ModelInfo.cs
 
 	/// <summary>
-	/// Stub for Resources - Windows Forms resource system
+	/// Resources loaded from embedded resources
 	/// </summary>
 	public static class Resources
 	{
-		public static byte[] portrait_default => null;
-		public static byte[] default_portrait => null;
+		private static byte[] _defaultPortrait;
+
+		public static byte[] portrait_default => GetDefaultPortrait();
+		public static byte[] default_portrait => GetDefaultPortrait();
+
+		private static byte[] GetDefaultPortrait()
+		{
+			if (_defaultPortrait == null)
+			{
+				var assembly = Assembly.GetExecutingAssembly();
+				using var stream = assembly.GetManifestResourceStream("Ginger.Resources.default_portrait.bin");
+				if (stream != null)
+				{
+					using var ms = new MemoryStream();
+					stream.CopyTo(ms);
+					_defaultPortrait = ms.ToArray();
+				}
+			}
+			return _defaultPortrait;
+		}
 	}
 
 	/// <summary>
@@ -77,7 +97,7 @@ namespace Ginger
 	/// </summary>
 	public static class AppVersion
 	{
-		public static string ProductVersion => "1.0.0";
-		public static string Version => "1.0.0.0";
+		public static string ProductVersion => "1.6.2";
+		public static string Version => "1.6.2.0";
 	}
 }

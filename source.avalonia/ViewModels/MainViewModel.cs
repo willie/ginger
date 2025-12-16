@@ -1356,6 +1356,99 @@ public partial class MainViewModel : ObservableObject
             : $"{characterDisplay} - Ginger";
     }
 
+    /// <summary>
+    /// Adds a component recipe with the given text value.
+    /// This matches the original WinForms AddChannel method, using proper component recipes.
+    /// </summary>
+    private Recipe AddChannel(CharacterData character, string text, string recipeId)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null!;
+
+        // Get the component recipe template from RecipeBook
+        var template = RecipeBook.GetRecipeByID(recipeId);
+        if (template == null)
+            return null!;
+
+        // Instantiate the recipe
+        var recipe = template.Instantiate();
+        if (recipe == null)
+            return null!;
+
+        // Set the text value on the TextParameter (first parameter)
+        if (recipe.parameters.Count > 0 && recipe.parameters[0] is TextParameter textParam)
+        {
+            Text.ReplaceDecorativeQuotes(ref text);
+            textParam.value = text;
+        }
+
+        // Add to character's recipes
+        character.AddRecipe(recipe);
+        return recipe;
+    }
+
+    /// <summary>
+    /// Adds component recipes for imported Backyard character content.
+    /// Uses proper component recipes from RecipeBook.
+    /// </summary>
+    private void AddImportedRecipes(Integration.BackyardLinkCard card)
+    {
+        // Add component recipes using proper RecipeBook templates (matching original WinForms)
+        AddChannel(Current.Character, GingerString.FromFaraday(card.data.system).ToParameter(), "__system");
+        AddChannel(Current.Character, GingerString.FromFaraday(card.authorNote).ToParameter(), "__post-history");
+        AddChannel(Current.Character, GingerString.FromFaraday(card.data.persona).ToParameter(), "__persona");
+        AddChannel(Current.Character, GingerString.FromFaraday(card.data.scenario).ToParameter(), "__scenario");
+        AddChannel(Current.Character, GingerString.FromFaraday(card.data.greeting.text).ToParameter(), "__greeting");
+        AddChannel(Current.Character, GingerString.FromFaraday(card.data.example).ToParameter(), "__example");
+
+        // Add grammar recipe if present
+        if (!string.IsNullOrEmpty(card.data.grammar))
+            AddChannel(Current.Character, card.data.grammar, "__grammar");
+
+        // Add lorebook if present (matching original WinForms behavior)
+        if (card.data.loreItems != null && card.data.loreItems.Length > 0)
+        {
+            // Convert BackyardLinkCard entries to Lorebook
+            var loreBook = new Lorebook { name = "Lorebook" };
+            int index = 0;
+            foreach (var entry in card.data.loreItems)
+            {
+                loreBook.entries.Add(new Lorebook.Entry
+                {
+                    key = entry.key,
+                    value = GingerString.FromFaraday(entry.value).ToParameter(),
+                    addition_index = index++,
+                });
+            }
+
+            var loreBookTemplate = RecipeBook.GetRecipeByID("__lorebook");
+            if (loreBookTemplate != null)
+            {
+                var loreBookRecipe = loreBookTemplate.Instantiate();
+                if (loreBookRecipe != null && loreBookRecipe.parameters.Count > 0 && loreBookRecipe.parameters[0] is LorebookParameter lorebookParam)
+                {
+                    lorebookParam.value = loreBook;
+                    Current.Character.AddRecipe(loreBookRecipe);
+                }
+            }
+        }
+
+        // Sync recipes to UI
+        RefreshRecipeList();
+    }
+
+    /// <summary>
+    /// Refreshes the Recipes observable collection from Current.Character.recipes
+    /// </summary>
+    private void RefreshRecipeList()
+    {
+        Recipes.Clear();
+        foreach (var recipe in Current.Character.recipes)
+        {
+            Recipes.Add(new RecipeViewModel(this, recipe));
+        }
+    }
+
     private void RegenerateOutput()
     {
         // Sync UI fields to Current so Generator uses the latest values
@@ -4504,6 +4597,10 @@ public partial class MainViewModel : ObservableObject
             SystemPrompt = card.data.system ?? "";
             Creator = card.hubAuthorUsername ?? card.creator ?? "";
             PostHistoryInstructions = card.authorNote ?? "";
+
+            // Create component recipes for imported content so it appears in output
+            Recipes.Clear();
+            AddImportedRecipes(card);
 
             // Set text style from card
             Current.Card.textStyle = card.data.textStyle;

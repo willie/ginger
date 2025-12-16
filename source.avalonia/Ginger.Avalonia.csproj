@@ -40,4 +40,9 @@
     </Content>
   </ItemGroup>
 
+  <!-- Embedded resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\default_portrait.bin" />
+  </ItemGroup>
+
 </Project>

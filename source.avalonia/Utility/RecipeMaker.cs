@@ -1,5 +1,5 @@
-// RecipeMaker - Creates recipes from output
-// Simplified for Avalonia port
+// RecipeMaker - Creates recipes and snippets from output
+// Ported from original with full functionality
 #nullable disable
 
 using System;
@@ -105,6 +105,189 @@ namespace Ginger
 				RecipeBook.LoadRecipes();
 			}
 			return true;
+		}
+
+		public static bool CreateRecipe(string filename, string name, string title, Recipe.Category category, string recipeXml, Generator.OutputWithNodes output, IEnumerable<StringHandle> flags = null)
+		{
+			string[] greetings = null;
+			string[] group_greetings = null;
+			if (output.greetings != null)
+			{
+				greetings = output.greetings
+					.Select(g => Format(g))
+					.NotNull()
+					.ToArray();
+			}
+			if (output.group_greetings != null)
+			{
+				group_greetings = output.group_greetings
+					.Select(g => Format(g))
+					.NotNull()
+					.ToArray();
+			}
+
+			KeyValuePair<string, string>[] loreItems = null;
+			if (output.lorebook != null)
+			{
+				loreItems = output.lorebook.entries
+					.Select(l => new KeyValuePair<string, string>(l.key, l.value))
+					.ToArray();
+			}
+
+			var sbXml = new StringBuilder(recipeXml);
+			sbXml.Replace("%%NAME%%", SecurityElement.Escape(name));
+			sbXml.Replace("%%TITLE%%", SecurityElement.Escape(title));
+			sbXml.Replace("%%AUTHOR%%", SecurityElement.Escape((Current.Card.creator ?? "").Trim()));
+			if (flags != null)
+				sbXml.Replace("%%FLAGS%%", Utility.ListToCommaSeparatedString(flags));
+			else
+				sbXml.Replace("%%FLAGS%%", "");
+
+			if (category == Recipe.Category.Undefined)
+				category = Recipe.Category.Custom;
+			sbXml.Replace("%%CATEGORY%%", EnumHelper.ToString(category));
+
+			var system = GingerString.Escape(Format(output.system, true));
+			var post_history = GingerString.Escape(Format(output.system_post_history, true));
+			var persona = GingerString.Escape(Format(output.persona, true));
+			var scenario = GingerString.Escape(Format(output.scenario, true));
+			var userPersona = GingerString.Escape(Format(output.userPersona, true));
+			var example = GingerString.Escape(Format(output.example));
+			var grammar = GingerString.Escape(Format(output.grammar));
+
+			AddRecipeComponent("System", system, null, sbXml);
+			AddRecipeComponent("PostHistory", post_history, "important=\"true\"", sbXml);
+			AddRecipeComponent("Persona", persona, null, sbXml);
+			AddRecipeComponent("User", userPersona, null, sbXml);
+			AddRecipeComponent("Scenario", scenario, null, sbXml);
+			AddRecipeComponent("Example", example, null, sbXml);
+			AddRecipeComponent("Grammar", grammar, null, sbXml);
+
+			if (greetings != null && greetings.Length > 0)
+				AddRecipeComponents("Greeting", greetings, null, sbXml);
+			else
+				AddRecipeComponent("Greeting", null, null, sbXml);
+
+			if (group_greetings != null && group_greetings.Length > 0)
+				AddRecipeComponents("GroupGreeting", group_greetings, "group=\"true\"", sbXml);
+			else
+				AddRecipeComponent("GroupGreeting", null, null, sbXml);
+
+			sbXml.Replace("<PostHistory", "<System");
+			sbXml.Replace("</PostHistory", "</System");
+			sbXml.Replace("<GroupGreeting", "<Greeting");
+			sbXml.Replace("</GroupGreeting", "</Greeting");
+
+			AddRecipeLore(loreItems, sbXml);
+			AddNodes(output.nodes, sbXml);
+			AddAttributes(output.attributes, sbXml);
+
+			sbXml.Replace("%%NODES%%", "");
+			sbXml.Replace("%%ATTRIBUTES%%", "");
+
+			try
+			{
+				string path = Path.GetDirectoryName(filename);
+				if (!string.IsNullOrEmpty(path) && Directory.Exists(path) == false)
+					Directory.CreateDirectory(path);
+				File.WriteAllText(filename, sbXml.ToString(), Encoding.UTF8);
+			}
+			catch
+			{
+				return false;
+			}
+			finally
+			{
+				RecipeBook.LoadRecipes();
+			}
+			return true;
+		}
+
+		public static bool CreateSnippet(string filename, string snippetName, Generator.OutputWithNodes output)
+		{
+			if (string.IsNullOrEmpty(filename) || string.IsNullOrEmpty(snippetName))
+				return false;
+
+			// Load snippet template from file
+			string templatePath = Utility.ContentPath("Templates", "snippet_template.txt");
+			string snippetTemplate;
+			try
+			{
+				snippetTemplate = File.ReadAllText(templatePath);
+			}
+			catch
+			{
+				return false;
+			}
+
+			string[] greetings = null;
+			string[] group_greetings = null;
+			if (output.greetings != null)
+			{
+				greetings = output.greetings
+					.Select(g => Format(g))
+					.NotNull()
+					.ToArray();
+			}
+			if (output.group_greetings != null)
+			{
+				group_greetings = output.group_greetings
+					.Select(g => Format(g))
+					.NotNull()
+					.ToArray();
+			}
+
+			var sbXml = new StringBuilder(snippetTemplate);
+			sbXml.Replace("%%NAME%%", SecurityElement.Escape(snippetName));
+			sbXml.Replace("%%AUTHOR%%", SecurityElement.Escape((Current.Card.creator ?? "").Trim()));
+
+			var system = GingerString.Escape(Format(output.system, true));
+			var post_history = GingerString.Escape(Format(output.system_post_history, true));
+			var persona = GingerString.Escape(Format(output.persona, true));
+			var scenario = GingerString.Escape(Format(output.scenario, true));
+			var userPersona = GingerString.Escape(Format(output.userPersona, true));
+			var example = GingerString.Escape(Format(output.example));
+			var grammar = GingerString.Escape(Format(output.grammar));
+
+			AddRecipeComponent("System", system, null, sbXml);
+			AddRecipeComponent("PostHistory", post_history, "important=\"true\"", sbXml);
+			AddRecipeComponent("Persona", persona, null, sbXml);
+			AddRecipeComponent("User", userPersona, null, sbXml);
+			AddRecipeComponent("Scenario", scenario, null, sbXml);
+			AddRecipeComponent("Example", example, null, sbXml);
+			AddRecipeComponent("Grammar", grammar, null, sbXml);
+
+			if (greetings != null && greetings.Length > 0)
+				AddRecipeComponents("Greeting", greetings, null, sbXml);
+			else
+				AddRecipeComponent("Greeting", null, null, sbXml);
+
+			if (group_greetings != null && group_greetings.Length > 0)
+				AddRecipeComponents("GroupGreeting", group_greetings, "group=\"true\"", sbXml);
+			else
+				AddRecipeComponent("GroupGreeting", null, null, sbXml);
+
+			sbXml.Replace("<PostHistory", "<System");
+			sbXml.Replace("</PostHistory", "</System");
+			sbXml.Replace("<GroupGreeting", "<Greeting");
+			sbXml.Replace("</GroupGreeting", "</Greeting");
+
+			try
+			{
+				// Ensure folder exists
+				string snippetsPath = Utility.ContentPath("Snippets");
+				if (Directory.Exists(snippetsPath) == false)
+					Directory.CreateDirectory(snippetsPath);
+
+				// Write snippet
+				File.WriteAllText(filename, sbXml.ToString(), Encoding.UTF8);
+				RecipeBook.LoadRecipes();
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
 		}
 
 		private static void AddRecipeComponent(string element, string value, string arguments, StringBuilder sbXml)
@@ -231,6 +414,105 @@ namespace Ginger
 			}
 		}
 
+		private static void AddAttributes(List<AttributeBlock> attributes, StringBuilder sbXml)
+		{
+			string mask = "%%ATTRIBUTES%%";
+			int pos_insert = sbXml.IndexOf(mask, 0);
+			if (pos_insert == -1)
+				return;
+			sbXml.Remove(pos_insert, mask.Length);
+
+			if (attributes == null || attributes.Count == 0)
+				return;
+
+			for (int i = attributes.Count - 1; i >= 0; --i)
+			{
+				StringBuilder sb = new StringBuilder();
+				var attribute = attributes[i];
+				if (string.IsNullOrWhiteSpace(attribute.value))
+					continue;
+
+				var lines = SecurityElement.Escape(attribute.value).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+				sb.Append($"\t<Attribute");
+				if (attribute.style != Block.Style.Default && attribute.style != Block.Style.Undefined)
+					sb.AppendFormat(" style=\"{0}\"", BlockStyles.ToString(attribute.style));
+				if (attribute.mode != Block.Mode.Default)
+					sb.AppendFormat(" mode=\"{0}\"", EnumHelper.ToString(attribute.mode).ToLowerInvariant());
+				if (attribute.order != 100)
+					sb.AppendFormat(" order=\"{0}\"", attribute.order);
+				sb.Append(">\n");
+				sb.Append($"\t\t<Name>");
+				sb.Append(attribute.name);
+				sb.AppendLine($"</Name>");
+				if (lines.Length > 1) // Multi-line
+				{
+					sb.AppendLine($"\t\t<Value>");
+					foreach (var line in lines)
+					{
+						sb.Append("\t\t\t");
+						sb.AppendLine(line);
+					}
+					sb.AppendLine($"\t\t</Value>");
+				}
+				else if (lines.Length == 1) // Single line
+				{
+					sb.Append($"\t\t<Value>");
+					sb.Append(lines[0]);
+					sb.AppendLine($"</Value>");
+				}
+				sb.AppendLine($"\t</Attribute>\n");
+
+				sb.Replace("&apos;", "'");
+				sb.Replace("&quot;", "\"");
+
+				sbXml.Insert(pos_insert, sb.ToString());
+			}
+		}
+
+		private static void AddNodes(Dictionary<BlockID, string> nodes, StringBuilder sbXml)
+		{
+			string mask = "%%NODES%%";
+			int pos_insert = sbXml.IndexOf(mask, 0);
+			if (pos_insert == -1)
+				return;
+			sbXml.Remove(pos_insert, mask.Length);
+
+			if (nodes == null || nodes.Count == 0)
+				return;
+
+			foreach (var node in nodes.Reverse())
+			{
+				StringBuilder sb = new StringBuilder();
+
+				var lines = SecurityElement.Escape(node.Value).Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+				sb.Append($"\t<Node path=\"");
+				sb.Append(node.Key.ToString());
+				if (lines.Length > 1) // Multi-line
+				{
+					sb.AppendLine($"\">");
+					foreach (var line in lines)
+					{
+						sb.Append("\t\t");
+						sb.AppendLine(line);
+					}
+					sb.AppendLine($"\t</Node>");
+				}
+				else if (lines.Length == 1)
+				{
+					sb.Append($"\">");
+					sb.Append(lines[0]);
+					sb.AppendLine($"</Node>");
+				}
+
+				sb.Replace("&apos;", "'");
+				sb.Replace("&quot;", "\"");
+				sb.AppendLine();
+				sbXml.Insert(pos_insert, sb.ToString());
+			}
+		}
+
 		private static string Format(GingerString gingerString, bool bKeepLinebreaks = false)
 		{
 			string text = gingerString.ToString();
@@ -251,7 +533,9 @@ namespace Ginger
 				sb.Replace("\r\n  \r\n", "\r\n\r\n"); // Empty row
 			}
 
-			return sb.ToString();
+			text = sb.ToString();
+			GenderSwap.ToNeutralMarkers(ref text);
+			return text;
 		}
 	}
 }

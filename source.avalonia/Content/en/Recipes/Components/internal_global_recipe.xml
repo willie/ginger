@@ -1,0 +1,31 @@
+<Ginger id="__internal">
+	<!-- Root nodes -->
+	<Node path="system" style="paragraph" mode="exclude" format="default"/>
+	<Node path="persona" style="paragraph" mode="exclude" format="default"/>
+	<Node path="scenario" style="paragraph" mode="exclude" format="default"/>
+	<Node path="user" style="paragraph" mode="exclude" format="default"/>
+	<Node path="example" style="paragraph" mode="exclude" format="default"/>
+
+	<!-- Standard output -->
+	<Node path="system/output" style="paragraph" order="500" mode="exclude"/>
+	<Node path="persona/output" style="line" order="500" mode="exclude"/>
+	<Node path="scenario/output" style="line" order="500" mode="exclude"/>
+	<Node path="user/output" style="line" order="500" mode="exclude"/>
+	<Node path="example/output" style="paragraph" order="500" mode="exclude" format="none"/>
+
+	<!-- Important instructions / Jailbreak -->
+	<Node path="system/important" style="paragraph" mode="exclude"/>
+	<Node path="system/important/output" style="default" order="500" mode="exclude"/>
+
+	<!-- Attribute node -->
+	<Node path="persona/attributes" style="line" order="200" mode="exclude"/>
+
+	<!-- Character introduction -->
+	<Node path="persona/summary" style="default" order="300" mode="exclude"/>
+
+	<!-- Personality summary -->
+	<Node path="persona/output/personality" style="default" order="1000" mode="exclude"/>
+
+	<Name>__internal</Name>
+	<Flags>__nobake, __internal, __hidden</Flags>
+</Ginger>

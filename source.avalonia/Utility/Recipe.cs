@@ -269,8 +269,17 @@ namespace Ginger
 					order = null;
 			}
 
-			// Parameters - simplified loading (full implementation needs IParameter factory)
+			// Parameters
 			parameters.Clear();
+			var parameterNode = xmlNode.GetFirstElementAny();
+			while (parameterNode != null)
+			{
+				IParameter parameter = Parameter.Create(parameterNode, this);
+				if (parameter != null && parameter.LoadFromXml(parameterNode))
+					parameters.Add(parameter);
+
+				parameterNode = parameterNode.GetNextSiblingAny();
+			}
 
 			// Blocks
 			blocks.Clear();

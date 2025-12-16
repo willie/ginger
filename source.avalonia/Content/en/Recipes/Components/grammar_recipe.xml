@@ -1,0 +1,20 @@
+<Ginger id="__grammar">
+	<Name>Grammar</Name>
+	<Description>
+		Defines a set of rules that controls how the model should format its output.
+		(Only supported in Backyard AI.)
+	</Description>
+	<Color>#bfd0db</Color>
+	<Order>103</Order>
+	<Multiple>True</Multiple>
+	<Requires>not __actor</Requires>
+	<Flags>grammar, __grammar, __component, __internal</Flags>
+
+	<Text id="grammar" style="code" raw="yes">
+			<Label>Grammar</Label>
+			<Default><![CDATA[root ::= text "\n"
+text ::= [[a-zA-Z0-9,.?!" ':;\n]]+]]></Default>
+		</Text>
+
+	<Grammar>{grammar:local}</Grammar>
+</Ginger>

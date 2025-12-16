@@ -1,0 +1,14 @@
+<Ginger id="__greeting">
+	<Name>Greeting</Name>
+	<Order>3</Order>
+	<Color>FloralWhite</Color>
+	<Multiple>True</Multiple>
+	<Flags>greeting, __greeting,  __component, __internal</Flags>
+
+	<!-- Parameters -->
+	<Text id="greeting" style="component">
+		<Label>First message</Label>
+	</Text>
+
+	<Greeting>{greeting:local}</Greeting>
+</Ginger>

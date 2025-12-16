@@ -123,8 +123,60 @@ namespace Ginger
 					recipes.Add(global_recipe);
 			}
 
+			// Load component recipes with proper types (matching original WinForms behavior)
+			LoadComponentRecipes();
+
 			// Load macros
 			Current.LoadMacros();
+		}
+
+		private static void LoadComponentRecipes()
+		{
+			string componentsPath = Utility.ContentPath("Recipes", "Components");
+			string grammarPath = Utility.ContentPath("Recipes", "Grammar");
+
+			// Component recipes with explicit types and drawers
+			LoadComponentRecipe(Path.Combine(componentsPath, "system_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Model);
+			LoadComponentRecipe(Path.Combine(componentsPath, "persona_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Character);
+			LoadComponentRecipe(Path.Combine(componentsPath, "user_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Character);
+			LoadComponentRecipe(Path.Combine(componentsPath, "scenario_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Story);
+			LoadComponentRecipe(Path.Combine(componentsPath, "example_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+			LoadComponentRecipe(Path.Combine(componentsPath, "greeting_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+			LoadComponentRecipe(Path.Combine(componentsPath, "lorebook_recipe.xml"), Recipe.Type.Lore, Recipe.Drawer.Lore);
+
+			// Other components
+			LoadComponentRecipe(Path.Combine(componentsPath, "attribute_recipe.xml"), Recipe.Type.Recipe, Recipe.Drawer.Character);
+			LoadComponentRecipe(Path.Combine(componentsPath, "personality_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+			LoadComponentRecipe(Path.Combine(componentsPath, "grammar_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+			LoadComponentRecipe(Path.Combine(componentsPath, "post_history_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+			LoadComponentRecipe(Path.Combine(componentsPath, "group_greeting_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Components);
+
+			// Hidden (Internal) components
+			LoadComponentRecipe(Path.Combine(componentsPath, "prune_scenario_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(componentsPath, "internal_global_recipe.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+
+			// Style grammar recipes
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_chat.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_novel.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_mixed.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_decorative.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_bold.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_brackets.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+			LoadComponentRecipe(Path.Combine(grammarPath, "grammar_recipe_cjk.xml"), Recipe.Type.Component, Recipe.Drawer.Undefined);
+		}
+
+		private static void LoadComponentRecipe(string filename, Recipe.Type type, Recipe.Drawer drawer)
+		{
+			if (!File.Exists(filename))
+				return;
+
+			var recipe = new Recipe(filename);
+			if (recipe.LoadFromXml(filename, "Ginger"))
+			{
+				recipe.type = type;
+				recipe.drawer = drawer;
+				recipes.Add(recipe);
+			}
 		}
 
 		private static bool LoadRecipe(string filename, out Recipe recipe)

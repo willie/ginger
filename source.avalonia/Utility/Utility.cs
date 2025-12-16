@@ -1104,12 +1104,25 @@ namespace Ginger
 
 		public static string ContentPath(string pathName)
 		{
-			return Path.Combine(Directory.GetCurrentDirectory(), "Content", pathName);
+			return Path.Combine(AppDirectory, "Content", AppSettings.Settings.Locale, pathName);
 		}
 
 		public static string ContentPath(string pathName, string filename)
 		{
-			return Path.Combine(Directory.GetCurrentDirectory(), "Content", pathName, filename);
+			return Path.Combine(AppDirectory, "Content", AppSettings.Settings.Locale, pathName, filename);
+		}
+
+		/// <summary>
+		/// Gets the directory where the application executable is located.
+		/// </summary>
+		public static string AppDirectory
+		{
+			get
+			{
+				// Use the location of the executing assembly (the .dll/.exe)
+				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				return Path.GetDirectoryName(assembly.Location) ?? Directory.GetCurrentDirectory();
+			}
 		}
 
 		public static string ChangeFileExtension(string filename, string ext)

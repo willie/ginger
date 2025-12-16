@@ -1,0 +1,13 @@
+<Ginger id="__user-persona">
+	<Name>User persona</Name>
+	<Color>#ddf5ef</Color>
+	<Order>8</Order>
+	<Multiple>True</Multiple>
+	<Flags>user-persona, __user, __component, __formatting, __internal</Flags>
+
+	<Text id="user-persona" style="component">
+		<Label>User description</Label>
+	</Text>
+
+	<User>{user-persona:local}</User>
+</Ginger>

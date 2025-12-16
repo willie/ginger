@@ -1,6 +1,6 @@
-// Stub implementations for Backyard integration
-// These provide minimal interfaces to allow compilation
-// Full implementations will be added as needed
+// Backyard integration types and utilities
+// Most functionality is fully implemented
+// Remaining stubs: DefaultPortrait provides fallback when no portrait loaded
 #nullable disable
 
 using System;
@@ -996,27 +996,31 @@ namespace Ginger
 	public class GingerJsonExtensionData : System.Collections.Generic.Dictionary<string, object> { }
 
 	/// <summary>
-	/// Stub for DefaultPortrait
+	/// Default portrait image used when no portrait is loaded
 	/// </summary>
 	public static class DefaultPortrait
 	{
-		private static byte[] _defaultBytes;
+		private static byte[] _fallbackBytes;
 
-		public static byte[] Image => null;
+		public static byte[] Image => Resources.default_portrait;
 
 		public static byte[] GetBytes()
 		{
-			// Return empty 1x1 transparent PNG if no default portrait
-			if (_defaultBytes != null)
-				return _defaultBytes;
+			// Return actual default portrait if available
+			var defaultPortrait = Resources.default_portrait;
+			if (defaultPortrait != null)
+				return defaultPortrait;
 
-			// Create a minimal 1x1 transparent PNG
+			// Fallback: create a minimal 1x1 transparent PNG
+			if (_fallbackBytes != null)
+				return _fallbackBytes;
+
 			using var bitmap = new SkiaSharp.SKBitmap(1, 1);
 			bitmap.Erase(SkiaSharp.SKColors.Transparent);
 			using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
 			using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
-			_defaultBytes = data.ToArray();
-			return _defaultBytes;
+			_fallbackBytes = data.ToArray();
+			return _fallbackBytes;
 		}
 	}
 }
