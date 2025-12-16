@@ -1,6 +1,5 @@
 // Backyard integration types and utilities
-// Most functionality is fully implemented
-// Remaining stubs: DefaultPortrait provides fallback when no portrait loaded
+// DefaultPortrait provides fallback image when no portrait is loaded
 #nullable disable
 
 using System;

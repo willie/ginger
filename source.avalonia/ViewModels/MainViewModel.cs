@@ -3589,7 +3589,7 @@ public partial class MainViewModel : ObservableObject
             },
             onReplace: (search, replace, matchCase, wholeWord) =>
             {
-                // Replace first occurrence (for now, replace all)
+                // Replace all occurrences (same as Replace All button)
                 int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
                 if (count > 0)
                 {
