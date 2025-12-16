@@ -3071,9 +3071,9 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task OpenRecentFile(RecentFileItem? item)
+    private async Task OpenRecentFile(object? parameter)
     {
-        if (item == null || string.IsNullOrEmpty(item.Filename))
+        if (parameter is not RecentFileItem item || string.IsNullOrEmpty(item.Filename))
             return;
 
         if (!File.Exists(item.Filename))
