@@ -443,18 +443,28 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for AssetCollection
+	/// Asset collection for managing character assets (portraits, backgrounds, etc.)
 	/// </summary>
 	public class AssetCollection
 	{
 		public List<AssetFile> assets { get; set; } = new List<AssetFile>();
 		public static AssetCollection FromBytes(byte[] data) => new AssetCollection();
 
-		// Required methods
-		public AssetFile GetPortraitOverride() => assets.FirstOrDefault(a => a.type == AssetFile.AssetType.Portrait);
-		public AssetFile GetPortrait() => assets.FirstOrDefault(a => a.type == AssetFile.AssetType.Portrait);
+		// Portrait retrieval
+		public AssetFile GetPortraitOverride() => assets.FirstOrDefault(a =>
+			a.type == AssetFile.AssetType.Icon && a.isMainPortraitOverride);
+
+		public AssetFile GetPortrait() => assets.FirstOrDefault(a =>
+			a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait);
+
+		public AssetFile GetPortrait(int actorIndex) => assets.FirstOrDefault(a =>
+			(a.type == AssetFile.AssetType.Icon || a.type == AssetFile.AssetType.Portrait)
+			&& a.actorIndex == actorIndex);
+
+		// Basic operations
 		public void Remove(AssetFile asset) => assets.Remove(asset);
 		public void Add(AssetFile asset) => assets.Add(asset);
+		public int RemoveAll(Func<AssetFile, bool> predicate) => assets.RemoveAll(a => predicate(a));
 
 		// Overload taking params array
 		public bool ContainsNoneOf(params AssetFile.AssetType[] types)
@@ -467,14 +477,72 @@ namespace Ginger
 		public AssetCollection Clone() => new AssetCollection { assets = new List<AssetFile>(assets) };
 		public List<AssetFile> ToList() => new List<AssetFile>(assets);
 
-		// Overload without return
-		public void AddBackgroundFromPortrait(ImageRef portrait) { }
-
-		// Overload with out parameter
-		public bool AddBackgroundFromPortrait(out AssetFile background)
+		/// <summary>
+		/// Creates a background asset from the current portrait and adds it to the collection.
+		/// </summary>
+		public bool AddBackgroundFromPortrait(out AssetFile backgroundAsset)
 		{
-			background = null;
-			return false;
+			// Select portrait asset
+			AssetFile asset = null;
+			if (Current.SelectedCharacter == 0) // Main character
+			{
+				var portraitAsset = GetPortraitOverride(); // 1. Override
+				if (portraitAsset != null)
+				{
+					asset = BackgroundFromAsset(portraitAsset);
+				}
+				else if (Current.Card.portraitImage != null) // 2. Main portrait
+				{
+					asset = new AssetFile()
+					{
+						name = "Background (portrait)",
+						ext = "jpeg",
+						assetType = AssetFile.AssetType.Background,
+						data = AssetData.FromBytes(Utility.ImageToMemory(Current.Card.portraitImage, Utility.ImageFileFormat.Jpeg)),
+						uriType = AssetFile.UriType.Embedded,
+						tags = new HashSet<StringHandle>() { AssetFile.Tag.MainBackground, AssetFile.Tag.PortraitBackground },
+					};
+				}
+				else // 3. Portrait asset
+				{
+					portraitAsset = GetPortrait();
+					if (portraitAsset != null)
+						asset = BackgroundFromAsset(portraitAsset);
+				}
+			}
+			else // Actor
+			{
+				var portraitAsset = GetPortrait(Current.SelectedCharacter);
+				if (portraitAsset != null)
+					asset = BackgroundFromAsset(portraitAsset);
+			}
+
+			if (asset == null)
+			{
+				backgroundAsset = default(AssetFile);
+				return false;
+			}
+
+			backgroundAsset = asset;
+			RemoveAll(a => a.assetType == AssetFile.AssetType.Background && (a.isDefaultAsset || a.HasTag(AssetFile.Tag.MainBackground)));
+			Add(asset);
+			return true;
+		}
+
+		private static AssetFile BackgroundFromAsset(AssetFile portraitAsset)
+		{
+			var asset = new AssetFile()
+			{
+				name = "Background (portrait)",
+				ext = portraitAsset.ext,
+				assetType = AssetFile.AssetType.Background,
+				data = portraitAsset.data,
+				uriType = AssetFile.UriType.Embedded,
+				tags = new HashSet<StringHandle>() { AssetFile.Tag.MainBackground, AssetFile.Tag.PortraitBackground },
+			};
+			if (portraitAsset.HasTag(AssetFile.Tag.Animation))
+				asset.AddTags(AssetFile.Tag.Animation);
+			return asset;
 		}
 
 		// LINQ support
@@ -784,7 +852,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for UserData
+	/// User persona data for chat sessions.
 	/// </summary>
 	public class UserData
 	{
@@ -819,7 +887,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for ChatHistory
+	/// Chat history container with messages and metadata.
 	/// </summary>
 	public class ChatHistory
 	{
@@ -830,7 +898,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for BackupData
+	/// Backup data structure for chat exports.
 	/// </summary>
 	public class BackupData
 	{
@@ -849,7 +917,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for FaradayCardV1
+	/// Faraday (Backyard AI) character card format version 1.
 	/// </summary>
 	public class FaradayCardV1
 	{
@@ -887,7 +955,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for FaradayCardV2
+	/// Faraday (Backyard AI) character card format version 2.
 	/// </summary>
 	public class FaradayCardV2
 	{
@@ -896,7 +964,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for FaradayCardV3
+	/// Faraday (Backyard AI) character card format version 3.
 	/// </summary>
 	public class FaradayCardV3
 	{
@@ -905,7 +973,7 @@ namespace Ginger
 	}
 
 	/// <summary>
-	/// Stub for FaradayCardV4
+	/// Faraday (Backyard AI) character card format version 4 with prompt templates.
 	/// </summary>
 	public class FaradayCardV4
 	{

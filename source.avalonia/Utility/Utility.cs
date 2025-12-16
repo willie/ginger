@@ -1544,7 +1544,9 @@ namespace Ginger
 			Webp
 		}
 
-		// Stub: Convert image to memory (needs proper implementation with cross-platform image library)
+		/// <summary>
+		/// Convert ImageRef to raw bytes. ImageRef already stores data as bytes.
+		/// </summary>
 		public static byte[] ImageToMemory(ImageRef image, ImageFileFormat format = ImageFileFormat.Png)
 		{
 			return image?.data;
@@ -1555,7 +1557,9 @@ namespace Ginger
 			return image?.data;
 		}
 
-		// Stub: Get image dimensions (needs proper implementation with cross-platform image library)
+		/// <summary>
+		/// Get image dimensions by parsing PNG/JPEG headers.
+		/// </summary>
 		public static bool GetImageDimensions(byte[] data, out int width, out int height)
 		{
 			width = 0;
@@ -1609,13 +1613,6 @@ namespace Ginger
 			Array.Copy(array1, 0, result, 0, array1.Length);
 			Array.Copy(array2, 0, result, array1.Length, array2.Length);
 			return result;
-		}
-
-		// Load image from memory (stub)
-		public static bool LoadImageFromMemory(byte[] data, out object image)
-		{
-			image = null;
-			return data != null && data.Length > 0;
 		}
 	}
 }

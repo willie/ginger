@@ -4517,25 +4517,18 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            // Ensure directory exists
-            var dir = System.IO.Path.GetDirectoryName(filename);
-            if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
-                System.IO.Directory.CreateDirectory(dir);
+            // Extract snippet name from filename (without extension)
+            var snippetName = System.IO.Path.GetFileNameWithoutExtension(filename);
 
-            // Serialize the output as a snippet file (using GingerCardV1 format for snippets)
-            // For now, just save as a simple text file with the content
-            var content = new System.Text.StringBuilder();
-            if (!output.persona.IsNullOrEmpty())
-                content.AppendLine(output.persona.ToString());
-            if (!output.scenario.IsNullOrEmpty())
-                content.AppendLine(output.scenario.ToString());
-            if (!output.system.IsNullOrEmpty())
-                content.AppendLine(output.system.ToString());
-            if (output.greetings?.Length > 0 && !output.greetings[0].IsNullOrEmpty())
-                content.AppendLine(output.greetings[0].ToString());
-
-            await System.IO.File.WriteAllTextAsync(filename, content.ToString());
-            StatusMessage = $"Created snippet: {System.IO.Path.GetFileName(filename)}";
+            // Create proper XML snippet using RecipeMaker
+            if (RecipeMaker.CreateSnippet(filename, snippetName, output))
+            {
+                StatusMessage = $"Created snippet: {System.IO.Path.GetFileName(filename)}";
+            }
+            else
+            {
+                StatusMessage = "Error creating snippet: Failed to write file";
+            }
         }
         catch (Exception ex)
         {
