@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Ginger.Integration;
 
 namespace Ginger.Views.Dialogs;
@@ -87,6 +89,18 @@ public partial class BackyardBrowserDialog : Window
             Backyard.ChatCount chatCount = default;
             _chatCounts.TryGetValue(group.instanceId, out chatCount);
 
+            // Get portrait image for first character in group
+            string? imagePath = null;
+            if (group.activeMembers?.Length > 0)
+            {
+                var firstMemberId = group.activeMembers[0];
+                if (Backyard.Database.GetImageUrls(firstMemberId, out var imageUrls) == Backyard.Error.NoError
+                    && imageUrls?.Length > 0)
+                {
+                    imagePath = imageUrls[0];
+                }
+            }
+
             _allCharacters.Add(new CharacterItem
             {
                 Group = group,
@@ -96,7 +110,8 @@ public partial class BackyardBrowserDialog : Window
                 Creator = creator,
                 ChatCount = chatCount.count,
                 LastChat = chatCount.lastMessage,
-                UpdateDate = group.updateDate
+                UpdateDate = group.updateDate,
+                ImagePath = imagePath
             });
         }
 
@@ -299,6 +314,35 @@ public partial class BackyardBrowserDialog : Window
         public DateTime LastChat { get; set; }
         public DateTime UpdateDate { get; set; }
         public bool IsSelected { get; set; }
+        public string? ImagePath { get; set; }
+
+        private Bitmap? _portraitBitmap;
+        private bool _portraitLoaded;
+
+        public Bitmap? PortraitBitmap
+        {
+            get
+            {
+                if (!_portraitLoaded)
+                {
+                    _portraitLoaded = true;
+                    if (!string.IsNullOrEmpty(ImagePath) && File.Exists(ImagePath))
+                    {
+                        try
+                        {
+                            _portraitBitmap = new Bitmap(ImagePath);
+                        }
+                        catch
+                        {
+                            _portraitBitmap = null;
+                        }
+                    }
+                }
+                return _portraitBitmap;
+            }
+        }
+
+        public bool HasPortrait => PortraitBitmap != null;
 
         public string TypeLabel => IsParty ? "Group" : "Character";
         public bool HasChatCount => ChatCount > 0;

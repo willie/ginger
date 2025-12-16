@@ -4503,6 +4503,20 @@ public partial class MainViewModel : ObservableObject
             ExampleMessages = card.data.example ?? "";
             SystemPrompt = card.data.system ?? "";
             Creator = card.hubAuthorUsername ?? card.creator ?? "";
+            PostHistoryInstructions = card.authorNote ?? "";
+
+            // Set text style from card
+            Current.Card.textStyle = card.data.textStyle;
+            SelectedTextStyle = card.data.textStyle switch
+            {
+                CardData.TextStyle.Chat => "Chat (asterisks)",
+                CardData.TextStyle.Novel => "Novel (quotes)",
+                CardData.TextStyle.Mixed => "Mixed",
+                CardData.TextStyle.Decorative => "Decorative quotes",
+                CardData.TextStyle.Bold => "Bold",
+                CardData.TextStyle.Parentheses => "Parentheses",
+                _ => "Chat (asterisks)",
+            };
 
             // Load lorebook if present
             if (card.data.loreItems != null && card.data.loreItems.Length > 0)
