@@ -1152,7 +1152,8 @@ namespace Ginger.Integration
 				throw new FileNotFoundException();
 
 			AppSettings.BackyardLink.Location = backyardPath;
-			return new SqliteConnection($"Data Source={dbFilePath}; Version=3; Foreign Keys=True; Pooled=True;");
+			// Microsoft.Data.Sqlite uses simpler connection string format than System.Data.SQLite
+			return new SqliteConnection($"Data Source={dbFilePath};Mode=ReadWrite");
 		}
 
 		public static Backyard.ImageInput[] GatherImages()
