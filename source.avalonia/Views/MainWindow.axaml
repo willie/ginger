@@ -1382,12 +1382,13 @@
                                     Padding="0"
                                     CornerRadius="0"
                                     BorderThickness="0">
-                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
-                                    <Panel.RenderTransform>
+                                <LayoutTransformControl HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <LayoutTransformControl.LayoutTransform>
                                         <RotateTransform Angle="90"/>
-                                    </Panel.RenderTransform>
-                                    <TextBlock Text="Recipe" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Panel>
+                                    </LayoutTransformControl.LayoutTransform>
+                                    <TextBlock Text="Recipe" FontSize="11"
+                                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                </LayoutTransformControl>
                             </Button>
                             <Button Command="{Binding ShowOutputTabCommand}"
                                     Background="{Binding IsOutputTabActive, Converter={StaticResource TabActiveConverter}}"
@@ -1395,12 +1396,13 @@
                                     Padding="0"
                                     CornerRadius="0"
                                     BorderThickness="0">
-                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
-                                    <Panel.RenderTransform>
+                                <LayoutTransformControl HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <LayoutTransformControl.LayoutTransform>
                                         <RotateTransform Angle="90"/>
-                                    </Panel.RenderTransform>
-                                    <TextBlock Text="Output" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Panel>
+                                    </LayoutTransformControl.LayoutTransform>
+                                    <TextBlock Text="Output" FontSize="11"
+                                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                </LayoutTransformControl>
                             </Button>
                             <Button Command="{Binding ShowNotesTabCommand}"
                                     Background="{Binding IsNotesTabActive, Converter={StaticResource TabActiveConverter}}"
@@ -1408,12 +1410,13 @@
                                     Padding="0"
                                     CornerRadius="0"
                                     BorderThickness="0">
-                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
-                                    <Panel.RenderTransform>
+                                <LayoutTransformControl HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <LayoutTransformControl.LayoutTransform>
                                         <RotateTransform Angle="90"/>
-                                    </Panel.RenderTransform>
-                                    <TextBlock Text="Notes" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Panel>
+                                    </LayoutTransformControl.LayoutTransform>
+                                    <TextBlock Text="Notes" FontSize="11"
+                                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                </LayoutTransformControl>
                             </Button>
                             <Button Command="{Binding ShowLorebookTabCommand}"
                                     Background="{Binding IsLorebookTabActive, Converter={StaticResource TabActiveConverter}}"
@@ -1421,12 +1424,13 @@
                                     Padding="0"
                                     CornerRadius="0"
                                     BorderThickness="0">
-                                <Panel Width="70" Height="28" RenderTransformOrigin="0.5,0.5">
-                                    <Panel.RenderTransform>
+                                <LayoutTransformControl HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <LayoutTransformControl.LayoutTransform>
                                         <RotateTransform Angle="90"/>
-                                    </Panel.RenderTransform>
-                                    <TextBlock Text="Lore" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Panel>
+                                    </LayoutTransformControl.LayoutTransform>
+                                    <TextBlock Text="Lore" FontSize="11"
+                                               Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                </LayoutTransformControl>
                             </Button>
                         </StackPanel>
                     </Border>

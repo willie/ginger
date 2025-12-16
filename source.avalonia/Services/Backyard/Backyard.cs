@@ -111,8 +111,8 @@ namespace Ginger.Integration
 			public string folderSortPosition;   // GroupConfig.folderSortPosition
 			public DateTime creationDate;       // CharacterConfig.createdAt
 			public DateTime updateDate;         // CharacterConfig.updatedAt
-			public string[] activeMembers;      // CharacterConfigVersion.id ...
-			public string[] inactiveMembers;    // CharacterConfigVersion.id ...
+			public string[] activeMembers;      // CharacterConfig.id (instanceId) - use GetCharacter() to get CharacterInstance
+			public string[] inactiveMembers;    // CharacterConfig.id (instanceId) - use GetCharacter() to get CharacterInstance
 
 			public bool isDefined { get { return instanceId != null; } }
 			public bool isParty { get { return isDefined && Count > 2; } }
