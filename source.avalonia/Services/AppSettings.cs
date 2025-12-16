@@ -119,7 +119,7 @@ public static class AppSettings
     public static class BackyardLink
     {
         public static bool Enabled { get; set; } = false;
-        public static bool Strict { get; set; } = true;
+        public static bool Strict { get; set; } = false; // Relaxed to allow newer Backyard versions with additional tables
         public static string? Location { get; set; }
         public static bool Autosave { get; set; } = true;
         public static bool AlwaysLinkOnImport { get; set; } = true;
