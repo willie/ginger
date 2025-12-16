@@ -4502,6 +4502,22 @@ public partial class MainViewModel : ObservableObject
             Greeting = card.data.greeting.text ?? "";
             ExampleMessages = card.data.example ?? "";
             SystemPrompt = card.data.system ?? "";
+            Creator = card.hubAuthorUsername ?? card.creator ?? "";
+
+            // Load lorebook if present
+            if (card.data.loreItems != null && card.data.loreItems.Length > 0)
+            {
+                foreach (var entry in card.data.loreItems)
+                {
+                    LorebookEntries.Add(new LorebookEntryViewModel(this)
+                    {
+                        Keys = entry.key ?? "",
+                        Content = entry.value ?? "",
+                        IsEnabled = true,
+                        Name = entry.key?.Split(',').FirstOrDefault()?.Trim() ?? $"Entry {LorebookEntries.Count + 1}"
+                    });
+                }
+            }
 
             // Load portrait if available
             if (images != null && images.Length > 0)
