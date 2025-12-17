@@ -1100,6 +1100,7 @@ public partial class MainViewModel : ObservableObject
         MarkDirty();
         UpdateWindowTitle();
         RegenerateOutput();
+        SyntaxHighlightBroadcaster.NotifyNamesChanged();
     }
 
     partial void OnSpokenNameChanged(string value)
@@ -1107,6 +1108,7 @@ public partial class MainViewModel : ObservableObject
         _textUndoHelper.RecordTextChange(nameof(SpokenName), "Edit spoken name", _oldSpokenName, value, v => SpokenName = v);
         MarkDirty();
         RegenerateOutput();
+        SyntaxHighlightBroadcaster.NotifyNamesChanged();
     }
 
     partial void OnCreatorChanged(string value)
@@ -1188,6 +1190,7 @@ public partial class MainViewModel : ObservableObject
         _textUndoHelper.RecordTextChange(nameof(UserPlaceholder), "Edit user name", _oldUserPlaceholder, value, v => UserPlaceholder = v);
         MarkDirty();
         RegenerateOutput();
+        SyntaxHighlightBroadcaster.NotifyNamesChanged();
     }
 
     partial void OnSelectedGenderChanged(string? value)
@@ -1351,9 +1354,12 @@ public partial class MainViewModel : ObservableObject
             ? fileName
             : $"{CharacterName} - {fileName}";
 
+        var recipeCount = RecipeBook.allRecipes.Count();
+        var recipeInfo = recipeCount > 0 ? $" ({recipeCount} recipes)" : "";
+
         WindowTitle = _isDirty
-            ? $"*{characterDisplay} - Ginger"
-            : $"{characterDisplay} - Ginger";
+            ? $"*{characterDisplay} - Ginger{recipeInfo}"
+            : $"{characterDisplay} - Ginger{recipeInfo}";
     }
 
     /// <summary>
@@ -2146,6 +2152,9 @@ public partial class MainViewModel : ObservableObject
         LoadBackgroundFromAssets();
 
         RegenerateOutput();
+
+        // Notify syntax highlighting of new character names
+        SyntaxHighlightBroadcaster.NotifyNamesChanged();
     }
 
     private CharacterCard ToCard()
@@ -3526,15 +3535,25 @@ public partial class MainViewModel : ObservableObject
     private List<SearchMatch> _searchMatches = new();
     private int _currentMatchIndex = -1;
 
+    public enum SearchLocation
+    {
+        RecipeContent,
+        LorebookContent,
+        Notes
+    }
+
     public struct SearchMatch
     {
-        public int RecipeIndex;
-        public int ParameterIndex;
+        public SearchLocation Location;
+        public int Index;          // Recipe or Lorebook entry index (unused for Notes)
         public int StartPosition;
         public int Length;
     }
 
     public event EventHandler<SearchMatch>? FocusMatchRequested;
+
+    // Event to update find dialog status
+    public event Action<string>? FindStatusUpdated;
 
     [RelayCommand]
     private void Find() => ShowFindDialog(findOnly: true);
@@ -3576,6 +3595,8 @@ public partial class MainViewModel : ObservableObject
 
     private void ShowFindDialog(bool findOnly)
     {
+        Action<string>? dialogStatusUpdater = null;
+
         _dialogService.ShowFindReplaceDialog(
             onFind: (search, replace, matchCase, wholeWord) =>
             {
@@ -3591,26 +3612,38 @@ public partial class MainViewModel : ObservableObject
             {
                 // Replace all occurrences (same as Replace All button)
                 int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                string statusMsg;
                 if (count > 0)
                 {
-                    StatusMessage = $"Replaced {count} occurrence(s)";
+                    statusMsg = $"Replaced {count} occurrence(s)";
                     MarkDirty();
                     RegenerateOutput();
                 }
                 else
-                    StatusMessage = $"No matches found for \"{search}\"";
+                    statusMsg = "No matches found";
+                StatusMessage = statusMsg;
+                dialogStatusUpdater?.Invoke(statusMsg);
             },
             onReplaceAll: (search, replace, matchCase, wholeWord) =>
             {
                 int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                string statusMsg;
                 if (count > 0)
                 {
-                    StatusMessage = $"Replaced {count} occurrence(s)";
+                    statusMsg = $"Replaced {count} occurrence(s)";
                     MarkDirty();
                     RegenerateOutput();
                 }
                 else
-                    StatusMessage = $"No matches found for \"{search}\"";
+                    statusMsg = "No matches found";
+                StatusMessage = statusMsg;
+                dialogStatusUpdater?.Invoke(statusMsg);
+            },
+            onDialogOpened: (statusUpdater) =>
+            {
+                dialogStatusUpdater = statusUpdater;
+                // Subscribe to status updates
+                FindStatusUpdated += (status) => statusUpdater(status);
             }
         );
     }
@@ -3649,44 +3682,94 @@ public partial class MainViewModel : ObservableObject
 
         var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
+        // Search Recipe Content fields
         for (int r = 0; r < Recipes.Count; r++)
         {
             var recipe = Recipes[r];
-            for (int p = 0; p < recipe.Parameters.Count; p++)
+            if (string.IsNullOrEmpty(recipe.Content))
+                continue;
+
+            int[]? positions = wholeWord
+                ? Utility.FindWholeWords(recipe.Content, search, comparison)
+                : Utility.FindWords(recipe.Content, search, comparison);
+
+            if (positions != null)
             {
-                var param = recipe.Parameters[p];
-                if (!param.IsTextParameter || string.IsNullOrEmpty(param.Value))
-                    continue;
-
-                int[]? positions = wholeWord
-                    ? Utility.FindWholeWords(param.Value, search, comparison)
-                    : Utility.FindWords(param.Value, search, comparison);
-
-                if (positions != null)
+                foreach (int pos in positions)
                 {
-                    foreach (int pos in positions)
+                    _searchMatches.Add(new SearchMatch
                     {
-                        _searchMatches.Add(new SearchMatch
-                        {
-                            RecipeIndex = r,
-                            ParameterIndex = p,
-                            StartPosition = pos,
-                            Length = search.Length
-                        });
-                    }
+                        Location = SearchLocation.RecipeContent,
+                        Index = r,
+                        StartPosition = pos,
+                        Length = search.Length
+                    });
                 }
             }
         }
 
+        // Search Lorebook Content fields
+        for (int l = 0; l < LorebookEntries.Count; l++)
+        {
+            var entry = LorebookEntries[l];
+            if (string.IsNullOrEmpty(entry.Content))
+                continue;
+
+            int[]? positions = wholeWord
+                ? Utility.FindWholeWords(entry.Content, search, comparison)
+                : Utility.FindWords(entry.Content, search, comparison);
+
+            if (positions != null)
+            {
+                foreach (int pos in positions)
+                {
+                    _searchMatches.Add(new SearchMatch
+                    {
+                        Location = SearchLocation.LorebookContent,
+                        Index = l,
+                        StartPosition = pos,
+                        Length = search.Length
+                    });
+                }
+            }
+        }
+
+        // Search Notes
+        if (!string.IsNullOrEmpty(Notes))
+        {
+            int[]? positions = wholeWord
+                ? Utility.FindWholeWords(Notes, search, comparison)
+                : Utility.FindWords(Notes, search, comparison);
+
+            if (positions != null)
+            {
+                foreach (int pos in positions)
+                {
+                    _searchMatches.Add(new SearchMatch
+                    {
+                        Location = SearchLocation.Notes,
+                        Index = 0,
+                        StartPosition = pos,
+                        Length = search.Length
+                    });
+                }
+            }
+        }
+
+        string statusMsg;
         if (_searchMatches.Count > 0)
         {
             _currentMatchIndex = 0;
             NavigateToCurrentMatch();
+            statusMsg = $"Found {_searchMatches.Count} match(es)";
         }
         else
         {
-            StatusMessage = $"No matches found for \"{search}\"";
+            statusMsg = "No matches found";
         }
+
+        StatusMessage = statusMsg;
+        FindStatusUpdated?.Invoke(statusMsg);
     }
 
     private void NavigateToCurrentMatch()
@@ -3695,11 +3778,31 @@ public partial class MainViewModel : ObservableObject
             return;
 
         var match = _searchMatches[_currentMatchIndex];
-        StatusMessage = $"Match {_currentMatchIndex + 1} of {_searchMatches.Count}";
+        var statusMsg = $"Match {_currentMatchIndex + 1} of {_searchMatches.Count}";
+        StatusMessage = statusMsg;
+        FindStatusUpdated?.Invoke(statusMsg);
 
-        // Expand recipe if collapsed
-        if (match.RecipeIndex < Recipes.Count)
-            Recipes[match.RecipeIndex].IsExpanded = true;
+        // Expand and switch to appropriate tab based on location
+        switch (match.Location)
+        {
+            case SearchLocation.RecipeContent:
+                if (match.Index < Recipes.Count)
+                {
+                    Recipes[match.Index].IsExpanded = true;
+                    IsRecipeTabActive = true;
+                }
+                break;
+            case SearchLocation.LorebookContent:
+                if (match.Index < LorebookEntries.Count)
+                {
+                    LorebookEntries[match.Index].IsExpanded = true;
+                    IsLorebookTabActive = true;
+                }
+                break;
+            case SearchLocation.Notes:
+                IsNotesTabActive = true;
+                break;
+        }
 
         // Request focus via event (handled by View code-behind)
         FocusMatchRequested?.Invoke(this, match);
@@ -5200,8 +5303,9 @@ public partial class MainViewModel : ObservableObject
             }
             Current.Link.isDirty = false;
 
-            StatusMessage = "Changes pulled from Backyard AI";
             MarkDirty();
+            RegenerateOutput();
+            StatusMessage = "Changes pulled from Backyard AI";
         }
         catch (Exception ex)
         {

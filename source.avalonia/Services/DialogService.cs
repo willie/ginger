@@ -133,7 +133,8 @@ public class DialogService
     /// </summary>
     public void ShowFindReplaceDialog(Action<string, string, bool, bool>? onFind = null,
         Action<string, string, bool, bool>? onReplace = null,
-        Action<string, string, bool, bool>? onReplaceAll = null)
+        Action<string, string, bool, bool>? onReplaceAll = null,
+        Action<Action<string>>? onDialogOpened = null)
     {
         var window = GetMainWindow();
         if (window == null) return;
@@ -144,6 +145,10 @@ public class DialogService
             OnReplace = onReplace,
             OnReplaceAll = onReplaceAll
         };
+
+        // Provide a way for the caller to update dialog status
+        onDialogOpened?.Invoke(status => dialog.SetStatus(status));
+
         dialog.Show(window);
     }
 

@@ -1119,9 +1119,9 @@ namespace Ginger
 		{
 			get
 			{
-				// Use the location of the executing assembly (the .dll/.exe)
-				var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-				return Path.GetDirectoryName(assembly.Location) ?? Directory.GetCurrentDirectory();
+				// Use AppContext.BaseDirectory for .NET 5+ compatibility
+				// Assembly.Location returns empty on macOS with dotnet run
+				return AppContext.BaseDirectory;
 			}
 		}
 

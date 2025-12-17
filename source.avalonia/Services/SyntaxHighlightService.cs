@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Avalonia.Media;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
+using Ginger.Models;
 
 namespace Ginger.Services;
 
@@ -249,4 +250,54 @@ public class GingerSyntaxColorizer : DocumentColorizingTransformer
 public static class SyntaxHighlightExtensions
 {
     public static bool Contains(this SyntaxFlags flags, SyntaxFlags flag) => (flags & flag) == flag;
+}
+
+/// <summary>
+/// Broadcasts character name changes to all HighlightedTextBox instances.
+/// </summary>
+public static class SyntaxHighlightBroadcaster
+{
+    /// <summary>
+    /// Fired when character names or variables change and highlighting should be refreshed.
+    /// </summary>
+    public static event Action? NamesChanged;
+
+    /// <summary>
+    /// Notify all subscribers that character names have changed.
+    /// </summary>
+    public static void NotifyNamesChanged() => NamesChanged?.Invoke();
+
+    /// <summary>
+    /// Get current character names and variable names from Current.Card.
+    /// </summary>
+    public static (string[] CharacterNames, string[] VariableNames) GetCurrentNames()
+    {
+        var names = new List<string>();
+
+        // Add user placeholder
+        if (!string.IsNullOrEmpty(Current.Card?.userPlaceholder))
+            names.Add(Current.Card.userPlaceholder);
+
+        // Add character names
+        if (Current.Characters != null)
+        {
+            foreach (var character in Current.Characters)
+            {
+                if (!string.IsNullOrEmpty(character?.name))
+                    names.Add(character.name);
+            }
+        }
+
+        // Add custom variables
+        var varNames = Array.Empty<string>();
+        if (Current.Card?.customVariables != null)
+        {
+            varNames = Current.Card.customVariables
+                .Where(v => !string.IsNullOrWhiteSpace(v.Value))
+                .Select(v => $"{{{v.Name}}}")
+                .ToArray();
+        }
+
+        return (names.ToArray(), varNames);
+    }
 }

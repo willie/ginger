@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Ginger.ViewModels"
         xmlns:conv="using:Ginger.Converters"
+        xmlns:controls="using:Ginger.Views.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -49,11 +50,42 @@
         </Style>
     </Window.Styles>
 
+    <Window.KeyBindings>
+        <!-- File -->
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+N', macOS='⌘+N'}" Command="{Binding NewCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+D', macOS='⌘+D'}" Command="{Binding DuplicateCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}" Command="{Binding OpenCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}" Command="{Binding SaveCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Shift+S', macOS='⌘+Shift+S'}" Command="{Binding SaveAsCommand}"/>
+
+        <!-- Edit -->
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Z', macOS='⌘+Z'}" Command="{Binding UndoCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Y', macOS='⌘+Shift+Z'}" Command="{Binding RedoCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+F', macOS='⌘+F'}" Command="{Binding FindCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'F3', macOS='⌘+G'}" Command="{Binding FindNextCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Shift+F3', macOS='⌘+Shift+G'}" Command="{Binding FindPreviousCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+H', macOS='⌘+Alt+F'}" Command="{Binding FindReplaceCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Shift+C', macOS='⌘+Shift+C'}" Command="{Binding CopyAllRecipesCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Shift+V', macOS='⌘+Shift+V'}" Command="{Binding PasteRecipesCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+L', macOS='⌘+L'}" Command="{Binding LoadPortraitCommand}"/>
+
+        <!-- View -->
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+E', macOS='⌘+E'}" Command="{Binding ExpandAllCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Shift+E', macOS='⌘+Shift+E'}" Command="{Binding CollapseAllCommand}"/>
+
+        <!-- Tools -->
+        <KeyBinding Gesture="F5" Command="{Binding ReloadRecipesCommand}"/>
+
+        <!-- Backyard -->
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+U', macOS='⌘+U'}" Command="{Binding PushChangesCommand}"/>
+        <KeyBinding Gesture="{OnPlatform 'Ctrl+Shift+U', macOS='⌘+Shift+U'}" Command="{Binding PullChangesCommand}"/>
+    </Window.KeyBindings>
+
     <DockPanel>
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top" FontSize="12">
             <MenuItem Header="_File">
-                <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="Ctrl+N"/>
+                <MenuItem Header="_New" Command="{Binding NewCommand}" InputGesture="{OnPlatform 'Ctrl+N', macOS='⌘+N'}"/>
                 <MenuItem Header="New from _Template">
                     <MenuItem Header="Assistant" Command="{Binding NewFromTemplateCommand}" CommandParameter="assistant"/>
                     <MenuItem Header="Chat Bot" Command="{Binding NewFromTemplateCommand}" CommandParameter="chat-bot"/>
@@ -62,9 +94,9 @@
                     <MenuItem Header="Roleplay" Command="{Binding NewFromTemplateCommand}" CommandParameter="roleplay"/>
                 </MenuItem>
                 <MenuItem Header="New _Window" Command="{Binding NewWindowCommand}"/>
-                <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="Ctrl+D"/>
+                <MenuItem Header="_Duplicate" Command="{Binding DuplicateCommand}" InputGesture="{OnPlatform 'Ctrl+D', macOS='⌘+D'}"/>
                 <Separator/>
-                <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="Ctrl+O"/>
+                <MenuItem Header="_Open..." Command="{Binding OpenCommand}" InputGesture="{OnPlatform 'Ctrl+O', macOS='⌘+O'}"/>
                 <MenuItem Header="Open _Recent" ItemsSource="{Binding RecentFiles}" x:CompileBindings="False">
                     <MenuItem.Styles>
                         <Style Selector="MenuItem > MenuItem">
@@ -75,8 +107,8 @@
                     </MenuItem.Styles>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="Ctrl+S"/>
-                <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="Ctrl+Shift+S"/>
+                <MenuItem Header="_Save" Command="{Binding SaveCommand}" InputGesture="{OnPlatform 'Ctrl+S', macOS='⌘+S'}"/>
+                <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+S', macOS='⌘+Shift+S'}"/>
                 <MenuItem Header="Save _Incremental" Command="{Binding SaveIncrementalCommand}"/>
                 <MenuItem Header="_Revert to Saved" Command="{Binding RevertFileCommand}"/>
                 <Separator/>
@@ -86,7 +118,7 @@
                     <MenuItem Header="Import from _Clipboard..." Command="{Binding ImportFromClipboardCommand}"/>
                 </MenuItem>
                 <MenuItem Header="_Export">
-                    <MenuItem Header="Export _As..." Command="{Binding ExportAsCommand}" InputGesture="Ctrl+E"/>
+                    <MenuItem Header="Export _As..." Command="{Binding ExportAsCommand}"/>
                     <Separator/>
                     <MenuItem Header="Export to _Folder..." Command="{Binding ExportToFolderCommand}"/>
                     <MenuItem Header="Export as _JSON..." Command="{Binding ExportAsJsonCommand}"/>
@@ -95,20 +127,20 @@
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"
+                <MenuItem Header="_Undo" Command="{Binding UndoCommand}" InputGesture="{OnPlatform 'Ctrl+Z', macOS='⌘+Z'}"
                           IsEnabled="{Binding CanUndo}"/>
-                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"
+                <MenuItem Header="_Redo" Command="{Binding RedoCommand}" InputGesture="{OnPlatform 'Ctrl+Y', macOS='⌘+Shift+Z'}"
                           IsEnabled="{Binding CanRedo}"/>
                 <Separator/>
-                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
-                <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGesture="F3"/>
-                <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGesture="Shift+F3"/>
-                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
+                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="{OnPlatform 'Ctrl+F', macOS='⌘+F'}"/>
+                <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGesture="{OnPlatform 'F3', macOS='⌘+G'}"/>
+                <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGesture="{OnPlatform 'Shift+F3', macOS='⌘+Shift+G'}"/>
+                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="{OnPlatform 'Ctrl+H', macOS='⌘+Alt+F'}"/>
                 <Separator/>
-                <MenuItem Header="Copy All _Recipes" Command="{Binding CopyAllRecipesCommand}" InputGesture="Ctrl+Shift+C"/>
-                <MenuItem Header="_Paste Recipes" Command="{Binding PasteRecipesCommand}" InputGesture="Ctrl+Shift+V"/>
+                <MenuItem Header="Copy All _Recipes" Command="{Binding CopyAllRecipesCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+C', macOS='⌘+Shift+C'}"/>
+                <MenuItem Header="_Paste Recipes" Command="{Binding PasteRecipesCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+V', macOS='⌘+Shift+V'}"/>
                 <Separator/>
-                <MenuItem Header="_Load Portrait..." Command="{Binding LoadPortraitCommand}" InputGesture="Ctrl+L"/>
+                <MenuItem Header="_Load Portrait..." Command="{Binding LoadPortraitCommand}" InputGesture="{OnPlatform 'Ctrl+L', macOS='⌘+L'}"/>
                 <MenuItem Header="_Clear Portrait" Command="{Binding ClearPortraitCommand}"/>
                 <Separator/>
                 <MenuItem Header="Load _Background..." Command="{Binding LoadBackgroundCommand}"/>
@@ -145,8 +177,8 @@
                     <MenuItem Header="By _Category" Command="{Binding SortRecipesByCategoryCommand}"/>
                 </MenuItem>
                 <Separator/>
-                <MenuItem Header="_Expand All" Command="{Binding ExpandAllCommand}" InputGesture="Ctrl+E"/>
-                <MenuItem Header="_Collapse All" Command="{Binding CollapseAllCommand}" InputGesture="Ctrl+Shift+E"/>
+                <MenuItem Header="_Expand All" Command="{Binding ExpandAllCommand}" InputGesture="{OnPlatform 'Ctrl+E', macOS='⌘+E'}"/>
+                <MenuItem Header="_Collapse All" Command="{Binding CollapseAllCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+E', macOS='⌘+Shift+E'}"/>
             </MenuItem>
             <MenuItem Header="_Actors">
                 <MenuItem Header="_Add Actor" Command="{Binding AddActorCommand}"/>
@@ -240,8 +272,8 @@
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Tools">
-                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="Ctrl+F"/>
-                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="Ctrl+H"/>
+                <MenuItem Header="_Find..." Command="{Binding FindCommand}" InputGesture="{OnPlatform 'Ctrl+F', macOS='⌘+F'}"/>
+                <MenuItem Header="Find and _Replace..." Command="{Binding FindReplaceCommand}" InputGesture="{OnPlatform 'Ctrl+H', macOS='⌘+Alt+F'}"/>
                 <Separator/>
                 <MenuItem Header="_Gender Swap..." Command="{Binding GenderSwapCommand}"/>
                 <Separator/>
@@ -270,9 +302,9 @@
                 <MenuItem Header="_Unlink Character" Command="{Binding UnlinkCharacterCommand}"/>
                 <MenuItem Header="_Reestablish Link" Command="{Binding ReestablishLinkCommand}"/>
                 <Separator/>
-                <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}" InputGesture="Ctrl+U"/>
-                <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}" InputGesture="Ctrl+Shift+U"/>
-                <MenuItem Header="_Save Linked" Command="{Binding SaveLinkedCommand}" InputGesture="Ctrl+Shift+S"/>
+                <MenuItem Header="_Push Changes" Command="{Binding PushChangesCommand}" InputGesture="{OnPlatform 'Ctrl+U', macOS='⌘+U'}"/>
+                <MenuItem Header="P_ull Changes" Command="{Binding PullChangesCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+U', macOS='⌘+Shift+U'}"/>
+                <MenuItem Header="_Save Linked" Command="{Binding SaveLinkedCommand}" InputGesture="{OnPlatform 'Ctrl+Shift+S', macOS='⌘+Shift+S'}"/>
                 <MenuItem Header="Save as _New..." Command="{Binding SaveNewLinkedCommand}"/>
                 <MenuItem Header="Save as New _Party..." Command="{Binding SaveAsNewPartyCommand}"/>
                 <MenuItem Header="_Revert to Backyard" Command="{Binding RevertLinkedCommand}"/>
@@ -1130,7 +1162,7 @@
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                         <!-- Recipe Content -->
-                                                        <TextBox Text="{Binding Content}"
+                                                        <controls:HighlightedTextBox Text="{Binding Content}"
                                                                  AcceptsReturn="True"
                                                                  TextWrapping="Wrap"
                                                                  MinHeight="80"
@@ -1146,17 +1178,20 @@
                             </ScrollViewer>
 
                             <!-- Output Tab Content -->
-                            <TextBox Text="{Binding OutputPreview}"
-                                     IsVisible="{Binding IsOutputTabActive}"
-                                     IsReadOnly="True"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     Margin="12"
-                                     FontSize="12"
-                                     FontFamily="Consolas,Menlo,Monaco,monospace"/>
+                            <ScrollViewer IsVisible="{Binding IsOutputTabActive}">
+                                <TextBox Text="{Binding OutputPreview}"
+                                         IsReadOnly="True"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         Margin="12"
+                                         MinHeight="200"
+                                         FontSize="12"
+                                         FontFamily="Consolas,Menlo,Monaco,monospace"/>
+                            </ScrollViewer>
 
                             <!-- Notes Tab Content -->
-                            <TextBox Text="{Binding Notes}"
+                            <controls:HighlightedTextBox x:Name="NotesTextBox"
+                                     Text="{Binding Notes}"
                                      IsVisible="{Binding IsNotesTabActive}"
                                      AcceptsReturn="True"
                                      TextWrapping="Wrap"
@@ -1196,7 +1231,7 @@
                                     </Grid>
                                 </Border>
                                 <ScrollViewer>
-                                    <ItemsControl ItemsSource="{Binding LorebookEntries}" Margin="12">
+                                    <ItemsControl x:Name="LorebookList" ItemsSource="{Binding LorebookEntries}" Margin="12">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
@@ -1256,7 +1291,7 @@
                                                             </Grid>
                                                             <StackPanel Spacing="2">
                                                                 <Label Content="Content" FontSize="11"/>
-                                                                <TextBox Text="{Binding Content}"
+                                                                <controls:HighlightedTextBox Text="{Binding Content}"
                                                                          AcceptsReturn="True"
                                                                          TextWrapping="Wrap"
                                                                          MinHeight="80"

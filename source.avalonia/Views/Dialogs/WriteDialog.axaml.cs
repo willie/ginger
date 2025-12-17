@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
@@ -329,34 +330,54 @@ public partial class WriteDialog : Window
             }
         }
 
-        // Standard edit items
-        var undoItem = new MenuItem { Header = "Undo", InputGesture = KeyGesture.Parse("Ctrl+Z") };
+        // Standard edit items - use platform-appropriate shortcuts (Cmd on macOS, Ctrl elsewhere)
+        var undoItem = new MenuItem { Header = "Undo", InputGesture = GetPlatformGesture(Key.Z, KeyModifiers.Control) };
         undoItem.Click += (s, args) => TextEditor.Undo();
         contextMenu.Items.Add(undoItem);
 
-        var redoItem = new MenuItem { Header = "Redo", InputGesture = KeyGesture.Parse("Ctrl+Y") };
+        // macOS uses Cmd+Shift+Z for redo, Windows uses Ctrl+Y
+        var redoGesture = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            ? new KeyGesture(Key.Z, KeyModifiers.Meta | KeyModifiers.Shift)
+            : new KeyGesture(Key.Y, KeyModifiers.Control);
+        var redoItem = new MenuItem { Header = "Redo", InputGesture = redoGesture };
         redoItem.Click += (s, args) => TextEditor.Redo();
         contextMenu.Items.Add(redoItem);
 
         contextMenu.Items.Add(new Separator());
 
-        var cutItem = new MenuItem { Header = "Cut", InputGesture = KeyGesture.Parse("Ctrl+X") };
+        var cutItem = new MenuItem { Header = "Cut", InputGesture = GetPlatformGesture(Key.X, KeyModifiers.Control) };
         cutItem.Click += (s, args) => TextEditor.Cut();
         contextMenu.Items.Add(cutItem);
 
-        var copyItem = new MenuItem { Header = "Copy", InputGesture = KeyGesture.Parse("Ctrl+C") };
+        var copyItem = new MenuItem { Header = "Copy", InputGesture = GetPlatformGesture(Key.C, KeyModifiers.Control) };
         copyItem.Click += (s, args) => TextEditor.Copy();
         contextMenu.Items.Add(copyItem);
 
-        var pasteItem = new MenuItem { Header = "Paste", InputGesture = KeyGesture.Parse("Ctrl+V") };
+        var pasteItem = new MenuItem { Header = "Paste", InputGesture = GetPlatformGesture(Key.V, KeyModifiers.Control) };
         pasteItem.Click += (s, args) => TextEditor.Paste();
         contextMenu.Items.Add(pasteItem);
 
         contextMenu.Items.Add(new Separator());
 
-        var selectAllItem = new MenuItem { Header = "Select All", InputGesture = KeyGesture.Parse("Ctrl+A") };
+        var selectAllItem = new MenuItem { Header = "Select All", InputGesture = GetPlatformGesture(Key.A, KeyModifiers.Control) };
         selectAllItem.Click += (s, args) => TextEditor.SelectAll();
         contextMenu.Items.Add(selectAllItem);
+    }
+
+    /// <summary>
+    /// Gets a platform-appropriate KeyGesture - uses Cmd on macOS, Ctrl on other platforms.
+    /// </summary>
+    private static KeyGesture GetPlatformGesture(Key key, KeyModifiers modifiers)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            // Convert Ctrl to Meta (Cmd) on macOS
+            if (modifiers.HasFlag(KeyModifiers.Control))
+            {
+                modifiers = (modifiers & ~KeyModifiers.Control) | KeyModifiers.Meta;
+            }
+        }
+        return new KeyGesture(key, modifiers);
     }
 
     private string? GetWordAtCursor()
@@ -842,19 +863,38 @@ public partial class WriteDialog : Window
     {
         base.OnKeyDown(e);
 
+        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        var cmdOrCtrl = isMac ? KeyModifiers.Meta : KeyModifiers.Control;
+
         if (e.Key == Key.Escape)
         {
             Cancel_Click(this, new RoutedEventArgs());
             e.Handled = true;
         }
-        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Enter)
+        // Cmd+Enter (Mac) or Ctrl+Enter (Win/Linux): OK
+        else if (e.KeyModifiers == cmdOrCtrl && e.Key == Key.Enter)
         {
             Ok_Click(this, new RoutedEventArgs());
             e.Handled = true;
         }
-        else if (e.Key == Key.F3)
+        // Cmd+F (Mac) or Ctrl+F (Win/Linux): Find
+        else if (e.KeyModifiers == cmdOrCtrl && e.Key == Key.F)
         {
-            if (e.KeyModifiers == KeyModifiers.Shift)
+            Find_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        // Cmd+Alt+F (Mac) or Ctrl+H (Win/Linux): Find and Replace
+        else if ((isMac && e.KeyModifiers == (KeyModifiers.Meta | KeyModifiers.Alt) && e.Key == Key.F) ||
+                 (!isMac && e.KeyModifiers == KeyModifiers.Control && e.Key == Key.H))
+        {
+            FindReplace_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        // Cmd+G / Cmd+Shift+G (Mac) or F3 / Shift+F3 (Win/Linux): Find Next/Previous
+        else if (e.Key == Key.F3 ||
+                 (isMac && e.Key == Key.G && e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
+        {
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
                 FindPrevious_Click(this, new RoutedEventArgs());
             else
                 FindNext_Click(this, new RoutedEventArgs());

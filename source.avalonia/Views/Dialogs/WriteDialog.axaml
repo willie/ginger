@@ -12,14 +12,14 @@
         <!-- Menu Bar -->
         <Menu Grid.Row="0">
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" Click="Undo_Click" InputGesture="Ctrl+Z"/>
-                <MenuItem Header="_Redo" Click="Redo_Click" InputGesture="Ctrl+Y"/>
+                <MenuItem Header="_Undo" Click="Undo_Click" InputGesture="{OnPlatform 'Ctrl+Z', macOS='⌘+Z'}"/>
+                <MenuItem Header="_Redo" Click="Redo_Click" InputGesture="{OnPlatform 'Ctrl+Y', macOS='⌘+Shift+Z'}"/>
                 <Separator/>
-                <MenuItem Header="Cu_t" Click="Cut_Click" InputGesture="Ctrl+X"/>
-                <MenuItem Header="_Copy" Click="Copy_Click" InputGesture="Ctrl+C"/>
-                <MenuItem Header="_Paste" Click="Paste_Click" InputGesture="Ctrl+V"/>
+                <MenuItem Header="Cu_t" Click="Cut_Click" InputGesture="{OnPlatform 'Ctrl+X', macOS='⌘+X'}"/>
+                <MenuItem Header="_Copy" Click="Copy_Click" InputGesture="{OnPlatform 'Ctrl+C', macOS='⌘+C'}"/>
+                <MenuItem Header="_Paste" Click="Paste_Click" InputGesture="{OnPlatform 'Ctrl+V', macOS='⌘+V'}"/>
                 <Separator/>
-                <MenuItem Header="Select _All" Click="SelectAll_Click" InputGesture="Ctrl+A"/>
+                <MenuItem Header="Select _All" Click="SelectAll_Click" InputGesture="{OnPlatform 'Ctrl+A', macOS='⌘+A'}"/>
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Word Wrap" x:Name="WordWrapMenuItem" Click="WordWrap_Click">
@@ -53,10 +53,10 @@
                 <MenuItem Header="_Change Font..." Click="ChangeFont_Click"/>
             </MenuItem>
             <MenuItem Header="_Search">
-                <MenuItem Header="_Find..." Click="Find_Click" InputGesture="Ctrl+F"/>
-                <MenuItem Header="Find _Next" Click="FindNext_Click" InputGesture="F3"/>
-                <MenuItem Header="Find _Previous" Click="FindPrevious_Click" InputGesture="Shift+F3"/>
-                <MenuItem Header="Find and _Replace..." Click="FindReplace_Click" InputGesture="Ctrl+H"/>
+                <MenuItem Header="_Find..." Click="Find_Click" InputGesture="{OnPlatform 'Ctrl+F', macOS='⌘+F'}"/>
+                <MenuItem Header="Find _Next" Click="FindNext_Click" InputGesture="{OnPlatform 'F3', macOS='⌘+G'}"/>
+                <MenuItem Header="Find _Previous" Click="FindPrevious_Click" InputGesture="{OnPlatform 'Shift+F3', macOS='⌘+Shift+G'}"/>
+                <MenuItem Header="Find and _Replace..." Click="FindReplace_Click" InputGesture="{OnPlatform 'Ctrl+H', macOS='⌘+Alt+F'}"/>
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="Swap _Pronouns..." Click="SwapPronouns_Click"/>

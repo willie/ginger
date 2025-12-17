@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
@@ -9,6 +10,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ginger.Models;
 using Ginger.ViewModels;
+using Ginger.Views.Controls;
 
 namespace Ginger.Views;
 
@@ -37,40 +39,84 @@ public partial class MainWindow : Window
 
     private void OnFocusMatchRequested(object? sender, MainViewModel.SearchMatch match)
     {
-        // Use dispatcher to ensure UI is updated before focusing
-        Dispatcher.UIThread.Post(() => FocusMatch(match), DispatcherPriority.Background);
+        // Use dispatcher with delay to ensure UI is fully updated (expanders expanded, controls loaded)
+        Dispatcher.UIThread.Post(async () =>
+        {
+            // Small delay to let expanders animate and content load
+            await Task.Delay(100);
+            FocusMatch(match);
+        }, DispatcherPriority.Background);
     }
 
     private void FocusMatch(MainViewModel.SearchMatch match)
     {
+        switch (match.Location)
+        {
+            case MainViewModel.SearchLocation.RecipeContent:
+                FocusRecipeMatch(match);
+                break;
+            case MainViewModel.SearchLocation.LorebookContent:
+                FocusLorebookMatch(match);
+                break;
+            case MainViewModel.SearchLocation.Notes:
+                FocusNotesMatch(match);
+                break;
+        }
+    }
+
+    private void FocusNotesMatch(MainViewModel.SearchMatch match)
+    {
+        var notesTextBox = this.FindControl<HighlightedTextBox>("NotesTextBox");
+        if (notesTextBox != null)
+        {
+            notesTextBox.BringIntoView();
+            notesTextBox.FocusAndSelect(match.StartPosition, match.Length);
+        }
+    }
+
+    private void FocusRecipeMatch(MainViewModel.SearchMatch match)
+    {
         var recipeList = this.FindControl<ItemsControl>("RecipeList");
         if (recipeList == null) return;
 
-        // Get recipe container
-        var recipeContainer = recipeList.ContainerFromIndex(match.RecipeIndex);
-        if (recipeContainer == null) return;
+        var container = recipeList.ContainerFromIndex(match.Index);
+        if (container == null) return;
 
-        // Scroll into view
-        (recipeContainer as Control)?.BringIntoView();
+        (container as Control)?.BringIntoView();
 
-        // Find the Expander (recipe panel), then parameters ItemsControl, then the specific TextBox
-        var expander = FindDescendant<Expander>(recipeContainer);
+        // Find the Expander, then find the HighlightedTextBox for Content within it
+        var expander = FindDescendant<Expander>(container);
         if (expander == null) return;
 
-        // Find the parameters ItemsControl within the expander
-        var paramsControl = FindDescendant<ItemsControl>(expander);
-        if (paramsControl == null) return;
+        // The Content HighlightedTextBox is a direct child of the Expander's content StackPanel
+        var highlightedTextBox = FindDescendant<HighlightedTextBox>(expander);
+        if (highlightedTextBox != null)
+        {
+            highlightedTextBox.BringIntoView();
+            highlightedTextBox.FocusAndSelect(match.StartPosition, match.Length);
+        }
+    }
 
-        var paramContainer = paramsControl.ContainerFromIndex(match.ParameterIndex);
-        if (paramContainer == null) return;
+    private void FocusLorebookMatch(MainViewModel.SearchMatch match)
+    {
+        var lorebookList = this.FindControl<ItemsControl>("LorebookList");
+        if (lorebookList == null) return;
 
-        var textBox = FindDescendant<TextBox>(paramContainer);
-        if (textBox == null) return;
+        var container = lorebookList.ContainerFromIndex(match.Index);
+        if (container == null) return;
 
-        textBox.BringIntoView();
-        textBox.Focus();
-        textBox.SelectionStart = match.StartPosition;
-        textBox.SelectionEnd = match.StartPosition + match.Length;
+        (container as Control)?.BringIntoView();
+
+        // Find the Expander, then find the HighlightedTextBox for Content within it
+        var expander = FindDescendant<Expander>(container);
+        if (expander == null) return;
+
+        var highlightedTextBox = FindDescendant<HighlightedTextBox>(expander);
+        if (highlightedTextBox != null)
+        {
+            highlightedTextBox.BringIntoView();
+            highlightedTextBox.FocusAndSelect(match.StartPosition, match.Length);
+        }
     }
 
     private static T? FindDescendant<T>(object? parent) where T : class
@@ -111,21 +157,7 @@ public partial class MainWindow : Window
             }
             e.Handled = true;
         }
-        // Ctrl+U: Push Changes (Linked Save)
-        else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.U)
-        {
-            if (vm.PushChangesCommand.CanExecute(null))
-                vm.PushChangesCommand.Execute(null);
-            e.Handled = true;
-        }
-        // Ctrl+Shift+U: Pull Changes
-        else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.U)
-        {
-            if (vm.PullChangesCommand.CanExecute(null))
-                vm.PullChangesCommand.Execute(null);
-            e.Handled = true;
-        }
-        // F5 is already mapped via menu InputGesture
+        // Ctrl+U, Ctrl+Shift+U, F5 are handled via Window.KeyBindings
         // Ctrl+Tab: Switch view tabs
         else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Tab)
         {
