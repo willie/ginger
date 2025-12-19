@@ -746,12 +746,12 @@ public partial class WriteDialog : Window
         if (TextEditor.SelectionLength > 0)
             dialog.FindText = TextEditor.SelectedText;
 
-        dialog.OnFindNext = (findText, replaceText, matchCase, wholeWord) =>
+        dialog.OnFindNext = (findText, replaceText, matchCase, wholeWord, _) =>
         {
             FindText(findText, matchCase, wholeWord, false);
         };
 
-        dialog.OnReplace = (findText, replaceText, matchCase, wholeWord) =>
+        dialog.OnReplace = (findText, replaceText, matchCase, wholeWord, _) =>
         {
             // Replace current selection if it matches
             if (TextEditor.SelectionLength > 0)
@@ -768,7 +768,7 @@ public partial class WriteDialog : Window
             FindText(findText, matchCase, wholeWord, false);
         };
 
-        dialog.OnReplaceAll = (findText, replaceText, matchCase, wholeWord) =>
+        dialog.OnReplaceAll = (findText, replaceText, matchCase, wholeWord, _) =>
         {
             var text = TextEditor.Text ?? "";
             var replacements = FindReplace.Replace(

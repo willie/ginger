@@ -129,11 +129,31 @@ public class DialogService
     }
 
     /// <summary>
-    /// Show the find/replace dialog.
+    /// Show the find dialog (modeless).
     /// </summary>
-    public void ShowFindReplaceDialog(Action<string, string, bool, bool>? onFind = null,
-        Action<string, string, bool, bool>? onReplace = null,
-        Action<string, string, bool, bool>? onReplaceAll = null,
+    public void ShowFindDialog(
+        Action<string, bool, bool>? onFind = null,
+        Action<Action<string>>? onDialogOpened = null)
+    {
+        var window = GetMainWindow();
+        if (window == null) return;
+
+        var dialog = new Views.Dialogs.FindDialog();
+        dialog.OnFind = onFind;
+
+        // Provide a way for the caller to update dialog status
+        onDialogOpened?.Invoke(status => dialog.SetStatus(status));
+
+        dialog.Show(window);
+    }
+
+    /// <summary>
+    /// Show the find/replace dialog (modeless).
+    /// </summary>
+    public void ShowFindReplaceDialog(
+        Action<string, string, bool, bool, bool>? onFind = null,
+        Action<string, string, bool, bool, bool>? onReplace = null,
+        Action<string, string, bool, bool, bool>? onReplaceAll = null,
         Action<Action<string>>? onDialogOpened = null)
     {
         var window = GetMainWindow();

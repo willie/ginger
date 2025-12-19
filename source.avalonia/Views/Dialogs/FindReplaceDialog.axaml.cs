@@ -49,19 +49,19 @@ public partial class FindReplaceDialog : Window
     }
 
     /// <summary>
-    /// Callback for Find Next: (searchText, replaceText, matchCase, wholeWord)
+    /// Callback for Find Next: (searchText, replaceText, matchCase, wholeWord, includeLorebooks)
     /// </summary>
-    public Action<string, string, bool, bool>? OnFindNext { get; set; }
+    public Action<string, string, bool, bool, bool>? OnFindNext { get; set; }
 
     /// <summary>
-    /// Callback for Replace: (searchText, replaceText, matchCase, wholeWord)
+    /// Callback for Replace: (searchText, replaceText, matchCase, wholeWord, includeLorebooks)
     /// </summary>
-    public Action<string, string, bool, bool>? OnReplace { get; set; }
+    public Action<string, string, bool, bool, bool>? OnReplace { get; set; }
 
     /// <summary>
-    /// Callback for Replace All: (searchText, replaceText, matchCase, wholeWord)
+    /// Callback for Replace All: (searchText, replaceText, matchCase, wholeWord, includeLorebooks)
     /// </summary>
-    public Action<string, string, bool, bool>? OnReplaceAll { get; set; }
+    public Action<string, string, bool, bool, bool>? OnReplaceAll { get; set; }
 
     public string FindText
     {
@@ -87,6 +87,12 @@ public partial class FindReplaceDialog : Window
         set => WholeWordCheckBox.IsChecked = value;
     }
 
+    public bool IncludeLorebooks
+    {
+        get => IncludeLorebooksCheckBox.IsChecked ?? true;
+        set => IncludeLorebooksCheckBox.IsChecked = value;
+    }
+
     public void SetStatus(string message)
     {
         StatusText.Text = message;
@@ -100,7 +106,7 @@ public partial class FindReplaceDialog : Window
             return;
         }
 
-        OnFindNext?.Invoke(FindText, ReplaceText, MatchCase, WholeWord);
+        OnFindNext?.Invoke(FindText, ReplaceText, MatchCase, WholeWord, IncludeLorebooks);
     }
 
     private void ReplaceButton_Click(object? sender, RoutedEventArgs e)
@@ -111,7 +117,7 @@ public partial class FindReplaceDialog : Window
             return;
         }
 
-        OnReplace?.Invoke(FindText, ReplaceText, MatchCase, WholeWord);
+        OnReplace?.Invoke(FindText, ReplaceText, MatchCase, WholeWord, IncludeLorebooks);
     }
 
     private void ReplaceAllButton_Click(object? sender, RoutedEventArgs e)
@@ -122,7 +128,7 @@ public partial class FindReplaceDialog : Window
             return;
         }
 
-        OnReplaceAll?.Invoke(FindText, ReplaceText, MatchCase, WholeWord);
+        OnReplaceAll?.Invoke(FindText, ReplaceText, MatchCase, WholeWord, IncludeLorebooks);
     }
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)

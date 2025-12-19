@@ -2,12 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Ginger.Views.Dialogs.FindDialog"
         Title="Find"
-        Width="380" Height="160"
+        Width="380" Height="180"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         CanResize="False">
 
-    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto">
         <!-- Search Text -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,12">
             <TextBlock Text="Find:" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -15,15 +15,20 @@
         </Grid>
 
         <!-- Options -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16" Margin="0,0,0,16">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16" Margin="0,0,0,12">
             <CheckBox x:Name="MatchCaseCheckBox" Content="Match case"/>
             <CheckBox x:Name="WholeWordCheckBox" Content="Whole word"/>
         </StackPanel>
 
         <!-- Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="Find" Width="80" Click="Find_Click" IsDefault="True"/>
-            <Button Content="Cancel" Width="80" Click="Cancel_Click" IsCancel="True"/>
+            <Button Content="⟨ Previous" Width="90" Click="FindPrevious_Click"/>
+            <Button Content="Next ⟩" Width="90" Click="FindNext_Click" IsDefault="True"/>
+            <Button Content="Close" Width="70" Click="Close_Click" IsCancel="True"/>
         </StackPanel>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="3" x:Name="StatusText" Margin="0,8,0,0"
+                   Opacity="0.7" FontSize="12"/>
     </Grid>
 </Window>

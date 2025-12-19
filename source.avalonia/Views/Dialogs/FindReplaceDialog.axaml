@@ -35,6 +35,9 @@
                       Content="Match case"/>
             <CheckBox x:Name="WholeWordCheckBox"
                       Content="Whole word"/>
+            <CheckBox x:Name="IncludeLorebooksCheckBox"
+                      Content="Include lorebooks"
+                      IsChecked="True"/>
         </StackPanel>
 
         <!-- Buttons -->

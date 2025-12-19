@@ -1,10 +1,25 @@
+using System;
+using System.Runtime.InteropServices;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 
 namespace Ginger.Views.Dialogs;
 
 public partial class FindDialog : Window
 {
+    private bool _isReverse;
+
+    /// <summary>
+    /// Callback for Find: (searchText, matchCase, wholeWord)
+    /// The reverse direction is handled by FindPrevious button.
+    /// Used for modeless operation.
+    /// </summary>
+    public Action<string, bool, bool>? OnFind { get; set; }
+
+    /// <summary>
+    /// True if user clicked Find (for modal usage).
+    /// </summary>
     public bool DialogResult { get; private set; }
 
     public string Match
@@ -36,10 +51,52 @@ public partial class FindDialog : Window
         WholeWordCheckBox.IsChecked = AppSettings.User.FindWholeWords;
     }
 
-    private void Find_Click(object? sender, RoutedEventArgs e)
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        FindTextBox.Focus();
+        FindTextBox.SelectAll();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        var cmdOrCtrl = isMac ? KeyModifiers.Meta : KeyModifiers.Control;
+
+        // Cmd+G / F3: Find Next
+        if ((isMac && e.KeyModifiers == cmdOrCtrl && e.Key == Key.G) ||
+            (!isMac && e.Key == Key.F3 && e.KeyModifiers == KeyModifiers.None))
+        {
+            FindNext_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        // Cmd+Shift+G / Shift+F3: Find Previous
+        else if ((isMac && e.KeyModifiers == (cmdOrCtrl | KeyModifiers.Shift) && e.Key == Key.G) ||
+                 (!isMac && e.Key == Key.F3 && e.KeyModifiers == KeyModifiers.Shift))
+        {
+            FindPrevious_Click(this, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        // Cmd+W / Ctrl+W: Close
+        else if (e.KeyModifiers == cmdOrCtrl && e.Key == Key.W)
+        {
+            Close();
+            e.Handled = true;
+        }
+    }
+
+    public void SetStatus(string message)
+    {
+        StatusText.Text = message;
+    }
+
+    private void DoFind(bool reverse)
     {
         if (string.IsNullOrWhiteSpace(Match))
         {
+            SetStatus("Enter text to find.");
             FindTextBox.Focus();
             return;
         }
@@ -49,13 +106,25 @@ public partial class FindDialog : Window
         AppSettings.User.FindMatchCase = MatchCase;
         AppSettings.User.FindWholeWords = WholeWord;
 
+        _isReverse = reverse;
         DialogResult = true;
-        Close();
+
+        // For modeless operation, invoke callback
+        OnFind?.Invoke(Match, MatchCase, WholeWord);
     }
 
-    private void Cancel_Click(object? sender, RoutedEventArgs e)
+    private void FindNext_Click(object? sender, RoutedEventArgs e)
     {
-        DialogResult = false;
+        DoFind(reverse: false);
+    }
+
+    private void FindPrevious_Click(object? sender, RoutedEventArgs e)
+    {
+        DoFind(reverse: true);
+    }
+
+    private void Close_Click(object? sender, RoutedEventArgs e)
+    {
         Close();
     }
 }

@@ -3555,77 +3555,33 @@ public partial class MainViewModel : ObservableObject
     // Event to update find dialog status
     public event Action<string>? FindStatusUpdated;
 
-    // Find bar properties
-    [ObservableProperty]
-    private bool _isFindBarVisible;
-
-    [ObservableProperty]
-    private string _findBarText = "";
-
-    [ObservableProperty]
-    private bool _findBarMatchCase;
-
-    [ObservableProperty]
-    private bool _findBarWholeWord;
-
-    [ObservableProperty]
-    private string _findBarStatus = "";
-
     [RelayCommand]
     private void Find()
     {
-        // Toggle find bar visibility
-        IsFindBarVisible = !IsFindBarVisible;
-        if (IsFindBarVisible)
-        {
-            // Load saved settings
-            FindBarText = AppSettings.User.FindMatch ?? "";
-            FindBarMatchCase = AppSettings.User.FindMatchCase;
-            FindBarWholeWord = AppSettings.User.FindWholeWords;
-        }
+        // Show Find dialog
+        Action<string>? dialogStatusUpdater = null;
+
+        _dialogService.ShowFindDialog(
+            onFind: (search, matchCase, wholeWord) =>
+            {
+                // Store search params for Find Next/Previous
+                _lastSearchTerm = search;
+                _lastSearchMatchCase = matchCase;
+                _lastSearchWholeWord = wholeWord;
+
+                // Find and navigate to first match
+                PerformFind(search, matchCase, wholeWord);
+            },
+            onDialogOpened: (statusUpdater) =>
+            {
+                dialogStatusUpdater = statusUpdater;
+                FindStatusUpdated += (status) => statusUpdater(status);
+            }
+        );
     }
 
     [RelayCommand]
-    private void CloseFindBar()
-    {
-        IsFindBarVisible = false;
-        FindBarStatus = "";
-    }
-
-    [RelayCommand]
-    private void FindBarSearch()
-    {
-        if (string.IsNullOrWhiteSpace(FindBarText))
-            return;
-
-        // Save settings
-        AppSettings.User.FindMatch = FindBarText;
-        AppSettings.User.FindMatchCase = FindBarMatchCase;
-        AppSettings.User.FindWholeWords = FindBarWholeWord;
-
-        // Store search params for Find Next/Previous
-        _lastSearchTerm = FindBarText;
-        _lastSearchMatchCase = FindBarMatchCase;
-        _lastSearchWholeWord = FindBarWholeWord;
-
-        // Perform search
-        PerformFind(FindBarText, FindBarMatchCase, FindBarWholeWord);
-
-        // Update find bar status
-        if (_searchMatches.Count > 0)
-            FindBarStatus = $"{_currentMatchIndex + 1} of {_searchMatches.Count}";
-        else
-            FindBarStatus = "No matches";
-    }
-
-    partial void OnFindBarTextChanged(string value)
-    {
-        // Clear status when text changes
-        FindBarStatus = "";
-    }
-
-    [RelayCommand]
-    private void FindReplace() => ShowFindDialog(findOnly: false);
+    private void FindReplace() => ShowFindReplaceDialog();
 
     [RelayCommand]
     private void FindNext()
@@ -3641,7 +3597,6 @@ public partial class MainViewModel : ObservableObject
 
         _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
         NavigateToCurrentMatch();
-        UpdateFindBarStatus();
     }
 
     [RelayCommand]
@@ -3658,23 +3613,14 @@ public partial class MainViewModel : ObservableObject
 
         _currentMatchIndex = (_currentMatchIndex - 1 + _searchMatches.Count) % _searchMatches.Count;
         NavigateToCurrentMatch();
-        UpdateFindBarStatus();
     }
 
-    private void UpdateFindBarStatus()
-    {
-        if (_searchMatches.Count > 0)
-            FindBarStatus = $"{_currentMatchIndex + 1} of {_searchMatches.Count}";
-        else
-            FindBarStatus = "";
-    }
-
-    private void ShowFindDialog(bool findOnly)
+    private void ShowFindReplaceDialog()
     {
         Action<string>? dialogStatusUpdater = null;
 
         _dialogService.ShowFindReplaceDialog(
-            onFind: (search, replace, matchCase, wholeWord) =>
+            onFind: (search, replace, matchCase, wholeWord, includeLorebooks) =>
             {
                 // Store search params for Find Next/Previous
                 _lastSearchTerm = search;
@@ -3682,12 +3628,12 @@ public partial class MainViewModel : ObservableObject
                 _lastSearchWholeWord = wholeWord;
 
                 // Find and navigate to first match
-                PerformFind(search, matchCase, wholeWord);
+                PerformFind(search, matchCase, wholeWord, includeLorebooks);
             },
-            onReplace: (search, replace, matchCase, wholeWord) =>
+            onReplace: (search, replace, matchCase, wholeWord, includeLorebooks) =>
             {
-                // Replace all occurrences (same as Replace All button)
-                int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                // Replace current and find next
+                int count = PerformReplaceAll(search, replace, matchCase, wholeWord, includeLorebooks);
                 string statusMsg;
                 if (count > 0)
                 {
@@ -3700,9 +3646,9 @@ public partial class MainViewModel : ObservableObject
                 StatusMessage = statusMsg;
                 dialogStatusUpdater?.Invoke(statusMsg);
             },
-            onReplaceAll: (search, replace, matchCase, wholeWord) =>
+            onReplaceAll: (search, replace, matchCase, wholeWord, includeLorebooks) =>
             {
-                int count = PerformReplaceAll(search, replace, matchCase, wholeWord);
+                int count = PerformReplaceAll(search, replace, matchCase, wholeWord, includeLorebooks);
                 string statusMsg;
                 if (count > 0)
                 {
@@ -3751,7 +3697,7 @@ public partial class MainViewModel : ObservableObject
         return count;
     }
 
-    private void PerformFind(string search, bool matchCase, bool wholeWord)
+    private void PerformFind(string search, bool matchCase, bool wholeWord, bool includeLorebooks = true)
     {
         _searchMatches.Clear();
         _currentMatchIndex = -1;
@@ -3784,28 +3730,31 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        // Search Lorebook Content fields
-        for (int l = 0; l < LorebookEntries.Count; l++)
+        // Search Lorebook Content fields (if enabled)
+        if (includeLorebooks)
         {
-            var entry = LorebookEntries[l];
-            if (string.IsNullOrEmpty(entry.Content))
-                continue;
-
-            int[]? positions = wholeWord
-                ? Utility.FindWholeWords(entry.Content, search, comparison)
-                : Utility.FindWords(entry.Content, search, comparison);
-
-            if (positions != null)
+            for (int l = 0; l < LorebookEntries.Count; l++)
             {
-                foreach (int pos in positions)
+                var entry = LorebookEntries[l];
+                if (string.IsNullOrEmpty(entry.Content))
+                    continue;
+
+                int[]? positions = wholeWord
+                    ? Utility.FindWholeWords(entry.Content, search, comparison)
+                    : Utility.FindWords(entry.Content, search, comparison);
+
+                if (positions != null)
                 {
-                    _searchMatches.Add(new SearchMatch
+                    foreach (int pos in positions)
                     {
-                        Location = SearchLocation.LorebookContent,
-                        Index = l,
-                        StartPosition = pos,
-                        Length = search.Length
-                    });
+                        _searchMatches.Add(new SearchMatch
+                        {
+                            Location = SearchLocation.LorebookContent,
+                            Index = l,
+                            StartPosition = pos,
+                            Length = search.Length
+                        });
+                    }
                 }
             }
         }
@@ -3884,9 +3833,9 @@ public partial class MainViewModel : ObservableObject
         FocusMatchRequested?.Invoke(this, match);
     }
 
-    private int PerformReplaceAll(string search, string replace, bool matchCase, bool wholeWord)
+    private int PerformReplaceAll(string search, string replace, bool matchCase, bool wholeWord, bool includeLorebooks = true)
     {
-        return Ginger.FindReplace.Replace(Current.AllRecipes, search, replace, wholeWord, !matchCase, bIncludeLorebooks: true);
+        return Ginger.FindReplace.Replace(Current.AllRecipes, search, replace, wholeWord, !matchCase, bIncludeLorebooks: includeLorebooks);
     }
 
     [RelayCommand]
