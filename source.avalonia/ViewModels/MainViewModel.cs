@@ -3562,15 +3562,48 @@ public partial class MainViewModel : ObservableObject
         Action<string>? dialogStatusUpdater = null;
 
         _dialogService.ShowFindDialog(
-            onFind: (search, matchCase, wholeWord) =>
+            onFindNext: (search, matchCase, wholeWord) =>
             {
-                // Store search params for Find Next/Previous
-                _lastSearchTerm = search;
-                _lastSearchMatchCase = matchCase;
-                _lastSearchWholeWord = wholeWord;
-
-                // Find and navigate to first match
-                PerformFind(search, matchCase, wholeWord);
+                // Check if this is the same search - if so, navigate to next
+                if (search == _lastSearchTerm && matchCase == _lastSearchMatchCase &&
+                    wholeWord == _lastSearchWholeWord && _searchMatches.Count > 0)
+                {
+                    // Same search, navigate to next match
+                    _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
+                    NavigateToCurrentMatch();
+                }
+                else
+                {
+                    // New search or parameters changed
+                    _lastSearchTerm = search;
+                    _lastSearchMatchCase = matchCase;
+                    _lastSearchWholeWord = wholeWord;
+                    PerformFind(search, matchCase, wholeWord);
+                }
+            },
+            onFindPrevious: (search, matchCase, wholeWord) =>
+            {
+                // Check if this is the same search - if so, navigate to previous
+                if (search == _lastSearchTerm && matchCase == _lastSearchMatchCase &&
+                    wholeWord == _lastSearchWholeWord && _searchMatches.Count > 0)
+                {
+                    // Same search, navigate to previous match
+                    _currentMatchIndex = (_currentMatchIndex - 1 + _searchMatches.Count) % _searchMatches.Count;
+                    NavigateToCurrentMatch();
+                }
+                else
+                {
+                    // New search or parameters changed - search first, then navigate to last
+                    _lastSearchTerm = search;
+                    _lastSearchMatchCase = matchCase;
+                    _lastSearchWholeWord = wholeWord;
+                    PerformFind(search, matchCase, wholeWord);
+                    if (_searchMatches.Count > 0)
+                    {
+                        _currentMatchIndex = _searchMatches.Count - 1;
+                        NavigateToCurrentMatch();
+                    }
+                }
             },
             onDialogOpened: (statusUpdater) =>
             {

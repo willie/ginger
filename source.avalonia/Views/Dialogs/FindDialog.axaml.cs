@@ -11,11 +11,16 @@ public partial class FindDialog : Window
     private bool _isReverse;
 
     /// <summary>
-    /// Callback for Find: (searchText, matchCase, wholeWord)
-    /// The reverse direction is handled by FindPrevious button.
+    /// Callback for Find Next: (searchText, matchCase, wholeWord)
     /// Used for modeless operation.
     /// </summary>
-    public Action<string, bool, bool>? OnFind { get; set; }
+    public Action<string, bool, bool>? OnFindNext { get; set; }
+
+    /// <summary>
+    /// Callback for Find Previous: (searchText, matchCase, wholeWord)
+    /// Used for modeless operation.
+    /// </summary>
+    public Action<string, bool, bool>? OnFindPrevious { get; set; }
 
     /// <summary>
     /// True if user clicked Find (for modal usage).
@@ -109,8 +114,11 @@ public partial class FindDialog : Window
         _isReverse = reverse;
         DialogResult = true;
 
-        // For modeless operation, invoke callback
-        OnFind?.Invoke(Match, MatchCase, WholeWord);
+        // For modeless operation, invoke appropriate callback
+        if (reverse)
+            OnFindPrevious?.Invoke(Match, MatchCase, WholeWord);
+        else
+            OnFindNext?.Invoke(Match, MatchCase, WholeWord);
     }
 
     private void FindNext_Click(object? sender, RoutedEventArgs e)

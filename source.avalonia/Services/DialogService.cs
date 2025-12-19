@@ -132,14 +132,16 @@ public class DialogService
     /// Show the find dialog (modeless).
     /// </summary>
     public void ShowFindDialog(
-        Action<string, bool, bool>? onFind = null,
+        Action<string, bool, bool>? onFindNext = null,
+        Action<string, bool, bool>? onFindPrevious = null,
         Action<Action<string>>? onDialogOpened = null)
     {
         var window = GetMainWindow();
         if (window == null) return;
 
         var dialog = new Views.Dialogs.FindDialog();
-        dialog.OnFind = onFind;
+        dialog.OnFindNext = onFindNext;
+        dialog.OnFindPrevious = onFindPrevious;
 
         // Provide a way for the caller to update dialog status
         onDialogOpened?.Invoke(status => dialog.SetStatus(status));
