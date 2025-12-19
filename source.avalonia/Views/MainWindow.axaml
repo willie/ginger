@@ -378,6 +378,44 @@
             </MenuItem>
         </Menu>
 
+        <!-- Find Bar -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                Padding="8,6"
+                IsVisible="{Binding IsFindBarVisible}">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="Find:" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                <TextBox Grid.Column="1" Text="{Binding FindBarText, Mode=TwoWay}"
+                         Watermark="Search text..."
+                         MinWidth="200" MaxWidth="400"
+                         FontSize="12"
+                         x:Name="FindBarTextBox">
+                    <TextBox.KeyBindings>
+                        <KeyBinding Gesture="Enter" Command="{Binding FindBarSearchCommand}"/>
+                        <KeyBinding Gesture="Escape" Command="{Binding CloseFindBarCommand}"/>
+                    </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="2" Content="⟨" ToolTip.Tip="Previous (⌘+Shift+G)"
+                        Command="{Binding FindPreviousCommand}"
+                        Margin="8,0,0,0" Padding="8,4" FontSize="14"/>
+                <Button Grid.Column="3" Content="⟩" ToolTip.Tip="Next (⌘+G)"
+                        Command="{Binding FindNextCommand}"
+                        Margin="4,0,0,0" Padding="8,4" FontSize="14"/>
+                <CheckBox Grid.Column="4" Content="Match case" IsChecked="{Binding FindBarMatchCase}"
+                          Margin="12,0,0,0" VerticalAlignment="Center" FontSize="11"/>
+                <CheckBox Grid.Column="5" Content="Whole word" IsChecked="{Binding FindBarWholeWord}"
+                          Margin="8,0,0,0" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock Grid.Column="6" Text="{Binding FindBarStatus}"
+                           VerticalAlignment="Center" Margin="12,0,0,0" FontSize="11"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                <Button Grid.Column="7" Content="✕" ToolTip.Tip="Close (Escape)"
+                        Command="{Binding CloseFindBarCommand}"
+                        Margin="8,0,0,0" Padding="6,2" FontSize="12"/>
+            </Grid>
+        </Border>
+
         <!-- Status Bar -->
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
                 Padding="12,4" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">

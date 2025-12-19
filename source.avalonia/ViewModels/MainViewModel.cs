@@ -3555,8 +3555,74 @@ public partial class MainViewModel : ObservableObject
     // Event to update find dialog status
     public event Action<string>? FindStatusUpdated;
 
+    // Find bar properties
+    [ObservableProperty]
+    private bool _isFindBarVisible;
+
+    [ObservableProperty]
+    private string _findBarText = "";
+
+    [ObservableProperty]
+    private bool _findBarMatchCase;
+
+    [ObservableProperty]
+    private bool _findBarWholeWord;
+
+    [ObservableProperty]
+    private string _findBarStatus = "";
+
     [RelayCommand]
-    private void Find() => ShowFindDialog(findOnly: true);
+    private void Find()
+    {
+        // Toggle find bar visibility
+        IsFindBarVisible = !IsFindBarVisible;
+        if (IsFindBarVisible)
+        {
+            // Load saved settings
+            FindBarText = AppSettings.User.FindMatch ?? "";
+            FindBarMatchCase = AppSettings.User.FindMatchCase;
+            FindBarWholeWord = AppSettings.User.FindWholeWords;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseFindBar()
+    {
+        IsFindBarVisible = false;
+        FindBarStatus = "";
+    }
+
+    [RelayCommand]
+    private void FindBarSearch()
+    {
+        if (string.IsNullOrWhiteSpace(FindBarText))
+            return;
+
+        // Save settings
+        AppSettings.User.FindMatch = FindBarText;
+        AppSettings.User.FindMatchCase = FindBarMatchCase;
+        AppSettings.User.FindWholeWords = FindBarWholeWord;
+
+        // Store search params for Find Next/Previous
+        _lastSearchTerm = FindBarText;
+        _lastSearchMatchCase = FindBarMatchCase;
+        _lastSearchWholeWord = FindBarWholeWord;
+
+        // Perform search
+        PerformFind(FindBarText, FindBarMatchCase, FindBarWholeWord);
+
+        // Update find bar status
+        if (_searchMatches.Count > 0)
+            FindBarStatus = $"{_currentMatchIndex + 1} of {_searchMatches.Count}";
+        else
+            FindBarStatus = "No matches";
+    }
+
+    partial void OnFindBarTextChanged(string value)
+    {
+        // Clear status when text changes
+        FindBarStatus = "";
+    }
 
     [RelayCommand]
     private void FindReplace() => ShowFindDialog(findOnly: false);
@@ -3575,6 +3641,7 @@ public partial class MainViewModel : ObservableObject
 
         _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
         NavigateToCurrentMatch();
+        UpdateFindBarStatus();
     }
 
     [RelayCommand]
@@ -3591,6 +3658,15 @@ public partial class MainViewModel : ObservableObject
 
         _currentMatchIndex = (_currentMatchIndex - 1 + _searchMatches.Count) % _searchMatches.Count;
         NavigateToCurrentMatch();
+        UpdateFindBarStatus();
+    }
+
+    private void UpdateFindBarStatus()
+    {
+        if (_searchMatches.Count > 0)
+            FindBarStatus = $"{_currentMatchIndex + 1} of {_searchMatches.Count}";
+        else
+            FindBarStatus = "";
     }
 
     private void ShowFindDialog(bool findOnly)

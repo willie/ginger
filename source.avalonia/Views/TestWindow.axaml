@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        x:Class="Ginger.Views.TestWindow"
+        Title="Colorizer Test"
+        Width="600" Height="400">
+    <Grid RowDefinitions="Auto,*">
+        <Button Grid.Row="0" Content="Add Colorizer" Click="OnAddColorizer" HorizontalAlignment="Left" Margin="5"/>
+        <ae:TextEditor x:Name="Editor"
+                       Grid.Row="1"
+                       FontFamily="Consolas,Menlo,Monospace"
+                       FontSize="14"
+                       Background="White"
+                       ShowLineNumbers="True"
+                       HorizontalScrollBarVisibility="Auto"
+                       VerticalScrollBarVisibility="Auto"/>
+    </Grid>
+</Window>

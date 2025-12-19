@@ -8,7 +8,7 @@ Ginger is an application for creating and editing AI character cards. It support
 
 **Two implementations exist:**
 - `source/` - Original Windows Forms (.NET Framework 4.6)
-- `source.avalonia/` - Cross-platform Avalonia port (.NET 9) with 100% feature parity
+- `source.avalonia/` - Cross-platform Avalonia port (.NET 8) with 100% feature parity
 
 ## Build Commands
 
@@ -58,7 +58,7 @@ Uses MVVM pattern with CommunityToolkit.Mvvm.
 - **Utility/** - Core business logic ported from original
 
 ### Dependencies
-- Avalonia 11.2.1, Avalonia.AvaloniaEdit, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp, Newtonsoft.Json, YamlDotNet
+- Avalonia 11.3.0, Avalonia.AvaloniaEdit 11.3.0, AvaloniaEdit.TextMate 11.3.0, CommunityToolkit.Mvvm, Microsoft.Data.Sqlite, WeCantSpell.Hunspell, SkiaSharp, Newtonsoft.Json, YamlDotNet
 
 ## Original Windows Forms Architecture (`source/src/`)
 
@@ -116,3 +116,16 @@ The Avalonia port directly reuses original code wherever possible. Many `Utility
 - Do not write new code; check existing code first and modify from there
 - Use original WinForms code (`source/src/`) when possible; copy and adapt rather than rewriting
 - The Avalonia port has 100% feature parity with the original
+
+## AvaloniaEdit Setup (CRITICAL)
+
+**AvaloniaEdit requires its theme styles to be loaded in App.axaml:**
+
+```xml
+<Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+</Application.Styles>
+```
+
+Without this StyleInclude, TextEditor controls will have zero bounds, VisualLinesValid will always be False, and DocumentColorizingTransformer.ColorizeLine() will never be called. See [`docs/AVALONIAEDIT_HIGHLIGHT_ATTEMPTS.md`](docs/AVALONIAEDIT_HIGHLIGHT_ATTEMPTS.md) for the full debugging history.

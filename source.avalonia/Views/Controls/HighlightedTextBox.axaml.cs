@@ -6,6 +6,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
 using AvaloniaEdit;
+using AvaloniaEdit.Rendering;
 using Ginger.Services;
 
 namespace Ginger.Views.Controls;
@@ -19,6 +20,8 @@ public partial class HighlightedTextBox : UserControl
     private bool _isUpdatingText;
     private GingerSyntaxColorizer? _colorizer;
     private TextEditor? _textEditor;
+    private Border? _highlightRect;
+    private bool _colorizerInitialized;
 
     #region Styled Properties
 
@@ -105,17 +108,17 @@ public partial class HighlightedTextBox : UserControl
         base.OnLoaded(e);
 
         _textEditor = this.FindControl<TextEditor>("TextEditor");
+        _highlightRect = this.FindControl<Border>("HighlightRect");
+
         if (_textEditor == null)
             return;
 
         // Wire up TextEditor events
         _textEditor.TextChanged += OnTextEditorTextChanged;
+        _textEditor.AttachedToVisualTree += OnEditorAttachedToVisualTree;
 
         // Apply initial properties
         ApplyPropertiesToEditor();
-
-        // Initialize syntax highlighting
-        InitializeSyntaxHighlighting();
 
         // Set initial text
         if (!string.IsNullOrEmpty(Text) && _textEditor.Text != Text)
@@ -127,6 +130,13 @@ public partial class HighlightedTextBox : UserControl
 
         // Subscribe to name changes
         SyntaxHighlightBroadcaster.NamesChanged += OnNamesChanged;
+
+        // Subscribe to visual lines changes to detect when rendering starts
+        _textEditor.TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
+
+        // Initialize syntax highlighting if control is visible
+        // The colorizer only works when visual lines can be constructed
+        TryInitializeColorizer();
     }
 
     protected override void OnUnloaded(Avalonia.Interactivity.RoutedEventArgs e)
@@ -139,7 +149,25 @@ public partial class HighlightedTextBox : UserControl
         if (_textEditor != null)
         {
             _textEditor.TextChanged -= OnTextEditorTextChanged;
+            _textEditor.AttachedToVisualTree -= OnEditorAttachedToVisualTree;
+            _textEditor.TextArea.TextView.VisualLinesChanged -= OnVisualLinesChanged;
         }
+    }
+
+    private void OnVisualLinesChanged(object? sender, EventArgs e)
+    {
+        var valid = _textEditor?.TextArea.TextView.VisualLinesValid ?? false;
+
+        // If visual lines just became valid and we haven't colorized yet, do it now
+        if (valid && !_colorizerInitialized)
+        {
+            TryInitializeColorizer();
+        }
+    }
+
+    private void OnEditorAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        TryInitializeColorizer();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -162,16 +190,33 @@ public partial class HighlightedTextBox : UserControl
         {
             UpdateHighlightingState();
         }
+        else if (change.Property == IsVisibleProperty)
+        {
+            // When control becomes visible, try to initialize colorizer
+            if (change.GetNewValue<bool>())
+            {
+                TryInitializeColorizer();
+            }
+        }
     }
 
-    private void InitializeSyntaxHighlighting()
+    private void TryInitializeColorizer()
     {
-        if (_textEditor == null || !EnableHighlighting)
+        if (_colorizerInitialized || _textEditor == null || !EnableHighlighting || !IsVisible)
             return;
 
         _colorizer = new GingerSyntaxColorizer();
         UpdateCharacterNames();
+
         _textEditor.TextArea.TextView.LineTransformers.Add(_colorizer);
+        _colorizerInitialized = true;
+
+        // Force a redraw to apply highlighting - defer to ensure layout is complete
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _textEditor?.TextArea.TextView.Redraw();
+            _textEditor?.TextArea.TextView.InvalidateVisual();
+        }, Avalonia.Threading.DispatcherPriority.Background);
     }
 
     private void UpdateHighlightingState()
@@ -181,12 +226,13 @@ public partial class HighlightedTextBox : UserControl
 
         if (EnableHighlighting && _colorizer == null)
         {
-            InitializeSyntaxHighlighting();
+            TryInitializeColorizer();
         }
         else if (!EnableHighlighting && _colorizer != null)
         {
             _textEditor.TextArea.TextView.LineTransformers.Remove(_colorizer);
             _colorizer = null;
+            _colorizerInitialized = false;
         }
 
         _textEditor.TextArea.TextView.Redraw();
@@ -220,6 +266,12 @@ public partial class HighlightedTextBox : UserControl
         _isUpdatingText = true;
         SetCurrentValue(TextProperty, _textEditor.Text ?? "");
         _isUpdatingText = false;
+
+        // Try to initialize colorizer when text changes (control might now be visible)
+        if (!_colorizerInitialized && EnableHighlighting)
+        {
+            TryInitializeColorizer();
+        }
     }
 
     private void OnTextPropertyChanged(string newValue)
@@ -248,26 +300,50 @@ public partial class HighlightedTextBox : UserControl
     }
 
     /// <summary>
-    /// Focus the text editor and highlight a range of text.
+    /// Scroll to and highlight a range of text using Canvas overlay (works without focus).
     /// </summary>
     public void FocusAndSelect(int start = 0, int length = 0)
     {
-        if (_textEditor == null)
+        if (_textEditor == null || _highlightRect == null)
             return;
 
         var text = _textEditor.Text ?? "";
+
         if (length > 0 && start >= 0 && start + length <= text.Length)
         {
-            // Scroll to make the position visible
+            // Scroll to make the highlight visible
             var location = _textEditor.Document.GetLocation(start);
             _textEditor.ScrollTo(location.Line, location.Column);
 
-            // Set caret and use TextArea.Selection for highlighting
-            _textEditor.TextArea.Caret.Offset = start;
-            _textEditor.TextArea.Selection = AvaloniaEdit.Editing.Selection.Create(_textEditor.TextArea, start, start + length);
+            // Get visual position of the text range using Canvas overlay
+            var textView = _textEditor.TextArea.TextView;
+            var document = _textEditor.Document;
 
-            // Force focus to show selection
-            _textEditor.TextArea.Focus();
+            var startPos = textView.GetVisualPosition(
+                new AvaloniaEdit.TextViewPosition(document.GetLocation(start)),
+                VisualYPosition.LineTop);
+
+            var endPos = textView.GetVisualPosition(
+                new AvaloniaEdit.TextViewPosition(document.GetLocation(start + length)),
+                VisualYPosition.LineBottom);
+
+            // Position the highlight rectangle
+            Canvas.SetLeft(_highlightRect, startPos.X);
+            Canvas.SetTop(_highlightRect, startPos.Y);
+            _highlightRect.Width = endPos.X - startPos.X;
+            _highlightRect.Height = endPos.Y - startPos.Y;
+            _highlightRect.IsVisible = true;
+        }
+    }
+
+    /// <summary>
+    /// Clear any search highlight.
+    /// </summary>
+    public void ClearSearchHighlight()
+    {
+        if (_highlightRect != null)
+        {
+            _highlightRect.IsVisible = false;
         }
     }
 
